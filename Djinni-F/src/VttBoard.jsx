@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Stage, Layer, Circle, Text } from 'react-konva';
-
+import axios from 'axios';
 export default function VttBoard() {
     // Estado para la posición de la ficha
     const [tokenPos, setTokenPos] = useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
@@ -24,9 +24,20 @@ export default function VttBoard() {
                         setTokenPos({ x: e.target.x(), y: e.target.y() });
                         console.log("Nueva posición:", e.target.x(), e.target.y());
                         // Aquí en el futuro avisaremos a Symfony del movimiento
+                        const newX = e.target.x();
+                        const newY = e.target.y();
+                        setTokenPos({ x: newX, y: newY });
+
+                        // Enviar a Symfony
+                        axios.post('http://127.0.0.1:8000/api/mover-token', {
+                            x: newX,
+                            y: newY
+                        }).then(response => console.log("Symfony guardó el movimiento!"));
                     }}
                 />
             </Layer>
+
         </Stage>
+
     );
 }
