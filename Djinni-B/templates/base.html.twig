@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Djinni VTT{% endblock %}</title>
+    <link rel="icon"
+          href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>🧞</text></svg>">
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap"
+          rel="stylesheet"/>
+    <!-- Specific font for the mystical logo feeling as per description -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&amp;display=swap"
+          rel="stylesheet"/>
+    <!-- Material Symbols -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet"/>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet"/>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec5b",
+                        "background-light": "#f6f8f6",
+                        "background-dark": "#102216",
+                        "primary-dark": "#0fa841",
+                        "djinni-purple": "#1a0b2e", // Deep purple as requested
+                        "djinni-gold": "#d4af37", // Muted gold for dividers
+                    },
+                    fontFamily: {
+                        "display": ["Lexend", "sans-serif"],
+                        "mystical": ["Cinzel Decorative", "serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                    boxShadow: {
+                        "glow": "0 0 15px rgba(19, 236, 91, 0.4)",
+                        "glow-hover": "0 0 25px rgba(19, 236, 91, 0.6)",
+                    }
+                },
+            },
+        }
+    </script>
+    {% block stylesheets %}
+    {% endblock %}
+
+    {% block javascripts %}
+        {% block importmap %}{{ importmap('app') }}{% endblock %}
+    {% endblock %}
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen text-slate-900 dark:text-white flex flex-col pt-20 ">
+<header
+    class="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 dark:border-[#23482f] bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md transition-all duration-300">
+    <div class="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
+        <!-- Logo Section -->
+        <div class="flex items-center gap-3 group cursor-pointer">
+            <!-- Stylized Lamp Logo -->
+            <div
+                class="relative size-10 flex items-center justify-center text-primary transition-transform group-hover:scale-110 duration-300">
+                <div
+                    class="absolute inset-0 bg-primary/20 rounded-full blur-md opacity-50 group-hover:opacity-80 transition-opacity"></div>
+                <svg class="relative z-10 w-8 h-8" fill="none" viewbox="0 0 24 24"
+                     xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M19 8C20.6569 8 22 9.34315 22 11C22 12.6569 20.6569 14 19 14H18V18C18 19.1046 17.1046 20 16 20H4C2.89543 20 2 19.1046 2 18V11C2 9.89543 2.89543 9 4 9H6.17071C6.58254 9 6.96327 8.78368 7.1691 8.4237L7.76442 7.3821C8.35974 6.3405 9.46091 5.71509 10.6517 5.71509H12.5C13.8807 5.71509 15 6.83438 15 8.21509V8H19ZM4 11V18H16V14H6V11H4ZM14 12V10H10V12H14Z"
+                        fill="currentColor"></path>
+                    <path
+                        d="M13 2C13 2.55228 12.5523 3 12 3C11.4477 3 11 2.55228 11 2C11 1.44772 11.4477 1 12 1C12.5523 1 13 1.44772 13 2Z"
+                        fill="currentColor"></path>
+                    <path
+                        d="M16 4C16 4.55228 15.5523 5 15 5C14.4477 5 14 4.55228 14 4C14 3.44772 14.4477 3 15 3C15.5523 3 16 3.44772 16 4Z"
+                        fill="currentColor" opacity="0.5"></path>
+                </svg>
+            </div>
+            <!-- Wordmark -->
+            <h1 class="font-mystical text-2xl tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400 dark:from-white dark:via-gray-200 dark:to-gray-400 drop-shadow-sm select-none">
+                Djinni
+            </h1>
+        </div>
+        <!-- Navigation Links -->
+        <nav class="hidden md:flex items-center gap-1">
+            <a class="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group"
+               href="#">
+                Games
+                <span
+                    class="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+            </a>
+            <a class="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group"
+               href="#">
+                Library
+                <span
+                    class="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+            </a>
+            <a class="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group"
+               href="#">
+                Marketplace
+                <span
+                    class="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+            </a>
+            <a class="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group"
+               href="#">
+                Community
+                <span
+                    class="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+            </a>
+        </nav>
+        <!-- User Actions -->
+        <div class="flex items-center gap-5">
+            <!-- Create Game Button -->
+            <button
+                class="hidden sm:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
+                <span class="material-symbols-outlined text-[20px] font-bold">add_circle</span>
+                <span>Create Game</span>
+            </button>
+            <!-- Notifications -->
+            <button aria-label="Notifications"
+                    class="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23482f] hover:text-primary dark:hover:text-white transition-colors group">
+                <span class="material-symbols-outlined text-[24px]">notifications</span>
+                <span
+                    class="absolute top-2 right-2.5 size-2 bg-primary rounded-full ring-2 ring-white dark:ring-[#102216]"></span>
+            </button>
+            <!-- Profile Dropdown Trigger -->
+            <div class="relative group">
+                <button class="flex items-center gap-2 focus:outline-none">
+                    <div class="relative">
+                        <div
+                            class="size-10 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors">
+                            <img alt="Profile picture of user with glasses" class="w-full h-full object-cover"
+                                 data-alt="User avatar showing a person with glasses"
+                                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuAr1YKFO6zwoh4ZFkLsX-0m_Rlfoy8T4cMfQwHW7QKPbIo1XgLgYmosYPc1f2UY4qVGKuNTBRgvfgbP2-keomDqPMFyV-SBwfvikDBrfmETfQw1jHLkzKbuYx5df2D4vgK-lYpyNIDbAlNb9Sw7f4iZFeyVmxwqqEJV56SjN4pniCctAZh9ShnSETw1cXC5mYBI6_ulb_Z1krub0ClsV5P9vq9Zd5KgvhvwluPA6TKItGT-ByuloTuDWK9gk99Q-Ldc3IiNYFfyn3Si"/>
+                        </div>
+                        <!-- Online Status Indicator -->
+                        <div
+                            class="absolute bottom-0 right-0 size-3 bg-primary border-2 border-white dark:border-[#102216] rounded-full"></div>
+                    </div>
+                </button>
+            </div>
+            <!-- Mobile Menu Button (visible only on small screens) -->
+            <button class="md:hidden p-2 text-gray-500 dark:text-gray-300 hover:text-primary">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<main class="container">
+    {% block body %}{% endblock %}
+</main>
+
+<footer class="relative w-full bg-background-light dark:bg-background-dark border-t border-primary/20">
+    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+
+    <div class="relative mx-auto max-w-7xl px-6 pb-8 pt-16 sm:pt-24 lg:px-8 lg:pt-32">
+        <div class="xl:grid xl:grid-cols-4 xl:gap-8">
+            <div class="space-y-8 xl:col-span-1">
+                <div class="flex items-center gap-2">
+                    <svg class="relative z-10 w-8 h-8" fill="none" viewbox="0 0 24 24"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M19 8C20.6569 8 22 9.34315 22 11C22 12.6569 20.6569 14 19 14H18V18C18 19.1046 17.1046 20 16 20H4C2.89543 20 2 19.1046 2 18V11C2 9.89543 2.89543 9 4 9H6.17071C6.58254 9 6.96327 8.78368 7.1691 8.4237L7.76442 7.3821C8.35974 6.3405 9.46091 5.71509 10.6517 5.71509H12.5C13.8807 5.71509 15 6.83438 15 8.21509V8H19ZM4 11V18H16V14H6V11H4ZM14 12V10H10V12H14Z"
+                            fill="currentColor"></path>
+                        <path
+                            d="M13 2C13 2.55228 12.5523 3 12 3C11.4477 3 11 2.55228 11 2C11 1.44772 11.4477 1 12 1C12.5523 1 13 1.44772 13 2Z"
+                            fill="currentColor"></path>
+                        <path
+                            d="M16 4C16 4.55228 15.5523 5 15 5C14.4477 5 14 4.55228 14 4C14 3.44772 14.4477 3 15 3C15.5523 3 16 3.44772 16 4Z"
+                            fill="currentColor" opacity="0.5"></path>
+                    </svg>
+                    <span class="text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">Djinni</span>
+                </div>
+                <p class="text-sm leading-6 text-gray-600 dark:text-gray-400">
+                    Forging worlds, one pixel at a time. The ultimate VTT for modern adventurers. Roll dice, slay
+                    dragons, and build legends.
+                </p>
+                <div class="flex space-x-6">
+                    <a class="text-gray-400 hover:text-primary transition-colors" href="#">
+                        <span class="sr-only">Facebook</span>
+                        <span class="material-symbols-outlined">public</span>
+                    </a>
+                    <a class="text-gray-400 hover:text-primary transition-colors" href="#">
+                        <span class="sr-only">Instagram</span>
+                        <span class="material-symbols-outlined">photo_camera</span>
+                    </a>
+                    <a class="text-gray-400 hover:text-primary transition-colors" href="#">
+                        <span class="sr-only">Twitter</span>
+                        <span class="material-symbols-outlined">alternate_email</span>
+                    </a>
+                    <a class="text-gray-400 hover:text-primary transition-colors" href="#">
+                        <span class="sr-only">GitHub</span>
+                        <span class="material-symbols-outlined">code</span>
+                    </a>
+                    <a class="text-gray-400 hover:text-primary transition-colors" href="#">
+                        <span class="sr-only">YouTube</span>
+                        <span class="material-symbols-outlined">smart_display</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 xl:col-span-3 xl:mt-0">
+                <div>
+                    <h3 class="text-sm font-bold leading-6 text-primary uppercase tracking-wider">Platform</h3>
+                    <ul class="mt-6 space-y-4" role="list">
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Download App</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Web Browser</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">System Requirements</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Release Notes</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-bold leading-6 text-primary uppercase tracking-wider">Support</h3>
+                    <ul class="mt-6 space-y-4" role="list">
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Help Center</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Tutorial Videos</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">API Documentation</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Community Forum</a>
+                        </li>
+                        <li>
+                            <a class="text-sm leading-6 text-gray-600 dark:text-gray-400 hover:text-primary transition-colors" href="#">Status</a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="md:col-span-2 lg:col-span-1">
+                    <h3 class="text-sm font-bold leading-6 text-primary uppercase tracking-wider">Stay updated with the arcane</h3>
+                    <p class="mt-4 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                        Join our newsletter for the latest updates, map packs, and feature drops.
+                    </p>
+                    <form class="mt-6 sm:max-w-md lg:max-w-none">
+                        <label class="sr-only" for="email-address">Email address</label>
+                        <div class="flex flex-col gap-2">
+                            <input autocomplete="email"
+                                   class="min-w-0 w-full flex-auto rounded-md border-0 bg-white dark:bg-white/5 px-3.5 py-2 text-slate-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-white/10 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6 placeholder:text-gray-500"
+                                   id="email-address" name="email-address" placeholder="Enter your email"
+                                   required="" type="email"/>
+                            <button
+                                class="flex-none rounded-md bg-primary px-3.5 py-2.5 text-sm font-bold text-background-dark shadow-sm hover:bg-primary-dark hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all uppercase tracking-wide"
+                                type="submit">Subscribe
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-16 border-t border-gray-200 dark:border-white/10 pt-8 sm:mt-20 lg:mt-24">
+            <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
+                <p class="text-xs leading-5 text-gray-500 dark:text-gray-400">© 2023 Djinni VTT. All rights reserved.</p>
+                <div class="flex gap-8">
+                    <a class="text-xs leading-5 text-gray-500 dark:text-gray-400 hover:text-primary transition-colors" href="#">Privacy Policy</a>
+                    <a class="text-xs leading-5 text-gray-500 dark:text-gray-400 hover:text-primary transition-colors" href="#">Terms of Service</a>
+                    <a class="text-xs leading-5 text-gray-500 dark:text-gray-400 hover:text-primary transition-colors" href="#">Cookies</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+</body>
+</html>
