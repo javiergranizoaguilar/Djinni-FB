@@ -1,12 +1,35 @@
 import {useState} from 'react'
 import './App.css'
-import VttBoard from './VttBoard';
+import {BrowserRouter, Route, Router, Routes} from "react-router-dom";
+import VttBoard from "./VttBoard.jsx";
+import MainLayout from "./layout/MainLayout.jsx";
+import Header from "./layout/Header.jsx";
+import Footer from "./layout/Footer.jsx";
+import LoginPage from './LoginPage.jsx';
+import RegisterPage from './RegisterPage';
+
+const PrivateRoute = ({ children }) => {
+    const token = localStorage.getItem('vtt_token');
+    // Si no hay token, te manda al login
+    return token ? children : <Navigate to="/login" />;
+};
 function App() {
     const [count, setCount] = useState(0)
     return (
-        <div style={{margin: 0, padding: 0, overflow: 'hidden'}}>
-            <VttBoard/>
-        </div>
+        <BrowserRouter>
+            <Header/>
+            <Routes>
+                <Route path="/" element={<MainLayout/>}/>
+                <Route path="/login" element={<LoginPage/>} />
+                <Route path="/register" element={<RegisterPage/>} />
+                <Route path="/Games" element={
+                    <PrivateRoute>
+                        <VttBoard />
+                    </PrivateRoute>
+                } />
+            </Routes>
+            <Footer/>
+        </BrowserRouter>
     );
 }
 

@@ -1,0 +1,61 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Spell index{% endblock %}
+
+{% block body %}
+    <h1>Spell index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Level</th>
+                <th>School</th>
+                <th>Description</th>
+                <th>Is_prepared</th>
+                <th>Has_limited_uses</th>
+                <th>Max_charges</th>
+                <th>Current_charges</th>
+                <th>Casting_time</th>
+                <th>Spell_range</th>
+                <th>Components</th>
+                <th>Duration</th>
+                <th>Higer_level_description</th>
+                <th>Recharge_type</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for spell in spells %}
+            <tr>
+                <td>{{ spell.id }}</td>
+                <td>{{ spell.name }}</td>
+                <td>{{ spell.level }}</td>
+                <td>{{ spell.school }}</td>
+                <td>{{ spell.description }}</td>
+                <td>{{ spell.isPrepared ? 'Yes' : 'No' }}</td>
+                <td>{{ spell.hasLimitedUses ? 'Yes' : 'No' }}</td>
+                <td>{{ spell.maxCharges }}</td>
+                <td>{{ spell.currentCharges }}</td>
+                <td>{{ spell.castingTime }}</td>
+                <td>{{ spell.spellRange }}</td>
+                <td>{{ spell.components }}</td>
+                <td>{{ spell.duration }}</td>
+                <td>{{ spell.higerLevelDescription }}</td>
+                <td>{{ spell.rechargeType }}</td>
+                <td>
+                    <a href="{{ path('app_spell_show', {'id': spell.id}) }}">show</a>
+                    <a href="{{ path('app_spell_edit', {'id': spell.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="16">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_spell_new') }}">Create new</a>
+{% endblock %}

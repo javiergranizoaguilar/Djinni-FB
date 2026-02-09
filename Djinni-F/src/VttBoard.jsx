@@ -7,6 +7,7 @@ export default function VttBoard() {
 
     return (
         // Stage es la "Mesa de juego"
+
         <Stage width={window.innerWidth} height={window.innerHeight} style={{ background: '#2c3e50' }}>
             <Layer>
                 <Text text="Arrastra la ficha roja" x={20} y={20} fill="white" fontSize={24} />

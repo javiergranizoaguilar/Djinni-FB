@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Inventory{% endblock %}
+
+{% block body %}
+    <h1>Inventory</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ inventory.id }}</td>
+            </tr>
+            <tr>
+                <th>Quantity</th>
+                <td>{{ inventory.quantity }}</td>
+            </tr>
+            <tr>
+                <th>Is_equipped</th>
+                <td>{{ inventory.isEquipped ? 'Yes' : 'No' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_inventory_index') }}">back to list</a>
+
+    <a href="{{ path('app_inventory_edit', {'id': inventory.id}) }}">edit</a>
+
+    {{ include('inventory/_delete_form.html.twig') }}
+{% endblock %}

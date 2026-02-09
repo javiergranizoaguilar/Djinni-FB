@@ -24,10 +24,6 @@ class GameSesion
     #[ORM\Column]
     private ?\DateTimeImmutable $created_at = null;
 
-    #[ORM\ManyToOne(inversedBy: 'gm')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?User $gm = null;
-
     /**
      * @var Collection<int, User>
      */
@@ -51,6 +47,9 @@ class GameSesion
      */
     #[ORM\OneToMany(targetEntity: CharacterSheet::class, mappedBy: 'gamesesion')]
     private Collection $characterSheets;
+
+    #[ORM\Column]
+    private ?bool $isGm = null;
 
     public function __construct()
     {
@@ -100,19 +99,6 @@ class GameSesion
 
         return $this;
     }
-
-    public function getGm(): ?User
-    {
-        return $this->gm;
-    }
-
-    public function setGm(?User $gm_id): static
-    {
-        $this->gm = $gm_id;
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, User>
      */
@@ -223,6 +209,18 @@ class GameSesion
                 $characterSheet->setGamesesion(null);
             }
         }
+
+        return $this;
+    }
+
+    public function isGm(): ?bool
+    {
+        return $this->isGm;
+    }
+
+    public function setIsGm(bool $isGm): static
+    {
+        $this->isGm = $isGm;
 
         return $this;
     }

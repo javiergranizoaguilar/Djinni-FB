@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New Ability{% endblock %}
+
+{% block body %}
+    <h1>Create new Ability</h1>
+
+    {{ include('ability/_form.html.twig') }}
+
+    <a href="{{ path('app_ability_index') }}">back to list</a>
+{% endblock %}

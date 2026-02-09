@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Attack index{% endblock %}
+
+{% block body %}
+    <h1>Attack index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Damage_dice</th>
+                <th>Damage_type</th>
+                <th>Range_</th>
+                <th>Is_saving_throw</th>
+                <th>Description</th>
+                <th>Attack_modifier</th>
+                <th>Saving_throw_tipe</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for attack in attacks %}
+            <tr>
+                <td>{{ attack.id }}</td>
+                <td>{{ attack.name }}</td>
+                <td>{{ attack.damageDice ? attack.damageDice|json_encode : '' }}</td>
+                <td>{{ attack.damageType ? attack.damageType|json_encode : '' }}</td>
+                <td>{{ attack.range }}</td>
+                <td>{{ attack.isSavingThrow ? 'Yes' : 'No' }}</td>
+                <td>{{ attack.description }}</td>
+                <td>{{ attack.attackModifier }}</td>
+                <td>{{ attack.savingThrowTipe }}</td>
+                <td>
+                    <a href="{{ path('app_attack_show', {'id': attack.id}) }}">show</a>
+                    <a href="{{ path('app_attack_edit', {'id': attack.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="10">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_attack_new') }}">Create new</a>
+{% endblock %}

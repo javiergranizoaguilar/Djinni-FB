@@ -6,9 +6,11 @@ use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-class User
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -36,12 +38,6 @@ class User
     /**
      * @var Collection<int, GameSesion>
      */
-    #[ORM\OneToMany(targetEntity: GameSesion::class, mappedBy: 'gm')]
-    private Collection $gm;
-
-    /**
-     * @var Collection<int, GameSesion>
-     */
     #[ORM\ManyToMany(targetEntity: GameSesion::class, mappedBy: 'player')]
     private Collection $player;
 
@@ -63,9 +59,15 @@ class User
     #[ORM\OneToMany(targetEntity: CharacterSheetUser::class, mappedBy: 'user_id')]
     private Collection $characterSheetUsers;
 
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    // Este también es obligatorio
+
     public function __construct()
     {
-        $this->gm = new ArrayCollection();
         $this->player = new ArrayCollection();
         $this->monsters = new ArrayCollection();
         $this->monsterUsers = new ArrayCollection();
@@ -139,42 +141,14 @@ class User
 
     public function getRoles(): array
     {
-        return $this->roles;
+        $roles = $this->roles;
+        $roles[] = 'ROLE_USER';
+        return array_unique($roles);
     }
 
     public function setRoles(array $roles): static
     {
         $this->roles = $roles;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, GameSesion>
-     */
-    public function getGm(): Collection
-    {
-        return $this->gm;
-    }
-
-    public function addGm(GameSesion $gmId): static
-    {
-        if (!$this->gm->contains($gmId)) {
-            $this->gm->add($gmId);
-            $gmId->setGm($this);
-        }
-
-        return $this;
-    }
-
-    public function removeGm(GameSesion $gmId): static
-    {
-        if ($this->gm->removeElement($gmId)) {
-            // set the owning side to null (unless already changed)
-            if ($gmId->getGm() === $this) {
-                $gmId->setGm(null);
-            }
-        }
 
         return $this;
     }

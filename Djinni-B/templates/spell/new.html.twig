@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New Spell{% endblock %}
+
+{% block body %}
+    <h1>Create new Spell</h1>
+
+    {{ include('spell/_form.html.twig') }}
+
+    <a href="{{ path('app_spell_index') }}">back to list</a>
+{% endblock %}

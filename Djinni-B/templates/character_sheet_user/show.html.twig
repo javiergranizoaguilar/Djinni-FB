@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}CharacterSheetUser{% endblock %}
+
+{% block body %}
+    <h1>CharacterSheetUser</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ character_sheet_user.id }}</td>
+            </tr>
+            <tr>
+                <th>Visible</th>
+                <td>{{ character_sheet_user.visible ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Edit</th>
+                <td>{{ character_sheet_user.edit ? 'Yes' : 'No' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_character_sheet_user_index') }}">back to list</a>
+
+    <a href="{{ path('app_character_sheet_user_edit', {'id': character_sheet_user.id}) }}">edit</a>
+
+    {{ include('character_sheet_user/_delete_form.html.twig') }}
+{% endblock %}
