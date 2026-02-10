@@ -1,6 +1,55 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function Header() {
+    const navigate = useNavigate();
+    const location = useLocation(); // Hook para detectar cambios de ruta
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userAvatar, setUserAvatar] = useState(null);
+
+    // Esta función verifica el token
+    const checkLoginStatus = () => {
+        const token = localStorage.getItem('vtt_token');
+        if (token) {
+            setIsLoggedIn(true);
+            // Aquí podrías cargar el avatar si tuvieras la info
+        } else {
+            setIsLoggedIn(false);
+        }
+    };
+
+    // Ejecutar la verificación cuando el componente se monta Y cuando cambia la ruta (location)
+    useEffect(() => {
+        checkLoginStatus();
+    }, [location]); // <--- La dependencia 'location' hace que se ejecute al navegar
+
+    // También podemos escuchar un evento personalizado si queremos ser más reactivos sin cambiar de ruta
+    useEffect(() => {
+        const handleStorageChange = () => {
+            checkLoginStatus();
+        };
+        
+        // Escuchar cambios en localStorage (solo funciona entre pestañas, pero útil saberlo)
+        window.addEventListener('storage', handleStorageChange);
+        
+        // Escuchar un evento custom que despacharemos al hacer login
+        window.addEventListener('auth-change', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('auth-change', handleStorageChange);
+        };
+    }, []);
+
+    const handleLogout = () => {
+        localStorage.removeItem('vtt_token');
+        // Despachar evento para notificar a otros componentes si fuera necesario
+        window.dispatchEvent(new Event('auth-change'));
+        setIsLoggedIn(false);
+        navigate('/login');
+    };
+
     return (
         <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 dark:border-[#23482f] bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md transition-all duration-300">
             <div className="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
@@ -21,37 +70,64 @@ export default function Header() {
 
                 {/* Navigation Links */}
                 <nav className="hidden md:flex items-center gap-1">
-                    {['Games','Character','Monster','login'].map((item) => (
+                    {['Games','Character','Monster'].map((item) => (
                         <Link key={item} to={`/${item.toLowerCase()}`} className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
                             {item}
                             <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
                         </Link>
                     ))}
+                    
+                    {!isLoggedIn && (
+                        <>
+                            <Link to="/login" className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
+                                Login
+                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            </Link>
+                            <Link to="/register" className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
+                                Register
+                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            </Link>
+                        </>
+                    )}
+                    
+                    {isLoggedIn && (
+                        <button onClick={handleLogout} className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors group">
+                            Logout
+                            <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-red-500 rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                        </button>
+                    )}
                 </nav>
 
                 {/* User Actions */}
                 <div className="flex items-center gap-5">
-                    <button className="hidden sm:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
-                        <span className="material-symbols-outlined text-[20px] font-bold">add_circle</span>
-                        <span>Create Game</span>
-                    </button>
+                    {isLoggedIn && (
+                        <>
+                            <button className="hidden sm:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
+                                <span className="material-symbols-outlined text-[20px] font-bold">add_circle</span>
+                                <span>Create Game</span>
+                            </button>
 
-                    <button aria-label="Notifications" className="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23482f] hover:text-primary dark:hover:text-white transition-colors group">
-                        <span className="material-symbols-outlined text-[24px]">notifications</span>
-                        <span className="absolute top-2 right-2.5 size-2 bg-primary rounded-full ring-2 ring-white dark:ring-[#102216]"></span>
-                    </button>
+                            <button aria-label="Notifications" className="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23482f] hover:text-primary dark:hover:text-white transition-colors group">
+                                <span className="material-symbols-outlined text-[24px]">notifications</span>
+                                <span className="absolute top-2 right-2.5 size-2 bg-primary rounded-full ring-2 ring-white dark:ring-[#102216]"></span>
+                            </button>
 
-                    <div className="relative group">
-                        <button className="flex items-center gap-2 focus:outline-none">
-                            <div className="relative">
-                                <div className="size-10 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors bg-gray-200">
-                                    {/* Nota: He puesto un placeholder porque la URL de google original podría no funcionar siempre */}
-                                    <img alt="User avatar" className="w-full h-full object-cover" src="https://ui-avatars.com/api/?name=User&background=random" />
-                                </div>
-                                <div className="absolute bottom-0 right-0 size-3 bg-primary border-2 border-white dark:border-[#102216] rounded-full"></div>
+                            <div className="relative group">
+                                <button className="flex items-center gap-2 focus:outline-none">
+                                    <div className="relative">
+                                        <div className="size-10 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors bg-gray-200">
+                                            <img 
+                                                alt="User avatar" 
+                                                className="w-full h-full object-cover" 
+                                                src={userAvatar || "https://ui-avatars.com/api/?name=User&background=random"} 
+                                            />
+                                        </div>
+                                        <div className="absolute bottom-0 right-0 size-3 bg-primary border-2 border-white dark:border-[#102216] rounded-full"></div>
+                                    </div>
+                                </button>
                             </div>
-                        </button>
-                    </div>
+                        </>
+                    )}
                 </div>
             </div>
         </header>

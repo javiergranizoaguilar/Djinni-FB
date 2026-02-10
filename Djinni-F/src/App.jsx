@@ -5,8 +5,8 @@ import VttBoard from "./VttBoard.jsx";
 import MainLayout from "./layout/MainLayout.jsx";
 import Header from "./layout/Header.jsx";
 import Footer from "./layout/Footer.jsx";
-import LoginPage from './LoginPage.jsx';
-import RegisterPage from './RegisterPage';
+import LoginPage from './control_user/LoginPage.jsx';
+import RegisterPage from './control_user/RegisterPage.jsx';
 
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('vtt_token');

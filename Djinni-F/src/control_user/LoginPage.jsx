@@ -22,6 +22,9 @@ export default function LoginPage() {
             // Si es correcto, Symfony devuelve un token. Lo guardamos.
             const token = response.data.token;
             localStorage.setItem('vtt_token', token);
+            
+            // Despachamos un evento personalizado para avisar al Header que el estado de autenticación cambió
+            window.dispatchEvent(new Event('auth-change'));
 
             console.log("Login exitoso, token guardado");
 
