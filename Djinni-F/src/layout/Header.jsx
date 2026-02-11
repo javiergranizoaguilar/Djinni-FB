@@ -1,12 +1,13 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import CreateGameModal from './CreateGameModal';
 
 export default function Header() {
     const navigate = useNavigate();
     const location = useLocation(); // Hook para detectar cambios de ruta
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userAvatar, setUserAvatar] = useState(null);
+    const [showCreateGameModal, setShowCreateGameModal] = useState(false);
 
     // Esta función verifica el token
     const checkLoginStatus = () => {
@@ -48,6 +49,14 @@ export default function Header() {
         window.dispatchEvent(new Event('auth-change'));
         setIsLoggedIn(false);
         navigate('/login');
+    };
+
+    const handleCreateGameClick = () => {
+        setShowCreateGameModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowCreateGameModal(false);
     };
 
     return (
@@ -102,7 +111,7 @@ export default function Header() {
                 <div className="flex items-center gap-5">
                     {isLoggedIn && (
                         <>
-                            <button className="hidden sm:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
+                            <button onClick={handleCreateGameClick} className="hidden sm:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
                                 <span className="material-symbols-outlined text-[20px] font-bold">add_circle</span>
                                 <span>Create Game</span>
                             </button>
@@ -130,6 +139,11 @@ export default function Header() {
                     )}
                 </div>
             </div>
+
+            <CreateGameModal 
+                isOpen={showCreateGameModal} 
+                onClose={handleCloseModal} 
+            />
         </header>
     );
 }
