@@ -44,6 +44,7 @@ class ApiGameSesionController extends AbstractController
         $gameSesion->setTitle($title);
         $gameSesion->setIsActive(true);
         $gameSesion->setCreatedAt(new \DateTimeImmutable());
+        // El token se genera en el constructor
 
         $entityManager->persist($gameSesion);
 
@@ -59,6 +60,7 @@ class ApiGameSesionController extends AbstractController
         return $this->json([
             'id' => $gameSesion->getId(),
             'title' => $gameSesion->getTitle(),
+            'invitation_token' => $gameSesion->getInvitationToken(),
             'message' => 'Game session created successfully'
         ], 201);
     }
@@ -85,9 +87,57 @@ class ApiGameSesionController extends AbstractController
                 'is_active' => $session->isActive(),
                 'created_at' => $session->getCreatedAt()->format('Y-m-d H:i:s'),
                 'is_dm' => $ugs->isDm(),
+                'invitation_token' => $session->getInvitationToken(),
             ];
         }
 
         return $this->json($games);
+    }
+
+    #[Route('/join/{token}', name: 'api_game_sesion_join', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function join(string $token, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+
+        // Buscar la sesión por el token
+        $gameSesion = $entityManager->getRepository(GameSesion::class)->findOneBy(['invitation_token' => $token]);
+
+        if (!$gameSesion) {
+            return $this->json(['error' => 'Invalid invitation token'], 404);
+        }
+
+        // Verificar si el usuario ya está en la partida
+        $existingUserSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
+            'user' => $user,
+            'gameSession' => $gameSesion
+        ]);
+
+        if ($existingUserSession) {
+            return $this->json([
+                'message' => 'You are already in this game',
+                'game_id' => $gameSesion->getId()
+            ], 200);
+        }
+
+        // Añadir al usuario a la partida como jugador (no DM)
+        $userGameSession = new UserGameSession();
+        $userGameSession->setUser($user);
+        $userGameSession->setGameSession($gameSesion);
+        $userGameSession->setIsDm(false);
+
+        $entityManager->persist($userGameSession);
+        $entityManager->flush();
+
+        return $this->json([
+            'message' => 'Joined game successfully',
+            'game_id' => $gameSesion->getId(),
+            'title' => $gameSesion->getTitle()
+        ], 200);
     }
 }

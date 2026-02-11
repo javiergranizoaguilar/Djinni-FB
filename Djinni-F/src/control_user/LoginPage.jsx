@@ -1,12 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const location = useLocation();
+
+    // Detectar si venimos redirigidos por una invitación
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('redirect') === 'join') {
+            // Opcional: Mostrar un mensaje de "Inicia sesión para unirte a la partida"
+        }
+    }, [location]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -28,8 +37,15 @@ export default function LoginPage() {
 
             console.log("Login exitoso, token guardado");
 
-            // Redirigimos al juego
-            navigate('/Games');
+            // Verificar si hay una invitación pendiente
+            const pendingInvitation = localStorage.getItem('pending_invitation_token');
+            if (pendingInvitation) {
+                // Redirigir a la página de join con el token
+                navigate(`/join/${pendingInvitation}`);
+            } else {
+                // Redirigir al listado de juegos normal
+                navigate('/Games');
+            }
 
         } catch (err) {
             console.error(err);

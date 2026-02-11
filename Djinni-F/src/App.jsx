@@ -8,6 +8,7 @@ import Footer from "./layout/Footer.jsx";
 import LoginPage from './control_user/LoginPage.jsx';
 import RegisterPage from './control_user/RegisterPage.jsx';
 import GameList from './layout/GameList.jsx';
+import JoinGamePage from './layout/JoinGamePage.jsx';
 
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('vtt_token');
@@ -33,6 +34,7 @@ function App() {
                         <VttBoard />
                     </PrivateRoute>
                 } />
+                <Route path="/join/:token" element={<JoinGamePage />} />
             </Routes>
             <Footer/>
         </BrowserRouter>

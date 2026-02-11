@@ -24,6 +24,9 @@ class GameSesion
     #[ORM\Column]
     private ?\DateTimeImmutable $created_at = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $invitation_token = null;
+
     /**
      * @var Collection<int, UserGameSession>
      */
@@ -54,6 +57,8 @@ class GameSesion
         $this->scenes = new ArrayCollection();
         $this->monsters = new ArrayCollection();
         $this->characterSheets = new ArrayCollection();
+        // Generar token automáticamente al crear
+        $this->invitation_token = bin2hex(random_bytes(16));
     }
 
     public function getId(): ?int
@@ -93,6 +98,18 @@ class GameSesion
     public function setCreatedAt(\DateTimeImmutable $created_at): static
     {
         $this->created_at = $created_at;
+
+        return $this;
+    }
+
+    public function getInvitationToken(): ?string
+    {
+        return $this->invitation_token;
+    }
+
+    public function setInvitationToken(?string $invitation_token): static
+    {
+        $this->invitation_token = $invitation_token;
 
         return $this;
     }

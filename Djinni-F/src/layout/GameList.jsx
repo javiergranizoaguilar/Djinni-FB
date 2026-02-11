@@ -6,6 +6,7 @@ export default function GameList() {
     const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [copiedId, setCopiedId] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,6 +40,14 @@ export default function GameList() {
         navigate(`/play/${gameId}`); 
     };
 
+    const handleCopyInvite = (token, gameId) => {
+        const inviteLink = `${window.location.origin}/join/${token}`;
+        navigator.clipboard.writeText(inviteLink).then(() => {
+            setCopiedId(gameId);
+            setTimeout(() => setCopiedId(null), 2000);
+        });
+    };
+
     if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24">Cargando partidas...</div>;
     if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
 
@@ -54,17 +63,28 @@ export default function GameList() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {games.map((game) => (
-                        <div key={game.id} className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-[#23482f] hover:shadow-lg transition-shadow duration-300">
-                            <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5 flex items-center justify-center">
+                        <div key={game.id} className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-[#23482f] hover:shadow-lg transition-shadow duration-300 flex flex-col">
+                            <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5 flex items-center justify-center relative">
                                 <span className="material-symbols-outlined text-6xl text-primary/40">casino</span>
+                                {game.is_dm && (
+                                    <button 
+                                        onClick={() => handleCopyInvite(game.invitation_token, game.id)}
+                                        className="absolute top-2 right-2 p-2 bg-white/80 dark:bg-black/50 rounded-full hover:bg-white dark:hover:bg-black/70 transition-colors"
+                                        title="Copiar enlace de invitación"
+                                    >
+                                        <span className="material-symbols-outlined text-sm">
+                                            {copiedId === game.id ? 'check' : 'share'}
+                                        </span>
+                                    </button>
+                                )}
                             </div>
-                            <div className="p-5">
+                            <div className="p-5 flex-grow flex flex-col">
                                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{game.title}</h3>
                                 <div className="flex items-center gap-2 mb-4 text-sm text-gray-600 dark:text-gray-400">
                                     <span className="material-symbols-outlined text-base">calendar_today</span>
                                     <span>{new Date(game.created_at).toLocaleDateString()}</span>
                                 </div>
-                                <div className="flex items-center justify-between mt-4">
+                                <div className="mt-auto flex items-center justify-between">
                                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${game.is_dm ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'}`}>
                                         {game.is_dm ? 'Dungeon Master' : 'Jugador'}
                                     </span>
