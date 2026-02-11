@@ -62,4 +62,32 @@ class ApiGameSesionController extends AbstractController
             'message' => 'Game session created successfully'
         ], 201);
     }
+
+    #[Route('/my-games', name: 'api_game_sesion_my_games', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function myGames(): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+
+        $userGameSessions = $user->getUserGameSessions();
+        $games = [];
+
+        foreach ($userGameSessions as $ugs) {
+            $session = $ugs->getGameSession();
+            $games[] = [
+                'id' => $session->getId(),
+                'title' => $session->getTitle(),
+                'is_active' => $session->isActive(),
+                'created_at' => $session->getCreatedAt()->format('Y-m-d H:i:s'),
+                'is_dm' => $ugs->isDm(),
+            ];
+        }
+
+        return $this->json($games);
+    }
 }
