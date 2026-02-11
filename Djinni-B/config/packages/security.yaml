@@ -43,6 +43,7 @@ security:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
         - { path: ^/api/game/sesion/create, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/avatar, roles: PUBLIC_ACCESS }
+        - { path: ^/uploads/avatars, roles: PUBLIC_ACCESS }
         # - { path: ^/admin, roles: ROLE_ADMIN }
         # - { path: ^/profile, roles: ROLE_USER }
 

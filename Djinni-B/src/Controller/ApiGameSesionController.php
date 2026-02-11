@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\GameSesion;
 use App\Entity\User;
+use App\Entity\UserGameSession;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -43,11 +44,16 @@ class ApiGameSesionController extends AbstractController
         $gameSesion->setTitle($title);
         $gameSesion->setIsActive(true);
         $gameSesion->setCreatedAt(new \DateTimeImmutable());
-        $gameSesion->setIsGm(true);
-
-        $gameSesion->addPlayer($user);
 
         $entityManager->persist($gameSesion);
+
+        // Crear la relación en la tabla intermedia UserGameSession
+        $userGameSession = new UserGameSession();
+        $userGameSession->setUser($user);
+        $userGameSession->setGameSession($gameSesion);
+        $userGameSession->setIsDm(true); // El creador es el DM
+
+        $entityManager->persist($userGameSession);
         $entityManager->flush();
 
         return $this->json([

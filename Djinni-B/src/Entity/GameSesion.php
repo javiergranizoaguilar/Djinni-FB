@@ -25,10 +25,10 @@ class GameSesion
     private ?\DateTimeImmutable $created_at = null;
 
     /**
-     * @var Collection<int, User>
+     * @var Collection<int, UserGameSession>
      */
-    #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'player')]
-    private Collection $player;
+    #[ORM\OneToMany(targetEntity: UserGameSession::class, mappedBy: 'gameSession', orphanRemoval: true)]
+    private Collection $userGameSessions;
 
     /**
      * @var Collection<int, Scene>
@@ -48,12 +48,9 @@ class GameSesion
     #[ORM\OneToMany(targetEntity: CharacterSheet::class, mappedBy: 'gamesesion')]
     private Collection $characterSheets;
 
-    #[ORM\Column]
-    private ?bool $isGm = null;
-
     public function __construct()
     {
-        $this->player = new ArrayCollection();
+        $this->userGameSessions = new ArrayCollection();
         $this->scenes = new ArrayCollection();
         $this->monsters = new ArrayCollection();
         $this->characterSheets = new ArrayCollection();
@@ -99,26 +96,33 @@ class GameSesion
 
         return $this;
     }
+
     /**
-     * @return Collection<int, User>
+     * @return Collection<int, UserGameSession>
      */
-    public function getPlayer(): Collection
+    public function getUserGameSessions(): Collection
     {
-        return $this->player;
+        return $this->userGameSessions;
     }
 
-    public function addPlayer(User $userId): static
+    public function addUserGameSession(UserGameSession $userGameSession): static
     {
-        if (!$this->player->contains($userId)) {
-            $this->player->add($userId);
+        if (!$this->userGameSessions->contains($userGameSession)) {
+            $this->userGameSessions->add($userGameSession);
+            $userGameSession->setGameSession($this);
         }
 
         return $this;
     }
 
-    public function removePlayer(User $userId): static
+    public function removeUserGameSession(UserGameSession $userGameSession): static
     {
-        $this->player->removeElement($userId);
+        if ($this->userGameSessions->removeElement($userGameSession)) {
+            // set the owning side to null (unless already changed)
+            if ($userGameSession->getGameSession() === $this) {
+                $userGameSession->setGameSession(null);
+            }
+        }
 
         return $this;
     }
@@ -209,18 +213,6 @@ class GameSesion
                 $characterSheet->setGamesesion(null);
             }
         }
-
-        return $this;
-    }
-
-    public function isGm(): ?bool
-    {
-        return $this->isGm;
-    }
-
-    public function setIsGm(bool $isGm): static
-    {
-        $this->isGm = $isGm;
 
         return $this;
     }

@@ -18,3 +18,8 @@ nelmio_cors:
             allow_headers: ['*']
             allow_methods: ['GET', 'OPTIONS']
             max_age: 3600
+        '^/uploads/avatars':
+            allow_origin: ['*']
+            allow_headers: ['*']
+            allow_methods: ['GET', 'OPTIONS']
+            max_age: 3600

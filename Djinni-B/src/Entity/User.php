@@ -36,10 +36,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private array $roles = [];
 
     /**
-     * @var Collection<int, GameSesion>
+     * @var Collection<int, UserGameSession>
      */
-    #[ORM\ManyToMany(targetEntity: GameSesion::class, mappedBy: 'player')]
-    private Collection $player;
+    #[ORM\OneToMany(targetEntity: UserGameSession::class, mappedBy: 'user', orphanRemoval: true)]
+    private Collection $userGameSessions;
 
     /**
      * @var Collection<int, Monster>
@@ -68,7 +68,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function __construct()
     {
-        $this->player = new ArrayCollection();
+        $this->userGameSessions = new ArrayCollection();
         $this->monsters = new ArrayCollection();
         $this->monsterUsers = new ArrayCollection();
         $this->characterSheetUsers = new ArrayCollection();
@@ -154,27 +154,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * @return Collection<int, GameSesion>
+     * @return Collection<int, UserGameSession>
      */
-    public function getPlayer(): Collection
+    public function getUserGameSessions(): Collection
     {
-        return $this->player;
+        return $this->userGameSessions;
     }
 
-    public function addPlayer(GameSesion $userId): static
+    public function addUserGameSession(UserGameSession $userGameSession): static
     {
-        if (!$this->player->contains($userId)) {
-            $this->player->add($userId);
-            $userId->addPlayer($this);
+        if (!$this->userGameSessions->contains($userGameSession)) {
+            $this->userGameSessions->add($userGameSession);
+            $userGameSession->setUser($this);
         }
 
         return $this;
     }
 
-    public function removePlayer(GameSesion $userId): static
+    public function removeUserGameSession(UserGameSession $userGameSession): static
     {
-        if ($this->player->removeElement($userId)) {
-            $userId->removePlayer($this);
+        if ($this->userGameSessions->removeElement($userGameSession)) {
+            // set the owning side to null (unless already changed)
+            if ($userGameSession->getUser() === $this) {
+                $userGameSession->setUser(null);
+            }
         }
 
         return $this;

@@ -1,5 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import axios from 'axios';
 import CreateGameModal from './CreateGameModal';
 
 export default function Header() {
@@ -9,14 +10,36 @@ export default function Header() {
     const [userAvatar, setUserAvatar] = useState(null);
     const [showCreateGameModal, setShowCreateGameModal] = useState(false);
 
-    // Esta función verifica el token
-    const checkLoginStatus = () => {
+    // Esta función verifica el token y carga el usuario
+    const checkLoginStatus = async () => {
         const token = localStorage.getItem('vtt_token');
         if (token) {
             setIsLoggedIn(true);
-            // Aquí podrías cargar el avatar si tuvieras la info
+            try {
+                const response = await axios.get('http://localhost:8000/api/user/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (response.data && response.data.avatar_url) {
+                    // Si la URL es relativa (empieza con /uploads), le añadimos el dominio del backend
+                    const avatarUrl = response.data.avatar_url.startsWith('/uploads') 
+                        ? `http://localhost:8000${response.data.avatar_url}`
+                        : response.data.avatar_url;
+                    
+                    setUserAvatar(avatarUrl);
+                } else {
+                    // Si no tiene avatar, null para que use el default
+                    setUserAvatar(null);
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+                // Si el token es inválido, podríamos hacer logout
+                // handleLogout(); 
+            }
         } else {
             setIsLoggedIn(false);
+            setUserAvatar(null);
         }
     };
 
@@ -48,6 +71,7 @@ export default function Header() {
         // Despachar evento para notificar a otros componentes si fuera necesario
         window.dispatchEvent(new Event('auth-change'));
         setIsLoggedIn(false);
+        setUserAvatar(null);
         navigate('/login');
     };
 
