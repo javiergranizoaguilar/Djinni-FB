@@ -67,7 +67,7 @@ class ApiGameSesionController extends AbstractController
 
     #[Route('/my-games', name: 'api_game_sesion_my_games', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function myGames(): JsonResponse
+    public function myGames(EntityManagerInterface $entityManager): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -78,9 +78,17 @@ class ApiGameSesionController extends AbstractController
 
         $userGameSessions = $user->getUserGameSessions();
         $games = [];
+        $needsFlush = false;
 
         foreach ($userGameSessions as $ugs) {
             $session = $ugs->getGameSession();
+
+            // Si la sesión no tiene token (partidas antiguas), generarlo ahora
+            if (!$session->getInvitationToken()) {
+                $session->setInvitationToken(bin2hex(random_bytes(16)));
+                $needsFlush = true;
+            }
+
             $games[] = [
                 'id' => $session->getId(),
                 'title' => $session->getTitle(),
@@ -89,6 +97,10 @@ class ApiGameSesionController extends AbstractController
                 'is_dm' => $ugs->isDm(),
                 'invitation_token' => $session->getInvitationToken(),
             ];
+        }
+
+        if ($needsFlush) {
+            $entityManager->flush();
         }
 
         return $this->json($games);
@@ -139,5 +151,38 @@ class ApiGameSesionController extends AbstractController
             'game_id' => $gameSesion->getId(),
             'title' => $gameSesion->getTitle()
         ], 200);
+    }
+
+    #[Route('/delete/{id}', name: 'api_game_sesion_delete', methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+
+        $gameSesion = $entityManager->getRepository(GameSesion::class)->find($id);
+
+        if (!$gameSesion) {
+            return $this->json(['error' => 'Game session not found'], 404);
+        }
+
+        // Verificar si el usuario es el DM de la partida
+        $userGameSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
+            'user' => $user,
+            'gameSession' => $gameSesion
+        ]);
+
+        if (!$userGameSession || !$userGameSession->isDm()) {
+            return $this->json(['error' => 'You are not authorized to delete this game'], 403);
+        }
+
+        $entityManager->remove($gameSesion);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Game session deleted successfully'], 200);
     }
 }

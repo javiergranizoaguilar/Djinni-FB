@@ -9,31 +9,42 @@ export default function GameList() {
     const [copiedId, setCopiedId] = useState(null);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchGames = async () => {
-            const token = localStorage.getItem('vtt_token');
-            if (!token) {
-                setError('No estás autenticado.');
-                setLoading(false);
-                return;
-            }
+    const fetchGames = async () => {
+        const token = localStorage.getItem('vtt_token');
+        if (!token) {
+            setError('No estás autenticado.');
+            setLoading(false);
+            return;
+        }
 
-            try {
-                const response = await axios.get('http://localhost:8000/api/game/sesion/my-games', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                setGames(response.data);
-            } catch (err) {
-                console.error("Error fetching games:", err);
-                setError('Error al cargar las partidas.');
-            } finally {
-                setLoading(false);
-            }
+        try {
+            const response = await axios.get('http://localhost:8000/api/game/sesion/my-games', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            setGames(response.data);
+        } catch (err) {
+            console.error("Error fetching games:", err);
+            setError('Error al cargar las partidas.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchGames();
+
+        // Escuchar evento de juego creado
+        const handleGameCreated = () => {
+            fetchGames();
         };
 
-        fetchGames();
+        window.addEventListener('game-created', handleGameCreated);
+
+        return () => {
+            window.removeEventListener('game-created', handleGameCreated);
+        };
     }, []);
 
     const handleEnterGame = (gameId) => {
@@ -44,15 +55,37 @@ export default function GameList() {
         const inviteLink = `${window.location.origin}/join/${token}`;
         navigator.clipboard.writeText(inviteLink).then(() => {
             setCopiedId(gameId);
-            setTimeout(() => setCopiedId(null), 2000);
+            setTimeout(() => {
+                setCopiedId(null);
+            }, 2000);
         });
+    };
+
+    const handleDeleteGame = async (gameId) => {
+        if (!window.confirm('¿Estás seguro de que quieres borrar esta partida? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        const token = localStorage.getItem('vtt_token');
+        try {
+            await axios.delete(`http://localhost:8000/api/game/sesion/delete/${gameId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            // Recargar la lista de juegos
+            fetchGames();
+        } catch (err) {
+            console.error("Error deleting game:", err);
+            alert('Error al borrar la partida.');
+        }
     };
 
     if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24">Cargando partidas...</div>;
     if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
 
     return (
-        <div className="container mx-auto p-6 pt-24 min-h-screen">
+        <div className="container mx-auto p-6 pt-24 min-h-screen relative">
             <h2 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100">Mis Partidas</h2>
             
             {games.length === 0 ? (
@@ -67,15 +100,37 @@ export default function GameList() {
                             <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5 flex items-center justify-center relative">
                                 <span className="material-symbols-outlined text-6xl text-primary/40">casino</span>
                                 {game.is_dm && (
-                                    <button 
-                                        onClick={() => handleCopyInvite(game.invitation_token, game.id)}
-                                        className="absolute top-2 right-2 p-2 bg-white/80 dark:bg-black/50 rounded-full hover:bg-white dark:hover:bg-black/70 transition-colors"
-                                        title="Copiar enlace de invitación"
-                                    >
-                                        <span className="material-symbols-outlined text-sm">
-                                            {copiedId === game.id ? 'check' : 'share'}
-                                        </span>
-                                    </button>
+                                    <>
+                                        <div className="absolute top-2 right-2 flex items-center z-10">
+                                            {copiedId === game.id && (
+                                                <span className="mr-2 px-2 py-1 bg-black/80 text-white text-xs font-bold rounded shadow-lg animate-fade-in">
+                                                    ¡Copiado!
+                                                </span>
+                                            )}
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Evitar que el clic se propague si hubiera un onClick en el padre
+                                                    handleCopyInvite(game.invitation_token, game.id);
+                                                }}
+                                                className="p-2.5 bg-white text-gray-800 rounded-full shadow-md hover:bg-gray-100 hover:scale-110 hover:shadow-lg transition-all duration-200 border border-gray-200 group"
+                                                title="Copiar enlace de invitación"
+                                            >
+                                                <span className="material-symbols-outlined text-xl group-hover:text-primary transition-colors">
+                                                    {copiedId === game.id ? 'check' : 'share'}
+                                                </span>
+                                            </button>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteGame(game.id);
+                                            }}
+                                            className="absolute top-2 left-2 p-2.5 bg-white text-red-600 rounded-full shadow-md hover:bg-red-50 hover:scale-110 hover:shadow-lg transition-all duration-200 border border-gray-200 group"
+                                            title="Borrar partida"
+                                        >
+                                            <span className="material-symbols-outlined text-xl">delete</span>
+                                        </button>
+                                    </>
                                 )}
                             </div>
                             <div className="p-5 flex-grow flex flex-col">

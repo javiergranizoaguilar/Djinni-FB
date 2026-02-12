@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
@@ -7,9 +7,13 @@ export default function JoinGamePage() {
     const navigate = useNavigate();
     const [status, setStatus] = useState('checking'); // checking, joining, error, success
     const [message, setMessage] = useState('Verifying invitation...');
+    const hasJoined = useRef(false); // Ref para evitar doble ejecución
 
     useEffect(() => {
         const joinGame = async () => {
+            if (hasJoined.current) return; // Si ya se ejecutó, salir
+            hasJoined.current = true;
+
             const authToken = localStorage.getItem('vtt_token');
 
             // 1. Si no hay usuario logueado, guardar token y redirigir a login

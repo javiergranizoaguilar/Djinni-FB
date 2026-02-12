@@ -30,6 +30,10 @@ export default function CreateGameModal({ isOpen, onClose }) {
             if (response.status === 201) {
                 console.log('Game created:', response.data);
                 setNewGameTitle('');
+                
+                // Despachar evento para notificar que se ha creado un juego
+                window.dispatchEvent(new Event('game-created'));
+
                 onClose();
             }
         } catch (error) {

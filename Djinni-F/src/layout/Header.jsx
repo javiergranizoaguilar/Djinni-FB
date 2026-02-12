@@ -88,7 +88,7 @@ export default function Header() {
             className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 dark:border-[#23482f] bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md transition-all duration-300">
             <div className="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
                 {/* Logo Section */}
-                <Link to="/" className="flex items-center gap-3 group cursor-pointer">
+                <Link to="/Games" className="flex items-center gap-3 group cursor-pointer">
                     <div
                         className="relative size-10 flex items-center justify-center text-primary transition-transform group-hover:scale-110 duration-300">
                         <div
