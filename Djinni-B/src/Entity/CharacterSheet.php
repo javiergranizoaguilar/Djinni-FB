@@ -64,6 +64,9 @@ class CharacterSheet
     #[ORM\Column(nullable: true)]
     private ?array $custom_counters = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $level = null;
+
     /**
      * @var Collection<int, Inventory>
      */
@@ -309,6 +312,18 @@ class CharacterSheet
     public function setCustomCounters(?array $custom_counters): static
     {
         $this->custom_counters = $custom_counters;
+
+        return $this;
+    }
+
+    public function getLevel(): ?array
+    {
+        return $this->level;
+    }
+
+    public function setLevel(?array $level): static
+    {
+        $this->level = $level;
 
         return $this;
     }

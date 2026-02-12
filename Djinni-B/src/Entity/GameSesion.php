@@ -27,6 +27,9 @@ class GameSesion
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $invitation_token = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $img_path = null;
+
     /**
      * @var Collection<int, UserGameSession>
      */
@@ -110,6 +113,18 @@ class GameSesion
     public function setInvitationToken(?string $invitation_token): static
     {
         $this->invitation_token = $invitation_token;
+
+        return $this;
+    }
+
+    public function getImgPath(): ?string
+    {
+        return $this->img_path;
+    }
+
+    public function setImgPath(?string $img_path): static
+    {
+        $this->img_path = $img_path;
 
         return $this;
     }

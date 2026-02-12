@@ -8,10 +8,12 @@ use App\Entity\UserGameSession;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\String\Slugger\SluggerInterface;
 
 #[Route('/api/game/sesion')]
 class ApiGameSesionController extends AbstractController
@@ -96,6 +98,7 @@ class ApiGameSesionController extends AbstractController
                 'created_at' => $session->getCreatedAt()->format('Y-m-d H:i:s'),
                 'is_dm' => $ugs->isDm(),
                 'invitation_token' => $session->getInvitationToken(),
+                'img_path' => $session->getImgPath(),
             ];
         }
 
@@ -184,5 +187,74 @@ class ApiGameSesionController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['message' => 'Game session deleted successfully'], 200);
+    }
+
+    #[Route('/edit/{id}', name: 'api_game_sesion_edit', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function edit(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+
+        $gameSesion = $entityManager->getRepository(GameSesion::class)->find($id);
+
+        if (!$gameSesion) {
+            return $this->json(['error' => 'Game session not found'], 404);
+        }
+
+        // Verificar si el usuario es el DM de la partida
+        $userGameSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
+            'user' => $user,
+            'gameSession' => $gameSesion
+        ]);
+
+        if (!$userGameSession || !$userGameSession->isDm()) {
+            return $this->json(['error' => 'You are not authorized to edit this game'], 403);
+        }
+
+        // Obtener datos del formulario (multipart/form-data)
+        $title = $request->request->get('title');
+        $isActive = $request->request->get('is_active');
+        $imageFile = $request->files->get('image');
+
+        if ($title) {
+            $gameSesion->setTitle($title);
+        }
+
+        if ($isActive !== null) {
+            // Convertir string "true"/"false" o "1"/"0" a booleano
+            $isActiveBool = filter_var($isActive, FILTER_VALIDATE_BOOLEAN);
+            $gameSesion->setIsActive($isActiveBool);
+        }
+
+        if ($imageFile) {
+            $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
+            $safeFilename = $slugger->slug($originalFilename);
+            $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();
+
+            try {
+                $imageFile->move(
+                    $this->getParameter('kernel.project_dir') . '/uploads/game_images',
+                    $newFilename
+                );
+                $gameSesion->setImgPath('/uploads/game_images/' . $newFilename);
+            } catch (FileException $e) {
+                return $this->json(['error' => 'Failed to upload image'], 500);
+            }
+        }
+
+        $entityManager->flush();
+
+        return $this->json([
+            'message' => 'Game session updated successfully',
+            'id' => $gameSesion->getId(),
+            'title' => $gameSesion->getTitle(),
+            'is_active' => $gameSesion->isActive(),
+            'img_path' => $gameSesion->getImgPath()
+        ], 200);
     }
 }

@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import EditGameModal from './EditGameModal';
 
 export default function GameList() {
     const [games, setGames] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedGame, setSelectedGame] = useState(null);
     const navigate = useNavigate();
 
     const fetchGames = async () => {
@@ -49,6 +52,11 @@ export default function GameList() {
 
     const handleEnterGame = (gameId) => {
         navigate(`/play/${gameId}`); 
+    };
+
+    const handleEditGame = (game) => {
+        setSelectedGame(game);
+        setShowEditModal(true);
     };
 
     const handleCopyInvite = (token, gameId) => {
@@ -97,8 +105,17 @@ export default function GameList() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {games.map((game) => (
                         <div key={game.id} className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-[#23482f] hover:shadow-lg transition-shadow duration-300 flex flex-col">
-                            <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5 flex items-center justify-center relative">
-                                <span className="material-symbols-outlined text-6xl text-primary/40">casino</span>
+                            <div className="h-32 bg-gradient-to-r from-primary/20 to-primary/5 flex items-center justify-center relative overflow-hidden">
+                                {game.img_path ? (
+                                    <img 
+                                        src={game.img_path.startsWith('/uploads') ? `http://localhost:8000${game.img_path}` : game.img_path} 
+                                        alt={game.title} 
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="material-symbols-outlined text-6xl text-primary/40">casino</span>
+                                )}
+
                                 {game.is_dm && (
                                     <>
                                         <div className="absolute top-2 right-2 flex items-center z-10">
@@ -139,22 +156,40 @@ export default function GameList() {
                                     <span className="material-symbols-outlined text-base">calendar_today</span>
                                     <span>{new Date(game.created_at).toLocaleDateString()}</span>
                                 </div>
-                                <div className="mt-auto flex items-center justify-between">
+                                <div className="mt-auto flex items-center justify-between gap-2">
                                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${game.is_dm ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'}`}>
                                         {game.is_dm ? 'Dungeon Master' : 'Jugador'}
                                     </span>
-                                    <button 
-                                        onClick={() => handleEnterGame(game.id)}
-                                        className="px-4 py-2 bg-primary text-[#112217] text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors"
-                                    >
-                                        Entrar
-                                    </button>
+                                    <div className="flex gap-2">
+                                        {game.is_dm && (
+                                            <button 
+                                                onClick={() => handleEditGame(game)}
+                                                className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-bold rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                                                title="Ajustes de partida"
+                                            >
+                                                <span className="material-symbols-outlined text-lg align-middle">settings</span>
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => handleEnterGame(game.id)}
+                                            className="px-4 py-2 bg-primary text-[#112217] text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors"
+                                        >
+                                            Entrar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            <EditGameModal 
+                isOpen={showEditModal} 
+                onClose={() => setShowEditModal(false)} 
+                game={selectedGame}
+                onGameUpdated={fetchGames}
+            />
         </div>
     );
 }
