@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import EditGameModal from './EditGameModal.jsx';
+import CreateGameModal from './CreateGameModal.jsx';
 
 export default function GameList() {
     const [games, setGames] = useState([]);
@@ -9,6 +10,7 @@ export default function GameList() {
     const [error, setError] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [selectedGame, setSelectedGame] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
@@ -99,17 +101,28 @@ export default function GameList() {
 
     return (
         <div className="container mx-auto p-6 pt-24 min-h-screen relative">
-            <h2 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100">Mis Partidas</h2>
-            
-            <div className="mb-6 relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
-                <input
-                    type="text"
-                    placeholder="Buscar partida..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-[#23482f] rounded-lg bg-white dark:bg-[#1a2c20] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
-                />
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Mis Partidas</h2>
+                
+                <div className="flex w-full md:w-auto gap-4">
+                    <div className="relative flex-grow md:flex-grow-0 md:w-64">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+                        <input
+                            type="text"
+                            placeholder="Buscar partida..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-[#23482f] rounded-lg bg-white dark:bg-[#1a2c20] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="bg-primary text-[#112217] px-4 py-2 rounded-lg font-bold shadow-glow hover:shadow-glow-hover transition-all flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <span className="material-symbols-outlined">add_circle</span>
+                        Crear Partida
+                    </button>
+                </div>
             </div>
 
             {filteredGames.length === 0 ? (
@@ -118,7 +131,7 @@ export default function GameList() {
                         {searchTerm ? 'No se encontraron partidas que coincidan con tu búsqueda.' : 'No tienes partidas creadas aún.'}
                     </p>
                     {!searchTerm && (
-                        <p className="text-sm text-gray-500">¡Crea una nueva partida desde el botón en la cabecera!</p>
+                        <p className="text-sm text-gray-500">¡Crea una nueva partida desde el botón superior!</p>
                     )}
                 </div>
             ) : (
@@ -206,6 +219,11 @@ export default function GameList() {
                 onClose={() => setShowEditModal(false)} 
                 game={selectedGame}
                 onGameUpdated={fetchGames}
+            />
+
+            <CreateGameModal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
             />
         </div>
     );
