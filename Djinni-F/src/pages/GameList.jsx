@@ -96,7 +96,7 @@ export default function GameList() {
         game.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24">Cargando partidas...</div>;
+    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24 min-h-screen">Cargando partidas...</div>;
     if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
 
     return (
