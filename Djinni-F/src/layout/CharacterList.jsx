@@ -11,6 +11,7 @@ export default function CharacterList() {
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedCharacter, setSelectedCharacter] = useState(null);
     const [newCharacterName, setNewCharacterName] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
 
     const fetchCharacters = async () => {
@@ -66,6 +67,10 @@ export default function CharacterList() {
         setShowEditModal(true);
     };
 
+    const filteredCharacters = characters.filter(char => 
+        char.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24">Cargando personajes...</div>;
     if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
 
@@ -82,13 +87,26 @@ export default function CharacterList() {
                 </button>
             </div>
             
-            {characters.length === 0 ? (
+            <div className="mb-6 relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+                <input
+                    type="text"
+                    placeholder="Buscar personaje..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-[#23482f] rounded-lg bg-white dark:bg-[#1a2c20] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                />
+            </div>
+
+            {filteredCharacters.length === 0 ? (
                 <div className="text-center p-8 bg-gray-100 dark:bg-[#1a2c20] rounded-lg border border-dashed border-gray-300 dark:border-[#23482f]">
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">No tienes personajes creados aún.</p>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                        {searchTerm ? 'No se encontraron personajes que coincidan con tu búsqueda.' : 'No tienes personajes creados aún.'}
+                    </p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {characters.map((char) => (
+                    {filteredCharacters.map((char) => (
                         <div key={char.id} className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-[#23482f] hover:shadow-lg transition-shadow duration-300 flex flex-col">
                             <div className="h-48 bg-gray-200 dark:bg-gray-800 flex items-center justify-center relative overflow-hidden">
                                 {char.token_image ? (
