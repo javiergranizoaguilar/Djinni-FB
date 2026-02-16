@@ -10,6 +10,7 @@ import RegisterPage from './control_user/RegisterPage.jsx';
 import GameList from './layout/GameList.jsx';
 import JoinGamePage from './layout/JoinGamePage.jsx';
 import CharacterList from './layout/CharacterList.jsx';
+import MonsterList from './layout/MonsterList.jsx';
 
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('vtt_token');
@@ -39,6 +40,11 @@ function App() {
                 <Route path="/Character" element={
                     <PrivateRoute>
                         <CharacterList />
+                    </PrivateRoute>
+                } />
+                <Route path="/Monster" element={
+                    <PrivateRoute>
+                        <MonsterList />
                     </PrivateRoute>
                 } />
             </Routes>

@@ -137,7 +137,7 @@ class Monster
     /**
      * @var Collection<int, MonsterUser>
      */
-    #[ORM\OneToMany(targetEntity: MonsterUser::class, mappedBy: 'monster')]
+    #[ORM\OneToMany(targetEntity: MonsterUser::class, mappedBy: 'monster', orphanRemoval: true)]
     private Collection $monsterUsers;
 
     #[ORM\ManyToOne(inversedBy: 'monsters')]

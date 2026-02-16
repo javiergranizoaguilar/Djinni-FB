@@ -133,22 +133,31 @@ export default function Header() {
                     )}
 
                     {isLoggedIn && (
-                        ['Games', 'Character', 'Monster'].map((item) => (
-                            <Link key={item} to={`/${item.toLowerCase()}`}
+                        <>
+                            <Link to="/Games"
                                   className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
-                                {item}
+                                Games
                                 <span
                                     className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
                             </Link>
-                        ))
+                            <Link to="/Character"
+                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
+                                Character
+                                <span
+                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            </Link>
+                            <Link to="/Monster"
+                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
+                                Monster
+                                <span
+                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            </Link>
+                            <button onClick={handleLogout} className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors group">
+                                Logout
+                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-red-500 rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            </button>
+                        </>
                     )}
-
-                    {isLoggedIn && (
-                        < button onClick={handleLogout} className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors group">
-                        Logout
-                        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-red-500 rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
-                        </button>
-                        )}
                 </nav>
 
                 {/* User Actions */}
