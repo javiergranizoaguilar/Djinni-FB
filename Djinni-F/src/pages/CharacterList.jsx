@@ -90,7 +90,7 @@ export default function CharacterList() {
         char.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24 min-h-screen">Cargando personajes...</div>;
+    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24">Cargando personajes...</div>;
     if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
 
     return (
@@ -141,8 +141,41 @@ export default function CharacterList() {
                                 )}
                             </div>
                             <div className="p-5 flex-grow flex flex-col">
-                                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{char.name}</h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Nivel {char.display_level}</p>
+                                <div className="flex justify-between items-start mb-2">
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{char.name}</h3>
+                                    <span className="bg-gray-100 dark:bg-[#23482f] text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full font-semibold">
+                                        Lvl {char.display_level}
+                                    </span>
+                                </div>
+                                
+                                <div className="text-sm text-primary font-medium mb-3 flex flex-wrap gap-1">
+                                    {Array.isArray(char.level) ? (
+                                        char.level.map((cls, idx) => (
+                                            <span key={idx} className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
+                                                {cls.class || 'Sin Clase'} {cls.level}
+                                                {cls.subclass ? ` (${cls.subclass})` : ''}
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <span className="text-gray-400 italic">Sin Clase</span>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-4 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                                    <div className="flex items-center gap-1" title="Hechizos">
+                                        <span className="material-symbols-outlined text-[16px]">auto_fix</span>
+                                        <span>{char.spells?.length || 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1" title="Inventario">
+                                        <span className="material-symbols-outlined text-[16px]">backpack</span>
+                                        <span>{char.inventory?.length || 0}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1" title="Ataques">
+                                        <span className="material-symbols-outlined text-[16px]">swords</span>
+                                        <span>{char.attacks?.length || 0}</span>
+                                    </div>
+                                </div>
+
                                 <div className="mt-auto flex justify-end gap-2">
                                     {char.is_editable && (
                                         <>
