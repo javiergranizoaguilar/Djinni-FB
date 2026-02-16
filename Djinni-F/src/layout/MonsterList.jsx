@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import EditMonsterModal from './EditMonsterModal';
 
 export default function MonsterList() {
     const [monsters, setMonsters] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [selectedMonster, setSelectedMonster] = useState(null);
     const [newMonsterName, setNewMonsterName] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
@@ -57,6 +60,11 @@ export default function MonsterList() {
             console.error("Error creating monster:", err);
             alert("Error al crear el monstruo");
         }
+    };
+
+    const handleEditMonster = (monster) => {
+        setSelectedMonster(monster);
+        setShowEditModal(true);
     };
 
     const handleDeleteMonster = async (monsterId) => {
@@ -137,6 +145,7 @@ export default function MonsterList() {
                                                 <span className="material-symbols-outlined text-lg">delete</span>
                                             </button>
                                             <button 
+                                                onClick={() => handleEditMonster(monster)}
                                                 className="px-4 py-2 bg-primary text-[#112217] text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
                                             >
                                                 <span className="material-symbols-outlined text-lg">edit</span>
@@ -186,6 +195,13 @@ export default function MonsterList() {
                     </div>
                 </div>
             )}
+
+            <EditMonsterModal 
+                isOpen={showEditModal} 
+                onClose={() => setShowEditModal(false)} 
+                monster={selectedMonster}
+                onMonsterUpdated={fetchMonsters}
+            />
         </div>
     );
 }
