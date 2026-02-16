@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import EditMonsterModal from './EditMonsterModal';
+import EditMonsterModal from './EditMonsterModal.jsx';
 
 export default function MonsterList() {
     const [monsters, setMonsters] = useState([]);

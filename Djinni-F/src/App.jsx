@@ -7,10 +7,10 @@ import Header from "./layout/Header.jsx";
 import Footer from "./layout/Footer.jsx";
 import LoginPage from './control_user/LoginPage.jsx';
 import RegisterPage from './control_user/RegisterPage.jsx';
-import GameList from './layout/GameList.jsx';
-import JoinGamePage from './layout/JoinGamePage.jsx';
-import CharacterList from './layout/CharacterList.jsx';
-import MonsterList from './layout/MonsterList.jsx';
+import GameList from './pages/GameList.jsx';
+import JoinGamePage from './pages/JoinGamePage.jsx';
+import CharacterList from './pages/CharacterList.jsx';
+import MonsterList from './pages/MonsterList.jsx';
 
 const PrivateRoute = ({ children }) => {
     const token = localStorage.getItem('vtt_token');

@@ -1,7 +1,7 @@
 import {Link, useLocation, useNavigate} from 'react-router-dom';
 import {useEffect, useState} from 'react';
 import axios from 'axios';
-import CreateGameModal from './CreateGameModal';
+import CreateGameModal from '../pages/CreateGameModal.jsx';
 
 export default function Header() {
     const navigate = useNavigate();
@@ -9,6 +9,7 @@ export default function Header() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userAvatar, setUserAvatar] = useState(null);
     const [showCreateGameModal, setShowCreateGameModal] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // Esta función verifica el token y carga el usuario
     const checkLoginStatus = async () => {
@@ -46,6 +47,7 @@ export default function Header() {
     // Ejecutar la verificación cuando el componente se monta Y cuando cambia la ruta (location)
     useEffect(() => {
         checkLoginStatus();
+        setIsMobileMenuOpen(false); // Cerrar menú móvil al cambiar de ruta
     }, [location]); // <--- La dependencia 'location' hace que se ejecute al navegar
 
     // También podemos escuchar un evento personalizado si queremos ser más reactivos sin cambiar de ruta
@@ -77,10 +79,15 @@ export default function Header() {
 
     const handleCreateGameClick = () => {
         setShowCreateGameModal(true);
+        setIsMobileMenuOpen(false);
     };
 
     const handleCloseModal = () => {
         setShowCreateGameModal(false);
+    };
+
+    const toggleMobileMenu = () => {
+        setIsMobileMenuOpen(!isMobileMenuOpen);
     };
 
     return (
@@ -111,10 +118,8 @@ export default function Header() {
                     </h1>
                 </Link>
 
-                {/* Navigation Links */}
+                {/* Desktop Navigation Links */}
                 <nav className="hidden md:flex items-center gap-1">
-
-
                     {!isLoggedIn && (
                         <>
                             <Link to="/login"
@@ -160,24 +165,24 @@ export default function Header() {
                     )}
                 </nav>
 
-                {/* User Actions */}
-                <div className="flex items-center gap-5">
+                {/* User Actions & Mobile Menu Button */}
+                <div className="flex items-center gap-3 md:gap-5">
                     {isLoggedIn && (
                         <>
                             <button onClick={handleCreateGameClick}
-                                    className="hidden sm:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
+                                    className="hidden md:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
                                 <span className="material-symbols-outlined text-[20px] font-bold">add_circle</span>
                                 <span>Create Game</span>
                             </button>
 
                             <button aria-label="Notifications"
-                                    className="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23482f] hover:text-primary dark:hover:text-white transition-colors group">
+                                    className="hidden md:block relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23482f] hover:text-primary dark:hover:text-white transition-colors group">
                                 <span className="material-symbols-outlined text-[24px]">notifications</span>
                                 <span
                                     className="absolute top-2 right-2.5 size-2 bg-primary rounded-full ring-2 ring-white dark:ring-[#102216]"></span>
                             </button>
 
-                            <div className="relative group">
+                            <div className="relative group hidden md:block">
                                 <button className="flex items-center gap-2 focus:outline-none">
                                     <div className="relative">
                                         <div
@@ -195,8 +200,76 @@ export default function Header() {
                             </div>
                         </>
                     )}
+
+                    {/* Mobile Menu Button */}
+                    <button 
+                        onClick={toggleMobileMenu}
+                        className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors"
+                    >
+                        <span className="material-symbols-outlined text-3xl">
+                            {isMobileMenuOpen ? 'close' : 'menu'}
+                        </span>
+                    </button>
                 </div>
             </div>
+
+            {/* Mobile Menu Dropdown */}
+            {isMobileMenuOpen && (
+                <div className="md:hidden absolute top-20 left-0 right-0 bg-white dark:bg-[#1a2c20] border-b border-gray-200 dark:border-[#23482f] shadow-lg animate-fade-in">
+                    <div className="flex flex-col p-4 space-y-2">
+                        {isLoggedIn && (
+                            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-[#23482f]">
+                                <div className="size-10 rounded-full overflow-hidden bg-gray-200">
+                                    <img
+                                        alt="User avatar"
+                                        className="w-full h-full object-cover"
+                                        src={userAvatar || "https://ui-avatars.com/api/?name=User&background=random"}
+                                    />
+                                </div>
+                                <span className="font-medium text-gray-800 dark:text-gray-100">Mi Perfil</span>
+                            </div>
+                        )}
+
+                        {!isLoggedIn && (
+                            <>
+                                <Link to="/login" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium">
+                                    Login
+                                </Link>
+                                <Link to="/register" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium">
+                                    Register
+                                </Link>
+                            </>
+                        )}
+
+                        {isLoggedIn && (
+                            <>
+                                <Link to="/Games" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium flex items-center gap-3">
+                                    <span className="material-symbols-outlined">casino</span>
+                                    Games
+                                </Link>
+                                <Link to="/Character" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium flex items-center gap-3">
+                                    <span className="material-symbols-outlined">person</span>
+                                    Character
+                                </Link>
+                                <Link to="/Monster" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium flex items-center gap-3">
+                                    <span className="material-symbols-outlined">pest_control</span>
+                                    Monster
+                                </Link>
+                                
+                                <button onClick={handleCreateGameClick} className="px-4 py-3 rounded-lg bg-primary/10 text-primary font-bold flex items-center gap-3 mt-2">
+                                    <span className="material-symbols-outlined">add_circle</span>
+                                    Create Game
+                                </button>
+
+                                <button onClick={handleLogout} className="px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium flex items-center gap-3 mt-2">
+                                    <span className="material-symbols-outlined">logout</span>
+                                    Logout
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
             <CreateGameModal
                 isOpen={showCreateGameModal}
