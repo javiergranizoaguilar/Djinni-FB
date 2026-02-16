@@ -90,7 +90,7 @@ export default function CharacterList() {
         char.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24">Cargando personajes...</div>;
+    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24 min-h-screen">Cargando personajes...</div>;
     if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
 
     return (
