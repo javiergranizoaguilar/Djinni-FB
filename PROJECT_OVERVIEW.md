@@ -1,133 +1,99 @@
 # Djinni-FB-Clase Project Overview
 
-This document provides a comprehensive overview of the Djinni-FB-Clase project, which appears to be a full-stack application consisting of a Symfony backend (Djinni-B) and a React frontend (Djinni-F).
+Este documento proporciona una visión general completa del proyecto **Djinni-FB-Clase**, una aplicación full-stack que consta de un backend en Symfony (**Djinni-B**) y un frontend en React (**Djinni-F**). El objetivo del proyecto es crear una plataforma para gestionar partidas de rol (RPG), incluyendo hojas de personaje, sesiones de juego y tableros virtuales (VTT).
 
-## Project Structure
+## Estructura del Proyecto
 
-The project root contains two main directories:
-- **Djinni-B**: The backend application built with Symfony.
-- **Djinni-F**: The frontend application built with React and Vite.
+La raíz del proyecto contiene dos directorios principales:
+- **Djinni-B**: Aplicación backend construida con Symfony.
+- **Djinni-F**: Aplicación frontend construida con React y Vite.
+
+---
 
 ## Backend (Djinni-B)
 
-### Technology Stack
+### Stack Tecnológico
 - **Framework**: Symfony 8.0
-- **Language**: PHP >= 8.4
-- **Database ORM**: Doctrine ORM 3.6
-- **Authentication**: Lexik JWT Authentication Bundle
+- **Lenguaje**: PHP >= 8.4
+- **ORM**: Doctrine ORM 3.6
+- **Autenticación**: Lexik JWT Authentication Bundle
 - **CORS**: Nelmio CORS Bundle
-- **Real-time**: Symfony Mercure Bundle
-- **Testing**: PHPUnit
+- **Base de Datos**: MySQL/MariaDB (inferido por Doctrine)
 
-### Key Dependencies
-- `lexik/jwt-authentication-bundle`: For handling JWT authentication.
-- `nelmio/cors-bundle`: For managing Cross-Origin Resource Sharing.
-- `symfony/mercure-bundle`: For real-time updates.
-- `doctrine/orm`: For database interactions.
+### Funcionalidades Clave
+1.  **Autenticación y Usuarios**:
+    -   Registro e inicio de sesión mediante JWT.
+    -   Entidad `User` con roles (`ROLE_USER`, etc.) y relaciones con partidas y personajes.
+2.  **Gestión de Partidas (`GameSesion`)**:
+    -   Creación, edición y eliminación de partidas.
+    -   Sistema de invitación mediante tokens únicos (`invitation_token`).
+    -   Relación muchos a muchos con usuarios a través de `UserGameSession`, que define quién es el DM (`isDm`).
+3.  **Hojas de Personaje (`CharacterSheet`)**:
+    -   Modelo complejo con estadísticas (Fuerza, Destreza, etc.), habilidades, tiradas de salvación, inventario, hechizos y ataques.
+    -   Soporte para subida de imágenes (token y retrato).
+    -   Relación con usuarios mediante `CharacterSheetUser` (permisos de edición/visibilidad).
+4.  **API REST**:
+    -   Controladores organizados por entidad (`ApiCharacterController`, `ApiGameSesionController`, etc.).
+    -   Rutas protegidas con `#[IsGranted('IS_AUTHENTICATED_FULLY')]`.
 
-### Directory Structure
-- `src/`: Contains the application source code (Controllers, Entities, etc.).
-- `config/`: Configuration files for packages, routes, and services.
-- `migrations/`: Database migration files.
-- `templates/`: Twig templates (though likely used less if it's an API-first backend).
-- `tests/`: Unit and integration tests.
+### Estructura de Directorios Importante
+- `src/Entity/`: Modelos de datos (`User`, `GameSesion`, `CharacterSheet`, `UserGameSession`, etc.).
+- `src/Controller/`: Lógica de los endpoints de la API.
+- `src/Repository/`: Consultas a la base de datos.
+- `config/packages/`: Configuraciones de seguridad (`security.yaml`), JWT y CORS.
+
+---
 
 ## Frontend (Djinni-F)
 
-### Technology Stack
+### Stack Tecnológico
 - **Framework**: React 19.2
 - **Build Tool**: Vite 7.2
-- **Language**: JavaScript (ES Modules)
-- **Styling**: Tailwind CSS 3.4
-- **Routing**: React Router DOM 7.13
-- **Graphics**: Konva / React Konva (likely for canvas-based interactions or games).
-- **HTTP Client**: Axios
+- **Estilos**: Tailwind CSS 3.4
+- **Enrutamiento**: React Router DOM 7.13
+- **Gráficos**: Konva / React Konva (para el tablero virtual).
+- **Cliente HTTP**: Axios
 
-### Key Dependencies
-- `react`, `react-dom`: Core React libraries.
-- `react-router-dom`: For client-side routing.
-- `konva`, `react-konva`: For 2D canvas graphics.
-- `axios`: For making API requests to the backend.
-- `tailwindcss`: For utility-first CSS styling.
+### Funcionalidades Clave
+1.  **Autenticación**:
+    -   Páginas de Login (`LoginPage.jsx`) y Registro (`RegisterPage.jsx`).
+    -   Almacenamiento del token JWT en `localStorage` (`vtt_token`).
+    -   Protección de rutas con componente `PrivateRoute`.
+2.  **Gestión de Partidas**:
+    -   Listado de partidas del usuario (`GameList.jsx`).
+    -   Creación de nuevas partidas y unión mediante enlaces de invitación (`JoinGamePage.jsx`).
+    -   Tablero de juego virtual (`VttBoard.jsx`).
+3.  **Gestión de Personajes**:
+    -   Listado de personajes (`CharacterList.jsx`).
+    -   Modal de edición completo (`EditCharacterModal.jsx`) que permite modificar stats, habilidades, subir imágenes y más.
+4.  **Interfaz de Usuario**:
+    -   Diseño responsivo con Tailwind CSS.
+    -   Modo oscuro soportado (clases `dark:`).
 
-### Directory Structure
-- `src/`: Source code for React components, pages, and logic.
-  - `control_user/`: Contains `LoginPage.jsx` and `RegisterPage.jsx`.
-  - `layout/`: Likely contains layout components (`MainLayout`, `Header`, `Footer`).
-  - `VttBoard.jsx`: Likely the main Virtual Tabletop (VTT) component.
-  - `App.jsx`: Main application component with routing.
-- `public/`: Static assets.
-- `vite.config.js`: Vite configuration.
-- `tailwind.config.js`: Tailwind CSS configuration.
+### Estructura de Directorios Importante
+- `src/layout/`: Componentes estructurales y páginas principales (`MainLayout`, `Header`, `GameList`, `CharacterList`).
+- `src/control_user/`: Páginas de autenticación.
+- `src/App.jsx`: Configuración de rutas.
+- `src/VttBoard.jsx`: Componente principal del tablero de juego.
 
-## Integration
+---
 
-The frontend (Djinni-F) likely communicates with the backend (Djinni-B) via RESTful APIs or GraphQL (though GraphQL isn't explicitly seen in the top-level dependencies, standard REST is assumed). Authentication is handled via JWTs provided by the backend.
+## Flujos de Trabajo Principales
 
-## Recent Context
+### 1. Autenticación
+El usuario se loguea en el frontend, recibe un JWT del backend y este se usa en el header `Authorization: Bearer <token>` para todas las peticiones subsiguientes.
 
-There have been recent changes (and rollbacks) involving:
-- Security configuration (`security.yaml`)
-- API Controllers (`ApiGameSesionController.php`)
-- CORS configuration (`nelmio_cors.yaml`)
-- JWT configuration (`lexik_jwt_authentication.yaml`)
-- User Entity (`User.php`)
+### 2. Creación de Personaje
+-   **Frontend**: `CharacterList` abre un modal simple para crear el personaje (solo nombre).
+-   **Backend**: `ApiCharacterController::create` inicializa una `CharacterSheet` con valores por defecto y la asocia al usuario.
+-   **Edición**: `EditCharacterModal` carga los datos completos, permite editar campos complejos (JSON) y subir imágenes. `ApiCharacterController::edit` procesa estos datos.
 
-This suggests active development on the authentication and game session management features of the application.
+### 3. Sesiones de Juego
+-   **Creación**: El usuario crea una partida y se le asigna automáticamente como DM en `UserGameSession`.
+-   **Invitación**: Se genera un `invitation_token` único. Otros usuarios pueden unirse usando este token, siendo asignados como jugadores.
+-   **Juego**: `VttBoard` (aún en desarrollo/integración) servirá como el espacio de juego compartido.
 
-### Specific File Details
-
-#### `security.yaml`
-- Configures `app_user_provider` using the `User` entity and `email` property.
-- Defines a `login` firewall at `/api/login` using `json_login`.
-- Defines an `api` firewall at `/api` using `jwt`.
-- Access control allows public access to `/api/game/sesion/create` and `/avatar`.
-
-#### `ApiGameSesionController.php`
-- Handles game session creation at `/api/game/sesion/create`.
-- Checks for authenticated user.
-- Creates a `GameSesion` entity, sets it as active and GM, and adds the user as a player.
-
-#### `nelmio_cors.yaml`
-- Configures CORS to allow all origins (`*`) for `/api/` and `/avatar`.
-- Allows standard methods (GET, POST, PUT, DELETE, OPTIONS).
-
-#### `lexik_jwt_authentication.yaml`
-- Configures JWT secret and public keys from environment variables.
-- Sets token TTL to 30 days.
-- `user_identity_field` is commented out.
-
-#### `User.php`
-- Entity representing a user.
-- Implements `UserInterface` and `PasswordAuthenticatedUserInterface`.
-- Has fields: `username`, `email`, `password`, `avatar_url`, `datetime`, `roles`.
-- Relationships: `player` (GameSesion), `monsters`, `monsterUsers`, `characterSheetUsers`.
-- `getUserIdentifier` returns `username`.
-
-#### `GameSesion.php`
-- Entity representing a game session.
-- Has fields: `title`, `is_active`, `created_at`, `isGm`.
-- Relationships: `player` (User), `scenes`, `monsters`, `characterSheets`.
-- `isGm` seems to be a boolean flag on the session itself, which might be unusual (usually GM status is per user per session).
-
-#### `App.jsx`
-- Sets up routing using `react-router-dom`.
-- Defines routes: `/`, `/login`, `/register`, `/Games`.
-- `/Games` is protected by a `PrivateRoute` that checks for `vtt_token` in `localStorage`.
-
-#### `LoginPage.jsx`
-- Handles user login.
-- Sends POST request to `http://127.0.0.1:8000/api/login_check` with `email` and `password`.
-- Stores JWT token in `localStorage` as `vtt_token`.
-- Dispatches `auth-change` event on success.
-- Redirects to `/Games`.
-
-### Other Entities
-- `Item`, `Scene`, `Spell`, `Attack`, `Ability`, `Monster`, `Inventory`, `Proficency`, `MonsterUser`, `CharacterSheet`, `CharacterSheetUser`.
-- These suggest a role-playing game (RPG) management system.
-
-### Recent Fixes
-- **Authentication**: Updated `User.php` to use `email` as the user identifier (`getUserIdentifier`).
-- **JWT Configuration**: Enabled `user_identity_field: email` in `lexik_jwt_authentication.yaml` to ensure the token contains the email.
-- **Security**: Updated `security.yaml` to require authentication for `/api/game/sesion/create` (`IS_AUTHENTICATED_FULLY`).
-- **Frontend**: Updated `CreateGameModal.jsx` to include `Content-Type: application/json` header and better error handling.
+## Estado Actual y Notas
+-   El proyecto está en desarrollo activo.
+-   Se ha implementado recientemente la lógica completa de edición de personajes y gestión de sesiones.
+-   La seguridad y validación de datos en el backend son prioritarias (uso de `Voters` o comprobaciones en controladores).

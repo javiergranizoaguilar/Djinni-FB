@@ -67,6 +67,25 @@ export default function CharacterList() {
         setShowEditModal(true);
     };
 
+    const handleDeleteCharacter = async (characterId) => {
+        if (!window.confirm('¿Estás seguro de que quieres eliminar este personaje? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        const token = localStorage.getItem('vtt_token');
+        try {
+            await axios.delete(`http://localhost:8000/api/character/delete/${characterId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            fetchCharacters(); // Recargar lista
+        } catch (err) {
+            console.error("Error deleting character:", err);
+            alert("Error al eliminar el personaje");
+        }
+    };
+
     const filteredCharacters = characters.filter(char => 
         char.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -124,13 +143,22 @@ export default function CharacterList() {
                                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Nivel {char.display_level}</p>
                                 <div className="mt-auto flex justify-end gap-2">
                                     {char.is_editable && (
-                                        <button 
-                                            onClick={() => handleEditCharacter(char)}
-                                            className="px-4 py-2 bg-primary text-[#112217] text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
-                                        >
-                                            <span className="material-symbols-outlined text-lg">edit</span>
-                                            Ver Hoja
-                                        </button>
+                                        <>
+                                            <button 
+                                                onClick={() => handleDeleteCharacter(char.id)}
+                                                className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1"
+                                                title="Eliminar personaje"
+                                            >
+                                                <span className="material-symbols-outlined text-lg">delete</span>
+                                            </button>
+                                            <button 
+                                                onClick={() => handleEditCharacter(char)}
+                                                className="px-4 py-2 bg-primary text-[#112217] text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+                                            >
+                                                <span className="material-symbols-outlined text-lg">edit</span>
+                                                Ver Hoja
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>

@@ -219,4 +219,41 @@ class ApiCharacterController extends AbstractController
 
         return $this->json(['message' => 'Character updated successfully']);
     }
+
+    #[Route('/delete/{id}', name: 'api_character_delete', methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        if (!$user) {
+            return $this->json(['error' => 'User not authenticated'], 401);
+        }
+
+        $characterSheet = $entityManager->getRepository(CharacterSheet::class)->find($id);
+
+        if (!$characterSheet) {
+            return $this->json(['error' => 'Character not found'], 404);
+        }
+
+        // Verificar permisos
+        $csu = $entityManager->getRepository(CharacterSheetUser::class)->findOneBy([
+            'user_id' => $user,
+            'charactersheet_id' => $characterSheet
+        ]);
+
+        if (!$csu || !$csu->isEdit()) {
+            return $this->json(['error' => 'You do not have permission to delete this character'], 403);
+        }
+
+        // Eliminar la relación y la hoja de personaje
+        // Nota: Si hay otras relaciones (como items, spells, etc.), Doctrine debería encargarse si están configuradas con cascade={"remove"} o orphanRemoval=true
+        // Si no, habría que eliminarlas manualmente o ajustar la configuración de la entidad.
+
+        $entityManager->remove($characterSheet);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Character deleted successfully']);
+    }
 }

@@ -205,13 +205,13 @@ class CharacterSheet
     /**
      * @var Collection<int, Inventory>
      */
-    #[ORM\OneToMany(targetEntity: Inventory::class, mappedBy: 'seet')]
+    #[ORM\OneToMany(targetEntity: Inventory::class, mappedBy: 'seet', orphanRemoval: true)]
     private Collection $inventories;
 
     /**
      * @var Collection<int, Attack>
      */
-    #[ORM\OneToMany(targetEntity: Attack::class, mappedBy: 'character_attack')]
+    #[ORM\OneToMany(targetEntity: Attack::class, mappedBy: 'character_attack', orphanRemoval: true)]
     private Collection $attacks;
 
     /**
@@ -226,13 +226,13 @@ class CharacterSheet
     /**
      * @var Collection<int, Proficency>
      */
-    #[ORM\OneToMany(targetEntity: Proficency::class, mappedBy: 'character_id')]
+    #[ORM\OneToMany(targetEntity: Proficency::class, mappedBy: 'character_id', orphanRemoval: true)]
     private Collection $proficencies;
 
     /**
      * @var Collection<int, Ability>
      */
-    #[ORM\OneToMany(targetEntity: Ability::class, mappedBy: 'character_id')]
+    #[ORM\OneToMany(targetEntity: Ability::class, mappedBy: 'character_id', orphanRemoval: true)]
     private Collection $abilities;
 
     #[ORM\ManyToOne(inversedBy: 'characterSheets')]
@@ -241,7 +241,7 @@ class CharacterSheet
     /**
      * @var Collection<int, CharacterSheetUser>
      */
-    #[ORM\OneToMany(targetEntity: CharacterSheetUser::class, mappedBy: 'charactersheet_id')]
+    #[ORM\OneToMany(targetEntity: CharacterSheetUser::class, mappedBy: 'charactersheet_id', orphanRemoval: true)]
     private Collection $characterSheetUsers;
 
     public function __construct()
