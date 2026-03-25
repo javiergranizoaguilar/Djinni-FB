@@ -7,9 +7,9 @@ export default function VttBoard() {
     const squareSize = 50;
     const boardSize = gridSize * squareSize;
 
-    // Center the board on the screen
-    const boardX = (window.innerWidth - boardSize) / 2;
-    const boardY = (window.innerHeight - boardSize) / 2;
+    // Ensure board coordinates are integers to prevent floating-point inaccuracies
+    const boardX = Math.floor((window.innerWidth - boardSize) / 2);
+    const boardY = Math.floor((window.innerHeight - boardSize) / 2);
 
     // Initial token position at the center of the first square
     const [tokenPos, setTokenPos] = useState({
@@ -55,17 +55,24 @@ export default function VttBoard() {
                         const newX = e.target.x();
                         const newY = e.target.y();
 
-                        // Snap to grid logic
-                        const snappedX = Math.round((newX - boardX - squareSize / 2) / squareSize) * squareSize + boardX + squareSize / 2;
-                        const snappedY = Math.round((newY - boardY - squareSize / 2) / squareSize) * squareSize + boardY + squareSize / 2;
+                        const col = Math.round((newX - boardX - squareSize / 2) / squareSize);
+                        const row = Math.round((newY - boardY - squareSize / 2) / squareSize);
 
-                        // Constrain to board boundaries
+                        const snappedX = boardX + col * squareSize + squareSize / 2;
+                        const snappedY = boardY + row * squareSize + squareSize / 2;
+
                         const constrainedX = Math.max(boardX + squareSize / 2, Math.min(snappedX, boardX + boardSize - squareSize / 2));
                         const constrainedY = Math.max(boardY + squareSize / 2, Math.min(snappedY, boardY + boardSize - squareSize / 2));
 
+                        // Update React state
                         setTokenPos({ x: constrainedX, y: constrainedY });
 
-                        console.log("Nueva posición:", constrainedX, constrainedY);
+                        // === THE FIX ===
+                        // Manually force the Konva node to the snapped position.
+                        // This is necessary because Konva doesn't re-read state after a drag.
+                        e.target.position({ x: constrainedX, y: constrainedY });
+                        e.target.getLayer().batchDraw();
+                        // === END OF FIX ===
 
                         axios.post('http://127.0.0.1:8000/api/mover-token', {
                             x: constrainedX,

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\GameSesion;
+use App\Entity\Scene;
 use App\Form\GameSesionType;
 use App\Repository\GameSesionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,6 +32,16 @@ final class GameSesionController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager->persist($gameSesion);
+            $entityManager->flush();
+
+            // Create a default scene for the new game session
+            $scene = new Scene();
+            $scene->setName('Default Scene');
+            $scene->setGridWidth(10);
+            $scene->setGridHeight(10);
+            $scene->setSessionId($gameSesion);
+
+            $entityManager->persist($scene);
             $entityManager->flush();
 
             return $this->redirectToRoute('app_game_sesion_index', [], Response::HTTP_SEE_OTHER);

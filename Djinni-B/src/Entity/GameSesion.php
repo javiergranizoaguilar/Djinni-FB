@@ -39,7 +39,7 @@ class GameSesion
     /**
      * @var Collection<int, Scene>
      */
-    #[ORM\OneToMany(targetEntity: Scene::class, mappedBy: 'session_id')]
+    #[ORM\OneToMany(targetEntity: Scene::class, mappedBy: 'session_id', orphanRemoval: true)]
     private Collection $scenes;
 
     /**
@@ -85,6 +85,8 @@ class GameSesion
     {
         return $this->is_active;
     }
+
+
 
     public function setIsActive(bool $is_active): static
     {
