@@ -7,9 +7,11 @@ use App\Form\SceneType;
 use App\Repository\SceneRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/scene')]
 final class SceneController extends AbstractController
@@ -39,6 +41,28 @@ final class SceneController extends AbstractController
         return $this->render('scene/new.html.twig', [
             'scene' => $scene,
             'form' => $form,
+        ]);
+    }
+
+    /**
+     * API endpoint to get the first scene for a given game session.
+     */
+    #[Route('/api/game/{gameId}/active-scene', name: 'api_get_active_scene_for_game', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function getActiveSceneForGame(int $gameId, SceneRepository $sceneRepository): JsonResponse
+    {
+        // Find the first scene associated with the game session
+        $scene = $sceneRepository->findOneBy(['session_id' => $gameId]);
+
+        if (!$scene) {
+            return $this->json(['error' => 'No scene found for this game session.'], 404);
+        }
+
+        return $this->json([
+            'id' => $scene->getId(),
+            'name' => $scene->getName(),
+            'grid_width' => $scene->getGridWidth(),
+            'grid_height' => $scene->getGridHeight(),
         ]);
     }
 

@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\GameSesion;
+use App\Entity\Scene;
 use App\Entity\User;
 use App\Entity\UserGameSession;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,7 +36,6 @@ class ApiGameSesionController extends AbstractController
         }
 
         $data = json_decode($request->getContent(), true);
-
         $title = $data['title'] ?? null;
 
         if (!$title) {
@@ -46,17 +46,23 @@ class ApiGameSesionController extends AbstractController
         $gameSesion->setTitle($title);
         $gameSesion->setIsActive(true);
         $gameSesion->setCreatedAt(new \DateTimeImmutable());
-        // El token se genera en el constructor
-
         $entityManager->persist($gameSesion);
 
-        // Crear la relación en la tabla intermedia UserGameSession
         $userGameSession = new UserGameSession();
         $userGameSession->setUser($user);
         $userGameSession->setGameSession($gameSesion);
-        $userGameSession->setIsDm(true); // El creador es el DM
-
+        $userGameSession->setIsDm(true);
         $entityManager->persist($userGameSession);
+
+        // --- FIX: Create the default scene ---
+        $scene = new Scene();
+        $scene->setName('Default Scene');
+        $scene->setGridWidth(20); // Default grid size
+        $scene->setGridHeight(20);
+        $scene->setSessionId($gameSesion);
+        $entityManager->persist($scene);
+        // --- END FIX ---
+
         $entityManager->flush();
 
         return $this->json([
@@ -85,7 +91,6 @@ class ApiGameSesionController extends AbstractController
         foreach ($userGameSessions as $ugs) {
             $session = $ugs->getGameSession();
 
-            // Si la sesión no tiene token (partidas antiguas), generarlo ahora
             if (!$session->getInvitationToken()) {
                 $session->setInvitationToken(bin2hex(random_bytes(16)));
                 $needsFlush = true;
@@ -120,14 +125,12 @@ class ApiGameSesionController extends AbstractController
             return $this->json(['error' => 'User not authenticated'], 401);
         }
 
-        // Buscar la sesión por el token
         $gameSesion = $entityManager->getRepository(GameSesion::class)->findOneBy(['invitation_token' => $token]);
 
         if (!$gameSesion) {
             return $this->json(['error' => 'Invalid invitation token'], 404);
         }
 
-        // Verificar si el usuario ya está en la partida
         $existingUserSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
             'user' => $user,
             'gameSession' => $gameSesion
@@ -140,7 +143,6 @@ class ApiGameSesionController extends AbstractController
             ], 200);
         }
 
-        // Añadir al usuario a la partida como jugador (no DM)
         $userGameSession = new UserGameSession();
         $userGameSession->setUser($user);
         $userGameSession->setGameSession($gameSesion);
@@ -173,7 +175,6 @@ class ApiGameSesionController extends AbstractController
             return $this->json(['error' => 'Game session not found'], 404);
         }
 
-        // Verificar si el usuario es el DM de la partida
         $userGameSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
             'user' => $user,
             'gameSession' => $gameSesion
@@ -206,7 +207,6 @@ class ApiGameSesionController extends AbstractController
             return $this->json(['error' => 'Game session not found'], 404);
         }
 
-        // Verificar si el usuario es el DM de la partida
         $userGameSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
             'user' => $user,
             'gameSession' => $gameSesion
@@ -216,7 +216,6 @@ class ApiGameSesionController extends AbstractController
             return $this->json(['error' => 'You are not authorized to edit this game'], 403);
         }
 
-        // Obtener datos del formulario (multipart/form-data)
         $title = $request->request->get('title');
         $isActive = $request->request->get('is_active');
         $imageFile = $request->files->get('image');
@@ -226,7 +225,6 @@ class ApiGameSesionController extends AbstractController
         }
 
         if ($isActive !== null) {
-            // Convertir string "true"/"false" o "1"/"0" a booleano
             $isActiveBool = filter_var($isActive, FILTER_VALIDATE_BOOLEAN);
             $gameSesion->setIsActive($isActiveBool);
         }
