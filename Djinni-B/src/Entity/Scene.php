@@ -31,6 +31,9 @@ class Scene
     #[ORM\ManyToOne(inversedBy: 'scenes')]
     private ?GameSesion $session_id = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $thumbnail = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -96,6 +99,8 @@ class Scene
         return $this;
     }
 
+
+
     public function getSessionId(): ?GameSesion
     {
         return $this->session_id;
@@ -104,6 +109,18 @@ class Scene
     public function setSessionId(?GameSesion $session_id): static
     {
         $this->session_id = $session_id;
+
+        return $this;
+    }
+
+    public function getThumbnail(): ?string
+    {
+        return $this->thumbnail;
+    }
+
+    public function setThumbnail(?string $thumbnail): static
+    {
+        $this->thumbnail = $thumbnail;
 
         return $this;
     }

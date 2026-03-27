@@ -2,24 +2,28 @@
 nelmio_cors:
     defaults:
         origin_regex: true
-        allow_origin: ['*'] # En desarrollo puedes dejarlo así, en prod pon tu URL
+        allow_origin: ['%env(CORS_ALLOW_ORIGIN)%'] # Usar variable de entorno para producción
         allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']
         allow_headers: ['Content-Type', 'Authorization']
         expose_headers: []
         max_age: 3600
+        allow_credentials: true # CORREGIDO: Usar allow_credentials en lugar de supports_credentials
     paths:
         '^/api/':
-            allow_origin: ['*']
+            allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
             allow_headers: ['*']
             allow_methods: ['POST', 'PUT', 'GET', 'DELETE', 'OPTIONS']
             max_age: 3600
+            allow_credentials: true # CORREGIDO: Usar allow_credentials en lugar de supports_credentials
         '^/avatar':
-            allow_origin: ['*']
+            allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
             allow_headers: ['*']
             allow_methods: ['GET', 'OPTIONS']
             max_age: 3600
+            allow_credentials: true # CORREGIDO: Usar allow_credentials en lugar de supports_credentials
         '^/uploads/':
-            allow_origin: ['*']
+            allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
             allow_headers: ['*']
             allow_methods: ['GET', 'OPTIONS']
             max_age: 3600
+            allow_credentials: true # CORREGIDO: Usar allow_credentials en lugar de supports_credentials

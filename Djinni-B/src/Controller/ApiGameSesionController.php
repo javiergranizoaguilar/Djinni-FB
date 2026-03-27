@@ -6,6 +6,10 @@ use App\Entity\GameSesion;
 use App\Entity\Scene;
 use App\Entity\User;
 use App\Entity\UserGameSession;
+use App\Repository\CharacterSheetRepository;
+use App\Repository\MonsterRepository;
+use App\Repository\SceneRepository;
+use App\Repository\UserGameSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -160,8 +164,13 @@ class ApiGameSesionController extends AbstractController
 
     #[Route('/delete/{id}', name: 'api_game_sesion_delete', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse
-    {
+    public function delete(
+        int $id,
+        EntityManagerInterface $entityManager,
+        UserGameSessionRepository $userGameSessionRepository,
+        MonsterRepository $monsterRepository,
+        CharacterSheetRepository $characterSheetRepository
+    ): JsonResponse {
         /** @var User $user */
         $user = $this->getUser();
 
@@ -175,7 +184,7 @@ class ApiGameSesionController extends AbstractController
             return $this->json(['error' => 'Game session not found'], 404);
         }
 
-        $userGameSession = $entityManager->getRepository(UserGameSession::class)->findOneBy([
+        $userGameSession = $userGameSessionRepository->findOneBy([
             'user' => $user,
             'gameSession' => $gameSesion
         ]);
@@ -184,8 +193,41 @@ class ApiGameSesionController extends AbstractController
             return $this->json(['error' => 'You are not authorized to delete this game'], 403);
         }
 
+        // --- FIX: Disassociate Monsters and CharacterSheets before deletion ---
+
+        // 1. Disassociate Monsters
+        $monsters = $monsterRepository->findBy(['exist' => $gameSesion]);
+        foreach ($monsters as $monster) {
+            $monster->setExist(null);
+            $entityManager->persist($monster); // Tell Doctrine to update this monster
+        }
+
+        // 2. Disassociate CharacterSheets
+        $characterSheets = $characterSheetRepository->findBy(['gamesesion' => $gameSesion]);
+        foreach ($characterSheets as $characterSheet) {
+            $characterSheet->setGamesesion(null);
+            $entityManager->persist($characterSheet); // Tell Doctrine to update this character sheet
+        }
+
+        // 3. Delete UserGameSession associations
+        $userGameSessions = $userGameSessionRepository->findBy(['gameSession' => $gameSesion]);
+        foreach ($userGameSessions as $ugs) {
+            $entityManager->remove($ugs);
+        }
+
+        // 4. Delete associated Scenes
+        $scenes = $entityManager->getRepository(Scene::class)->findBy(['session_id' => $gameSesion]);
+        foreach ($scenes as $scene) {
+            $entityManager->remove($scene);
+        }
+
+
+        // 5. Now, delete the GameSesion itself
         $entityManager->remove($gameSesion);
-        $entityManager->flush();
+
+        // --- END FIX ---
+
+        $entityManager->flush(); // This will now execute all operations in the correct order
 
         return $this->json(['message' => 'Game session deleted successfully'], 200);
     }

@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Scene;
 use App\Form\SceneType;
+use App\Repository\GameSesionRepository;
 use App\Repository\SceneRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -45,6 +46,38 @@ final class SceneController extends AbstractController
     }
 
     /**
+     * API endpoint to create a new scene for a game session.
+     */
+    #[Route('/api/game/{gameId}/scenes', name: 'api_create_scene_for_game', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function createSceneForGame(int $gameId, Request $request, EntityManagerInterface $entityManager, GameSesionRepository $gameSesionRepository): JsonResponse
+    {
+        $game = $gameSesionRepository->find($gameId);
+        if (!$game) {
+            return $this->json(['error' => 'Game session not found.'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $scene = new Scene();
+        $scene->setName($data['name'] ?? 'New Scene');
+        $scene->setGridWidth($data['grid_width'] ?? 20);
+        $scene->setGridHeight($data['grid_height'] ?? 20);
+        $scene->setThumbnail($data['thumbnail'] ?? null);
+        $scene->setSessionId($game);
+
+        $entityManager->persist($scene);
+        $entityManager->flush();
+
+        return $this->json([
+            'id' => $scene->getId(),
+            'name' => $scene->getName(),
+            'grid_width' => $scene->getGridWidth(),
+            'grid_height' => $scene->getGridHeight(),
+            'thumbnail' => $scene->getThumbnail(),
+        ]);
+    }
+
+    /**
      * API endpoint to get the first scene for a given game session.
      */
     #[Route('/api/game/{gameId}/active-scene', name: 'api_get_active_scene_for_game', methods: ['GET'])]
@@ -63,7 +96,34 @@ final class SceneController extends AbstractController
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
+            'thumbnail' => $scene->getThumbnail(),
         ]);
+    }
+
+    /**
+     * API endpoint to get all scenes for a given game session.
+     */
+    #[Route('/api/game/{gameId}/scenes', name: 'api_get_scenes_for_game', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function getScenesForGame(int $gameId, SceneRepository $sceneRepository): JsonResponse
+    {
+        $scenes = $sceneRepository->findBy(['session_id' => $gameId]);
+
+        if (empty($scenes)) {
+            return $this->json(['error' => 'No scenes found for this game session.'], 404);
+        }
+
+        $scenesData = array_map(function (Scene $scene) {
+            return [
+                'id' => $scene->getId(),
+                'name' => $scene->getName(),
+                'grid_width' => $scene->getGridWidth(),
+                'grid_height' => $scene->getGridHeight(),
+                'thumbnail' => $scene->getThumbnail(),
+            ];
+        }, $scenes);
+
+        return $this->json($scenesData);
     }
 
     #[Route('/{id}', name: 'app_scene_show', methods: ['GET'])]
