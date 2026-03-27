@@ -16,7 +16,7 @@ Es una aplicación Symfony que sigue la arquitectura estándar de controlador-en
 - **Tecnologías Clave**: Symfony, Doctrine, PHP.
 - **Ubicación**: `/Djinni-B`
 
-### Componentes Principales
+### Componentes Principales                                                           
 
 - **`src/Controller/`**: Contiene la lógica de los endpoints de la API.
     - `SceneController.php`: Gestiona las escenas del juego, incluyendo un endpoint para obtener la escena activa de una partida.
