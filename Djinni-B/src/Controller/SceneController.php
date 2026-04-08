@@ -122,6 +122,41 @@ final class SceneController extends AbstractController
         return $this->json($scenesData);
     }
 
+    /**
+     * API endpoint to update a scene.
+     */
+    #[Route('/api/scenes/{id}', name: 'api_update_scene', methods: ['PUT'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateScene(int $id, Request $request, SceneRepository $sceneRepository, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $scene = $sceneRepository->find($id);
+
+        if (!$scene) {
+            return $this->json(['error' => 'Scene not found.'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        if (isset($data['name'])) {
+            $scene->setName($data['name']);
+        }
+        if (isset($data['grid_width'])) {
+            $scene->setGridWidth($data['grid_width']);
+        }
+        if (isset($data['grid_height'])) {
+            $scene->setGridHeight($data['grid_height']);
+        }
+
+        $entityManager->flush();
+
+        return $this->json([
+            'id' => $scene->getId(),
+            'name' => $scene->getName(),
+            'grid_width' => $scene->getGridWidth(),
+            'grid_height' => $scene->getGridHeight(),
+        ]);
+    }
+
     #[Route('/{id}', name: 'app_scene_show', methods: ['GET'])]
     public function show(Scene $scene): Response
     {

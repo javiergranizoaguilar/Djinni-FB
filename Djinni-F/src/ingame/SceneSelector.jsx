@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
-import CreateSceneButton from './CreateSceneButton';
+import CreateSceneButton from './CreateSceneButton.jsx';
+import EditSceneComponent from './EditSceneComponent.jsx';
 
-export default function SceneSelector({ onSceneSelect }) {
+export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
     const { id } = useParams();
     const [scenes, setScenes] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -42,6 +43,13 @@ export default function SceneSelector({ onSceneSelect }) {
         setScenes([...scenes, newScene]);
         fetchScenes(); // Re-fetch to ensure the list is up-to-date
     };
+    
+    const handleSceneUpdated = (updatedScene) => {
+        setScenes(scenes.map(s => s.id === updatedScene.id ? updatedScene : s));
+        if (onSceneUpdated) {
+            onSceneUpdated(updatedScene);
+        }
+    };
 
     return (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 w-full max-w-4xl px-4">
@@ -64,12 +72,13 @@ export default function SceneSelector({ onSceneSelect }) {
                                 <div
                                     key={scene.id}
                                     onClick={() => handleSceneClick(scene)}
-                                    className="cursor-pointer bg-gray-600 hover:bg-gray-500 p-2 rounded-md flex flex-col items-center"
+                                    className="cursor-pointer bg-gray-600 hover:bg-gray-500 p-2 rounded-md flex flex-col items-center relative"
                                 >
                                     <div className="w-full h-32 bg-gray-800 rounded-md mb-2 flex items-center justify-center">
                                         <span className="text-gray-400">No Preview</span>
                                     </div>
                                     <p className="text-center">{scene.name}</p>
+                                    <EditSceneComponent scene={scene} onSceneUpdated={handleSceneUpdated} />
                                 </div>
                             ))
                         ) : (

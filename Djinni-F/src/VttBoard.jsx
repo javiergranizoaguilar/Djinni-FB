@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Stage, Layer, Circle, Text, Rect } from 'react-konva';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
-import SceneSelector from './SceneSelector'; // Importar el nuevo componente
+import SceneSelector from './ingame/SceneSelector.jsx'; // Importar el nuevo componente
 
 export default function VttBoard() {
-    const { gameId } = useParams();
+    const { id } = useParams(); // changed from gameId to id to match App.jsx route usually if gameId is not found
+    const gameId = useParams().gameId || useParams().id; // support both
     const [scene, setScene] = useState(null);
     const [error, setError] = useState(null);
 
@@ -28,7 +29,13 @@ export default function VttBoard() {
     useEffect(() => {
         const fetchScene = async () => {
             try {
-                const response = await axios.get(`http://127.0.0.1:8000/scene/api/game/${gameId}/active-scene`, { withCredentials: true });
+                const token = localStorage.getItem('vtt_token');
+                const response = await axios.get(`http://127.0.0.1:8000/scene/api/game/${gameId}/active-scene`, {
+                    withCredentials: true,
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                });
                 setScene(response.data);
                 console.log("Scene data loaded:", response.data);
             } catch (err) {
@@ -45,6 +52,13 @@ export default function VttBoard() {
     // Función para cambiar la escena
     const handleSceneSelect = (newScene) => {
         setScene(newScene);
+    };
+
+    // Función para actualizar la escena actual si se editó
+    const handleSceneUpdated = (updatedScene) => {
+        if (scene && scene.id === updatedScene.id) {
+            setScene(updatedScene);
+        }
     };
 
     // --- FIX: Always render the grid, even during load ---
@@ -69,7 +83,7 @@ export default function VttBoard() {
 
     return (
         <>
-            <SceneSelector onSceneSelect={handleSceneSelect} />
+            <SceneSelector onSceneSelect={handleSceneSelect} onSceneUpdated={handleSceneUpdated} />
             <Stage width={window.innerWidth} height={window.innerHeight} style={{ background: '#2c3e50' }}>
                 <Layer>
                     <Text
