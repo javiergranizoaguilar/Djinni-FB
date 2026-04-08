@@ -6,6 +6,7 @@ use App\Entity\Scene;
 use App\Form\SceneType;
 use App\Repository\GameSesionRepository;
 use App\Repository\SceneRepository;
+use App\Repository\UserGameSessionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -80,7 +81,7 @@ final class SceneController extends AbstractController
      */
     #[Route('/api/game/{gameId}/active-scene', name: 'api_get_active_scene_for_game', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function getActiveSceneForGame(int $gameId, SceneRepository $sceneRepository): JsonResponse
+    public function getActiveSceneForGame(int $gameId, SceneRepository $sceneRepository, UserGameSessionRepository $userGameSessionRepository): JsonResponse
     {
         // Find the first scene associated with the game session
         $scene = $sceneRepository->findOneBy(['session_id' => $gameId]);
@@ -89,11 +90,36 @@ final class SceneController extends AbstractController
             return $this->json(['error' => 'No scene found for this game session.'], 404);
         }
 
+        $user = $this->getUser();
+        $isDm = false;
+
+        if ($user) {
+            $userGameSession = $userGameSessionRepository->findOneBy([
+                'user' => $user,
+                'gameSession' => $gameId
+            ]);
+            if ($userGameSession) {
+                $isDm = $userGameSession->isDm();
+            }
+        }
+
+        $sceneData = $scene->getDataJson() ?? [];
+
+        // Filtramos los elementos de la capa GM si el usuario no es el GM
+        if (!$isDm) {
+            $sceneData = array_filter($sceneData, function($item) {
+                return isset($item['layer']) && $item['layer'] !== 'gm';
+            });
+            $sceneData = array_values($sceneData); // Reindexar el array
+        }
+
         return $this->json([
             'id' => $scene->getId(),
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
+            'data_json' => $sceneData,
+            'is_dm' => $isDm
         ]);
     }
 
@@ -145,6 +171,9 @@ final class SceneController extends AbstractController
         }
         if (isset($data['grid_height'])) {
             $scene->setGridHeight($data['grid_height']);
+        }
+        if (isset($data['data_json'])) {
+            $scene->setDataJson($data['data_json']);
         }
 
         $entityManager->flush();
