@@ -67,11 +67,7 @@ export default function SceneSelector({ onSceneSelect }) {
                                     className="cursor-pointer bg-gray-600 hover:bg-gray-500 p-2 rounded-md flex flex-col items-center"
                                 >
                                     <div className="w-full h-32 bg-gray-800 rounded-md mb-2 flex items-center justify-center">
-                                        {scene.thumbnail ? (
-                                            <img src={scene.thumbnail} alt={scene.name} className="w-full h-full object-cover rounded-md" />
-                                        ) : (
-                                            <span className="text-gray-400">No Preview</span>
-                                        )}
+                                        <span className="text-gray-400">No Preview</span>
                                     </div>
                                     <p className="text-center">{scene.name}</p>
                                 </div>

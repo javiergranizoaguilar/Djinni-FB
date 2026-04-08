@@ -17,7 +17,6 @@ class SceneType extends AbstractType
             ->add('name')
             ->add('grid_width')
             ->add('grid_height')
-            ->add('background')
             ->add('data_json')
             ->add('session_id', EntityType::class, [
                 'class' => GameSesion::class,

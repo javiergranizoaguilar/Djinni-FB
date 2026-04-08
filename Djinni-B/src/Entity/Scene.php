@@ -22,17 +22,11 @@ class Scene
     #[ORM\Column]
     private ?int $grid_height = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $background = null;
-
     #[ORM\Column(nullable: true)]
     private ?array $data_json = null;
 
     #[ORM\ManyToOne(inversedBy: 'scenes')]
     private ?GameSesion $session_id = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $thumbnail = null;
 
     public function getId(): ?int
     {
@@ -75,18 +69,6 @@ class Scene
         return $this;
     }
 
-    public function getBackground(): ?string
-    {
-        return $this->background;
-    }
-
-    public function setBackground(?string $background): static
-    {
-        $this->background = $background;
-
-        return $this;
-    }
-
     public function getDataJson(): ?array
     {
         return $this->data_json;
@@ -109,18 +91,6 @@ class Scene
     public function setSessionId(?GameSesion $session_id): static
     {
         $this->session_id = $session_id;
-
-        return $this;
-    }
-
-    public function getThumbnail(): ?string
-    {
-        return $this->thumbnail;
-    }
-
-    public function setThumbnail(?string $thumbnail): static
-    {
-        $this->thumbnail = $thumbnail;
 
         return $this;
     }

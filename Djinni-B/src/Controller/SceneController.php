@@ -62,7 +62,6 @@ final class SceneController extends AbstractController
         $scene->setName($data['name'] ?? 'New Scene');
         $scene->setGridWidth($data['grid_width'] ?? 20);
         $scene->setGridHeight($data['grid_height'] ?? 20);
-        $scene->setThumbnail($data['thumbnail'] ?? null);
         $scene->setSessionId($game);
 
         $entityManager->persist($scene);
@@ -73,7 +72,6 @@ final class SceneController extends AbstractController
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
-            'thumbnail' => $scene->getThumbnail(),
         ]);
     }
 
@@ -96,7 +94,6 @@ final class SceneController extends AbstractController
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
-            'thumbnail' => $scene->getThumbnail(),
         ]);
     }
 
@@ -119,7 +116,6 @@ final class SceneController extends AbstractController
                 'name' => $scene->getName(),
                 'grid_width' => $scene->getGridWidth(),
                 'grid_height' => $scene->getGridHeight(),
-                'thumbnail' => $scene->getThumbnail(),
             ];
         }, $scenes);
 
