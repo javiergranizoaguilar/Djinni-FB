@@ -1,38 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import CreateSceneButton from './CreateSceneButton.jsx';
 import EditSceneComponent from './EditSceneComponent.jsx';
+
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
     const { id } = useParams();
     const [scenes, setScenes] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
     const [error, setError] = useState(null);
+    const containerRef = useRef(null);
 
     const fetchScenes = async () => {
         try {
-            const token = localStorage.getItem('vtt_token'); // Obtener el token
-            const response = await axios.get(
-                `http://127.0.0.1:8000/scene/api/game/${id}/scenes`,
-                {
-                    withCredentials: true,
-                    headers: {
-                        Authorization: `Bearer ${token}` // Añadir la cabecera de autorización
-                    }
-                }
-            );
-            setScenes(response.data);
-        } catch (err) {
-            setError('Could not load scenes.');
+            const token = localStorage.getItem('vtt_token');
+            const res = await axios.get(`${API}/scene/api/game/${id}/scenes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setScenes(res.data);
+        } catch {
+            setError('No se pudieron cargar las escenas.');
         }
     };
 
     useEffect(() => {
-        if (id) {
-            fetchScenes();
-        }
+        if (id) fetchScenes();
     }, [id]);
+
+    // Cerrar al hacer clic fuera
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleSceneClick = (scene) => {
         onSceneSelect(scene);
@@ -40,51 +46,109 @@ export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
     };
 
     const handleSceneCreated = (newScene) => {
-        setScenes([...scenes, newScene]);
-        fetchScenes(); // Re-fetch to ensure the list is up-to-date
+        setScenes(prev => [...prev, newScene]);
     };
-    
+
     const handleSceneUpdated = (updatedScene) => {
-        setScenes(scenes.map(s => s.id === updatedScene.id ? updatedScene : s));
-        if (onSceneUpdated) {
-            onSceneUpdated(updatedScene);
-        }
+        setScenes(prev => prev.map(s => s.id === updatedScene.id ? updatedScene : s));
+        onSceneUpdated?.(updatedScene);
     };
 
     return (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 w-full max-w-4xl px-4">
+        <div ref={containerRef} style={{ position: 'relative', flexShrink: 0 }}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="bg-gray-800 text-white px-4 py-2 rounded-t-md focus:outline-none w-full text-center"
+                onClick={() => setIsOpen(prev => !prev)}
+                style={{
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    color: '#e2e8f0',
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    whiteSpace: 'nowrap',
+                }}
             >
-                {isOpen ? 'Close Scenes' : 'Select Scene'}
+                <span>Escenas</span>
+                <span style={{ fontSize: 10 }}>{isOpen ? '▲' : '▼'}</span>
             </button>
+
             {isOpen && (
-                <div className="bg-gray-700 p-4 rounded-b-md shadow-lg">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold">Available Scenes</h3>
+                <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    left: 0,
+                    width: 480,
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: 8,
+                    padding: 16,
+                    zIndex: 50,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ color: '#e2e8f0', fontWeight: 700, fontSize: 15 }}>
+                            Escenas disponibles
+                        </span>
                         <CreateSceneButton gameId={id} onSceneCreated={handleSceneCreated} />
                     </div>
-                    {error && <p className="text-red-500">{error}</p>}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {scenes.length > 0 ? (
-                            scenes.map((scene) => (
+
+                    {error && (
+                        <p style={{ color: '#f87171', fontSize: 13, marginBottom: 8 }}>{error}</p>
+                    )}
+
+                    {scenes.length === 0 ? (
+                        <p style={{ color: '#94a3b8', fontSize: 13 }}>No hay escenas. Crea una.</p>
+                    ) : (
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                            gap: 10,
+                            maxHeight: 320,
+                            overflowY: 'auto',
+                        }}>
+                            {scenes.map(scene => (
                                 <div
                                     key={scene.id}
                                     onClick={() => handleSceneClick(scene)}
-                                    className="cursor-pointer bg-gray-600 hover:bg-gray-500 p-2 rounded-md flex flex-col items-center relative"
+                                    style={{
+                                        cursor: 'pointer',
+                                        background: '#0f172a',
+                                        border: '1px solid #334155',
+                                        borderRadius: 6,
+                                        padding: 8,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        transition: 'border-color 0.15s',
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = '#334155'}
                                 >
-                                    <div className="w-full h-32 bg-gray-800 rounded-md mb-2 flex items-center justify-center">
-                                        <span className="text-gray-400">No Preview</span>
+                                    <div style={{
+                                        width: '100%', height: 80,
+                                        background: '#1e293b',
+                                        borderRadius: 4,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}>
+                                        <span style={{ color: '#475569', fontSize: 12 }}>Sin preview</span>
                                     </div>
-                                    <p className="text-center">{scene.name}</p>
-                                    <EditSceneComponent scene={scene} onSceneUpdated={handleSceneUpdated} />
+                                    <span style={{ color: '#e2e8f0', fontSize: 13, textAlign: 'center', wordBreak: 'break-word' }}>
+                                        {scene.name}
+                                    </span>
+                                    <div onClick={e => e.stopPropagation()}>
+                                        <EditSceneComponent scene={scene} onSceneUpdated={handleSceneUpdated} />
+                                    </div>
                                 </div>
-                            ))
-                        ) : (
-                            <p>No scenes available.</p>
-                        )}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

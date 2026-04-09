@@ -1,27 +1,51 @@
 import React from 'react';
 
 const TOKENS = [
-    { color: 'red', label: 'Red', hex: '#FF0000' },
-    { color: 'blue', label: 'Blue', hex: '#0000FF' },
-    { color: 'green', label: 'Green', hex: '#00FF00' },
-    { color: 'yellow', label: 'Yellow', hex: '#FFFF00' },
+    { color: 'red',    label: 'Rojo',     hex: '#EF4444' },
+    { color: 'blue',   label: 'Azul',     hex: '#3B82F6' },
+    { color: 'green',  label: 'Verde',    hex: '#22C55E' },
+    { color: 'yellow', label: 'Amarillo', hex: '#EAB308' },
 ];
 
 export default function TokenSpawner() {
     return (
-        <div className="absolute top-20 left-4 bg-gray-800 p-4 rounded-md shadow-lg z-10 w-48 border border-gray-600">
-            <h3 className="text-white text-lg font-bold mb-4 border-b border-gray-600 pb-2">Tokens</h3>
-            <p className="text-gray-400 text-xs mb-3">Arrastra un token al tablero</p>
-            <div className="flex flex-wrap gap-3">
+        <div style={{ padding: 12 }}>
+            <p style={{ color: '#94a3b8', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
+                Tokens
+            </p>
+            <p style={{ color: '#64748b', fontSize: 11, marginBottom: 12 }}>
+                Arrastra al tablero
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {TOKENS.map(({ color, label, hex }) => (
                     <div
                         key={color}
                         draggable
                         onDragStart={(e) => e.dataTransfer.setData('tokenType', color)}
                         title={label}
-                        className="w-12 h-12 cursor-grab rounded-full border-2 border-transparent hover:border-white"
-                        style={{ backgroundColor: hex }}
-                    />
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '6px 8px',
+                            borderRadius: 6,
+                            cursor: 'grab',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid #1e293b',
+                            transition: 'background 0.15s',
+                            userSelect: 'none',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                    >
+                        <div style={{
+                            width: 32, height: 32, borderRadius: '50%',
+                            background: hex,
+                            flexShrink: 0,
+                            boxShadow: `0 0 8px ${hex}66`,
+                        }} />
+                        <span style={{ color: '#cbd5e1', fontSize: 13 }}>{label}</span>
+                    </div>
                 ))}
             </div>
         </div>

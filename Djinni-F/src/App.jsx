@@ -1,6 +1,6 @@
 import {useState} from 'react'
 import './App.css'
-import {BrowserRouter, Route, Router, Routes, Navigate} from "react-router-dom";
+import {BrowserRouter, Route, Router, Routes, Navigate, useLocation} from "react-router-dom";
 import VttBoard from "./VttBoard.jsx";
 import MainLayout from "./layout/MainLayout.jsx";
 import Header from "./layout/Header.jsx";
@@ -17,10 +17,12 @@ const PrivateRoute = ({ children }) => {
     // Si no hay token, te manda al login
     return token ? children : <Navigate to="/login" />;
 };
-function App() {
-    const [count, setCount] = useState(0)
+function AppContent() {
+    const location = useLocation();
+    const isVtt = location.pathname.startsWith('/play/');
+
     return (
-        <BrowserRouter>
+        <>
             <Header/>
             <Routes>
                 <Route path="/" element={<MainLayout/>}/>
@@ -48,7 +50,15 @@ function App() {
                     </PrivateRoute>
                 } />
             </Routes>
-            <Footer/>
+            {!isVtt && <Footer/>}
+        </>
+    );
+}
+
+function App() {
+    return (
+        <BrowserRouter>
+            <AppContent />
         </BrowserRouter>
     );
 }
