@@ -3,6 +3,8 @@
 namespace App\Entity;
 
 use App\Repository\SceneRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: SceneRepository::class)]
@@ -22,11 +24,16 @@ class Scene
     #[ORM\Column]
     private ?int $grid_height = null;
 
-    #[ORM\Column(nullable: true)]
-    private ?array $data_json = null;
-
     #[ORM\ManyToOne(inversedBy: 'scenes')]
     private ?GameSesion $session_id = null;
+
+    #[ORM\OneToMany(mappedBy: 'scene', targetEntity: SceneToken::class, orphanRemoval: true)]
+    private Collection $sceneTokens;
+
+    public function __construct()
+    {
+        $this->sceneTokens = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -69,20 +76,6 @@ class Scene
         return $this;
     }
 
-    public function getDataJson(): ?array
-    {
-        return $this->data_json;
-    }
-
-    public function setDataJson(?array $data_json): static
-    {
-        $this->data_json = $data_json;
-
-        return $this;
-    }
-
-
-
     public function getSessionId(): ?GameSesion
     {
         return $this->session_id;
@@ -91,6 +84,36 @@ class Scene
     public function setSessionId(?GameSesion $session_id): static
     {
         $this->session_id = $session_id;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, SceneToken>
+     */
+    public function getSceneTokens(): Collection
+    {
+        return $this->sceneTokens;
+    }
+
+    public function addSceneToken(SceneToken $sceneToken): static
+    {
+        if (!$this->sceneTokens->contains($sceneToken)) {
+            $this->sceneTokens->add($sceneToken);
+            $sceneToken->setScene($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSceneToken(SceneToken $sceneToken): static
+    {
+        if ($this->sceneTokens->removeElement($sceneToken)) {
+            // set the owning side to null (unless already changed)
+            if ($sceneToken->getScene() === $this) {
+                $sceneToken->setScene(null);
+            }
+        }
 
         return $this;
     }
