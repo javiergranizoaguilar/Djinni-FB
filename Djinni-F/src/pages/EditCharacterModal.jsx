@@ -67,6 +67,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     const [newSpell, setNewSpell] = useState({ name: '', level: 0, school: 'Evocation', casting_time: '1 action', range: '60 feet', duration: 'Instantaneous' });
 
     useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
+
+    useEffect(() => {
         if (character) {
             // Normalizar level para que siempre sea un array
             let normalizedLevel = character.level;

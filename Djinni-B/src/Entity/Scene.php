@@ -30,9 +30,13 @@ class Scene
     #[ORM\OneToMany(mappedBy: 'scene', targetEntity: SceneToken::class, orphanRemoval: true)]
     private Collection $sceneTokens;
 
+    #[ORM\OneToMany(mappedBy: 'scene', targetEntity: SceneImage::class, cascade: ['remove'], orphanRemoval: true)]
+    private Collection $sceneImages;
+
     public function __construct()
     {
-        $this->sceneTokens = new ArrayCollection();
+        $this->sceneTokens  = new ArrayCollection();
+        $this->sceneImages  = new ArrayCollection();
     }
 
     public function getId(): ?int

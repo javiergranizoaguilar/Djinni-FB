@@ -30,9 +30,11 @@ class SceneToken
     #[ORM\Column(length: 50)]
     private ?string $layer = null;
 
-    // Temporary color field for testing without full Token entity populated
     #[ORM\Column(length: 50, nullable: true)]
     private ?string $color = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $name = null;
 
     public function getId(): ?int
     {
@@ -107,6 +109,18 @@ class SceneToken
     public function setColor(?string $color): static
     {
         $this->color = $color;
+
+        return $this;
+    }
+
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): static
+    {
+        $this->name = $name;
 
         return $this;
     }

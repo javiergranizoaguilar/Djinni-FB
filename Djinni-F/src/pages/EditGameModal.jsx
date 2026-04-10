@@ -10,6 +10,11 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
+
+    useEffect(() => {
         if (game) {
             setTitle(game.title);
             setIsActive(game.is_active);

@@ -20,4 +20,19 @@ class SceneTokenRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, SceneToken::class);
     }
+
+    /**
+     * Devuelve todos los SceneTokens distintos (por token o por nombre+color si son custom)
+     * que han sido usados en cualquier escena de la sesión dada.
+     */
+    public function findUsedBySession(int $sessionId): array
+    {
+        return $this->createQueryBuilder('st')
+            ->join('st.scene', 's')
+            ->join('s.session_id', 'gs')
+            ->where('gs.id = :sid')
+            ->setParameter('sid', $sessionId)
+            ->getQuery()
+            ->getResult();
+    }
 }

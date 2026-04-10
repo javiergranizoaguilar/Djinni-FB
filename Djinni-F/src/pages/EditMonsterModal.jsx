@@ -37,11 +37,22 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         vtt_metadata: {}
     });
     
-    const [error, setError] = useState(null);
-    const [saving, setSaving] = useState(false);
+    const [error,           setError]          = useState(null);
+    const [saving,          setSaving]         = useState(false);
+    const [tokenUrl,        setTokenUrl]       = useState(null);
+    const [portraitUrl,     setPortraitUrl]    = useState(null);
+    const [uploadingToken,  setUploadingToken] = useState(false);
+    const [uploadingPortrait, setUploadingPortrait] = useState(false);
+
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     useEffect(() => {
         if (monster) {
+            setTokenUrl(monster.image_url || null);
+            setPortraitUrl(monster.portrait_url || null);
             setFormData({
                 name: monster.name || '',
                 source_book: monster.source_book || '',
@@ -129,6 +140,27 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         }
     };
 
+    const handleImageUpload = async (type, file) => {
+        if (!file) return;
+        const setter = type === 'portrait' ? setUploadingPortrait : setUploadingToken;
+        setter(true);
+        const token = localStorage.getItem('vtt_token');
+        const formData = new FormData();
+        formData.append('image', file);
+        try {
+            const res = await axios.post(`http://localhost:8000/api/monster/${monster.id}/upload-${type}`, formData, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setTokenUrl(res.data.image_url);
+            setPortraitUrl(res.data.portrait_url);
+            onMonsterUpdated();
+        } catch (err) {
+            setError('Error al subir la imagen.');
+        } finally {
+            setter(false);
+        }
+    };
+
     const sizes = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
     const types = ['Aberration', 'Beast', 'Celestial', 'Construct', 'Dragon', 'Elemental', 'Fey', 'Fiend', 'Giant', 'Humanoid', 'Monstrosity', 'Ooze', 'Plant', 'Undead'];
 
@@ -142,6 +174,40 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                         {error}
                     </div>
                 )}
+
+                {/* Imágenes del monstruo */}
+                <div className="flex items-start gap-6 mb-4">
+                    {/* Retrato */}
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-24 h-32 rounded-lg overflow-hidden bg-gray-200 dark:bg-[#112217] flex items-center justify-center border border-gray-300 dark:border-[#23482f]">
+                            {portraitUrl
+                                ? <img src={`http://localhost:8000${portraitUrl}`} alt="retrato" className="w-full h-full object-cover" />
+                                : <span className="text-4xl">🐉</span>
+                            }
+                        </div>
+                        <label className="cursor-pointer inline-block px-3 py-1 bg-[#23482f] hover:bg-[#2d5a3a] text-white text-xs rounded-md transition-colors text-center">
+                            {uploadingPortrait ? 'Subiendo…' : 'Retrato'}
+                            <input type="file" accept="image/*" className="hidden"
+                                onChange={e => handleImageUpload('portrait', e.target.files[0])}
+                                disabled={uploadingPortrait} />
+                        </label>
+                    </div>
+                    {/* Token */}
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-200 dark:bg-[#112217] flex items-center justify-center border border-gray-300 dark:border-[#23482f]">
+                            {tokenUrl
+                                ? <img src={`http://localhost:8000${tokenUrl}`} alt="token" className="w-full h-full object-cover" />
+                                : <span className="text-2xl">⚔️</span>
+                            }
+                        </div>
+                        <label className="cursor-pointer inline-block px-3 py-1 bg-[#23482f] hover:bg-[#2d5a3a] text-white text-xs rounded-md transition-colors text-center">
+                            {uploadingToken ? 'Subiendo…' : 'Token'}
+                            <input type="file" accept="image/*" className="hidden"
+                                onChange={e => handleImageUpload('token', e.target.files[0])}
+                                disabled={uploadingToken} />
+                        </label>
+                    </div>
+                </div>
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Columna 1: Datos Básicos */}

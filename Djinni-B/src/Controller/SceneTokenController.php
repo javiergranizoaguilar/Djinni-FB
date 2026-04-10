@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Scene;
 use App\Entity\SceneToken;
+use App\Repository\GameSesionRepository;
 use App\Repository\SceneRepository;
 use App\Repository\SceneTokenRepository;
 use App\Repository\TokenRepository;
@@ -48,17 +49,18 @@ class SceneTokenController extends AbstractController
             }
 
             $data = [
-                'id' => $st->getId(),
-                'col' => $st->getCol(),
-                'row' => $st->getRow(),
+                'id'    => $st->getId(),
+                'col'   => $st->getCol(),
+                'row'   => $st->getRow(),
                 'layer' => $st->getLayer(),
                 'color' => $st->getColor(),
+                'name'  => $st->getName(),
             ];
 
             if ($st->getToken()) {
-                $data['token_id'] = $st->getToken()->getId();
+                $data['token_id']  = $st->getToken()->getId();
                 $data['image_url'] = $st->getToken()->getImageUrl();
-                $data['name'] = $st->getToken()->getName();
+                $data['name']      = $st->getToken()->getName();
             }
 
             $tokensData[] = $data;
@@ -84,6 +86,7 @@ class SceneTokenController extends AbstractController
         $sceneToken->setRow($data['row'] ?? 0);
         $sceneToken->setLayer($data['layer'] ?? 'user');
         $sceneToken->setColor($data['color'] ?? 'gray');
+        $sceneToken->setName($data['name'] ?? null);
 
         if (isset($data['token_id'])) {
             $token = $tokenRepository->find($data['token_id']);
@@ -96,12 +99,64 @@ class SceneTokenController extends AbstractController
         $em->flush();
 
         return $this->json([
-            'id' => $sceneToken->getId(),
-            'col' => $sceneToken->getCol(),
-            'row' => $sceneToken->getRow(),
+            'id'    => $sceneToken->getId(),
+            'col'   => $sceneToken->getCol(),
+            'row'   => $sceneToken->getRow(),
             'layer' => $sceneToken->getLayer(),
-            'color' => $sceneToken->getColor()
+            'color' => $sceneToken->getColor(),
+            'name'  => $sceneToken->getName(),
         ], 201);
+    }
+
+    #[Route('/session/{sessionId}/used', name: 'api_scene_token_used', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function usedBySession(int $sessionId, GameSesionRepository $gameSesionRepository, SceneTokenRepository $sceneTokenRepository, UserGameSessionRepository $userGameSessionRepository): JsonResponse
+    {
+        $session = $gameSesionRepository->find($sessionId);
+        if (!$session) {
+            return $this->json(['error' => 'Session not found'], 404);
+        }
+
+        $isDm = false;
+        $user = $this->getUser();
+        if ($user) {
+            $ugs = $userGameSessionRepository->findOneBy(['user' => $user, 'gameSession' => $session]);
+            if ($ugs) $isDm = $ugs->isDm();
+        }
+
+        $sceneTokens = $sceneTokenRepository->findUsedBySession($sessionId);
+
+        // Deduplicar: tokens enlazados por token_id, custom por nombre+color
+        $seen    = [];
+        $result  = [];
+
+        foreach ($sceneTokens as $st) {
+            if (!$isDm && $st->getLayer() === 'gm') continue;
+
+            if ($st->getToken()) {
+                $key = 'token_' . $st->getToken()->getId();
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $result[] = [
+                    'kind'      => 'linked',
+                    'token_id'  => $st->getToken()->getId(),
+                    'name'      => $st->getToken()->getName(),
+                    'image_url' => $st->getToken()->getImageUrl(),
+                    'color'     => $st->getColor(),
+                ];
+            } else {
+                $key = 'custom_' . $st->getName() . '_' . $st->getColor();
+                if (isset($seen[$key])) continue;
+                $seen[$key] = true;
+                $result[] = [
+                    'kind'  => 'custom',
+                    'name'  => $st->getName(),
+                    'color' => $st->getColor(),
+                ];
+            }
+        }
+
+        return $this->json($result);
     }
 
     #[Route('/{id}', name: 'api_scene_token_update', methods: ['PUT'])]

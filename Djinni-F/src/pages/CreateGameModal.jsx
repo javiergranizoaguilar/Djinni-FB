@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 export default function CreateGameModal({ isOpen, onClose }) {
     const [newGameTitle, setNewGameTitle] = useState('');
     const [createGameError, setCreateGameError] = useState(null);
+
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     if (!isOpen) return null;
 

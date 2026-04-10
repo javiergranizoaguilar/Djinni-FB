@@ -130,6 +130,12 @@ class Monster
     #[ORM\Column(nullable: true)]
     private ?array $vtt_metadata = null;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $image_url = null;
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $portrait_url = null;
+
     #[ORM\ManyToOne(inversedBy: 'monsters')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $creador = null;
@@ -693,6 +699,30 @@ class Monster
         if ($this->spells->removeElement($spell)) {
             $spell->removeMonsterSpell($this);
         }
+
+        return $this;
+    }
+
+    public function getImageUrl(): ?string
+    {
+        return $this->image_url;
+    }
+
+    public function setImageUrl(?string $image_url): static
+    {
+        $this->image_url = $image_url;
+
+        return $this;
+    }
+
+    public function getPortraitUrl(): ?string
+    {
+        return $this->portrait_url;
+    }
+
+    public function setPortraitUrl(?string $portrait_url): static
+    {
+        $this->portrait_url = $portrait_url;
 
         return $this;
     }

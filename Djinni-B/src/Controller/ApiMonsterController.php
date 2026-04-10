@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\String\Slugger\SluggerInterface;
 
 #[Route('/api/monster')]
 class ApiMonsterController extends AbstractController
@@ -127,7 +128,9 @@ class ApiMonsterController extends AbstractController
                     'treasure' => $monster->getTreasure(),
                     'tags' => $monster->getTags(),
                     'vtt_metadata' => $monster->getVttMetadata(),
-                    'is_editable' => $mu->isEditable(),
+                    'image_url'    => $monster->getImageUrl(),
+                    'portrait_url' => $monster->getPortraitUrl(),
+                    'is_editable'  => $mu->isEditable(),
                 ];
             }
         }
@@ -252,5 +255,59 @@ class ApiMonsterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['message' => 'Monster updated successfully']);
+    }
+
+    #[Route('/{id}/upload-token', name: 'api_monster_upload_token', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function uploadToken(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    {
+        return $this->handleImageUpload($id, 'token', $request, $entityManager, $slugger);
+    }
+
+    #[Route('/{id}/upload-portrait', name: 'api_monster_upload_portrait', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function uploadPortrait(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    {
+        return $this->handleImageUpload($id, 'portrait', $request, $entityManager, $slugger);
+    }
+
+    private function handleImageUpload(int $id, string $type, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+        if (!$monster) {
+            return $this->json(['error' => 'Monster not found'], 404);
+        }
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy(['user' => $user, 'monster' => $monster]);
+        if (!$mu || !$mu->isEditable()) {
+            return $this->json(['error' => 'Permission denied'], 403);
+        }
+
+        $file = $request->files->get('image');
+        if (!$file) {
+            return $this->json(['error' => 'No image provided'], 400);
+        }
+
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/monster_images';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0775, true);
+        }
+
+        $safeFilename = $slugger->slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
+        $filename = $safeFilename . '-' . $type . '-' . uniqid() . '.' . $file->guessExtension();
+        $file->move($uploadDir, $filename);
+
+        $url = '/uploads/monster_images/' . $filename;
+        if ($type === 'portrait') {
+            $monster->setPortraitUrl($url);
+        } else {
+            $monster->setImageUrl($url);
+        }
+        $entityManager->flush();
+
+        return $this->json(['image_url' => $monster->getImageUrl(), 'portrait_url' => $monster->getPortraitUrl()]);
     }
 }
