@@ -123,8 +123,17 @@ class SceneImageController extends AbstractController
             return $this->json(['error' => 'Image not found'], 404);
         }
 
+        $imageUrl = $img->getImageUrl();
+
         $em->remove($img);
         $em->flush();
+
+        if ($imageUrl) {
+            $filePath = $this->getParameter('kernel.project_dir') . '/public' . $imageUrl;
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
 
         return $this->json(['message' => 'Image deleted']);
     }

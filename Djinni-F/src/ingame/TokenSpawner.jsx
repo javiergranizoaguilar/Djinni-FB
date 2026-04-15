@@ -154,7 +154,7 @@ export default function TokenSpawner({ sceneItems = [], gameId }) {
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin personajes</p>
                             : characters.map(c => (
                                 <EntityRow key={c.id} name={c.name} image={c.portrait_image || c.token_image} color="#3b82f6"
-                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue' }} />
+                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue', image_url: c.token_image || null }} />
                             ))}
                     </div>
             )}
@@ -168,7 +168,7 @@ export default function TokenSpawner({ sceneItems = [], gameId }) {
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin monstruos</p>
                             : monsters.map(m => (
                                 <EntityRow key={m.id} name={m.name} image={m.portrait_url || m.image_url} color="#ef4444"
-                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red' }} />
+                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red', image_url: m.image_url || null }} />
                             ))}
                     </div>
             )}

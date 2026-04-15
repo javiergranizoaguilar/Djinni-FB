@@ -49,12 +49,16 @@ class SceneTokenController extends AbstractController
             }
 
             $data = [
-                'id'    => $st->getId(),
-                'col'   => $st->getCol(),
-                'row'   => $st->getRow(),
-                'layer' => $st->getLayer(),
-                'color' => $st->getColor(),
-                'name'  => $st->getName(),
+                'id'        => $st->getId(),
+                'col'       => $st->getCol(),
+                'row'       => $st->getRow(),
+                'layer'     => $st->getLayer(),
+                'color'     => $st->getColor(),
+                'name'      => $st->getName(),
+                'image_url' => $st->getImageUrl(),
+                'width'     => $st->getWidth(),
+                'height'    => $st->getHeight(),
+                'counters'  => $st->getCounters(),
             ];
 
             if ($st->getToken()) {
@@ -87,6 +91,10 @@ class SceneTokenController extends AbstractController
         $sceneToken->setLayer($data['layer'] ?? 'user');
         $sceneToken->setColor($data['color'] ?? 'gray');
         $sceneToken->setName($data['name'] ?? null);
+        $sceneToken->setImageUrl($data['image_url'] ?? null);
+        $sceneToken->setWidth(isset($data['width']) ? (float)$data['width'] : null);
+        $sceneToken->setHeight(isset($data['height']) ? (float)$data['height'] : null);
+        $sceneToken->setCounters($data['counters'] ?? null);
 
         if (isset($data['token_id'])) {
             $token = $tokenRepository->find($data['token_id']);
@@ -99,12 +107,16 @@ class SceneTokenController extends AbstractController
         $em->flush();
 
         return $this->json([
-            'id'    => $sceneToken->getId(),
-            'col'   => $sceneToken->getCol(),
-            'row'   => $sceneToken->getRow(),
-            'layer' => $sceneToken->getLayer(),
-            'color' => $sceneToken->getColor(),
-            'name'  => $sceneToken->getName(),
+            'id'        => $sceneToken->getId(),
+            'col'       => $sceneToken->getCol(),
+            'row'       => $sceneToken->getRow(),
+            'layer'     => $sceneToken->getLayer(),
+            'color'     => $sceneToken->getColor(),
+            'name'      => $sceneToken->getName(),
+            'image_url' => $sceneToken->getImageUrl(),
+            'width'     => $sceneToken->getWidth(),
+            'height'    => $sceneToken->getHeight(),
+            'counters'  => $sceneToken->getCounters(),
         ], 201);
     }
 
@@ -176,17 +188,22 @@ class SceneTokenController extends AbstractController
         if (isset($data['row'])) {
             $sceneToken->setRow($data['row']);
         }
-        if (isset($data['layer'])) {
-            $sceneToken->setLayer($data['layer']);
-        }
+        if (isset($data['layer']))    $sceneToken->setLayer($data['layer']);
+        if (isset($data['width']))    $sceneToken->setWidth((float)$data['width']);
+        if (isset($data['height']))   $sceneToken->setHeight((float)$data['height']);
+        if (array_key_exists('counters', $data)) $sceneToken->setCounters($data['counters']);
 
         $em->flush();
 
         return $this->json([
-            'id' => $sceneToken->getId(),
-            'col' => $sceneToken->getCol(),
-            'row' => $sceneToken->getRow(),
-            'layer' => $sceneToken->getLayer()
+            'id'        => $sceneToken->getId(),
+            'col'       => $sceneToken->getCol(),
+            'row'       => $sceneToken->getRow(),
+            'layer'     => $sceneToken->getLayer(),
+            'image_url' => $sceneToken->getImageUrl(),
+            'width'     => $sceneToken->getWidth(),
+            'height'    => $sceneToken->getHeight(),
+            'counters'  => $sceneToken->getCounters(),
         ]);
     }
 

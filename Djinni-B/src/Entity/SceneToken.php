@@ -36,6 +36,15 @@ class SceneToken
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $name = null;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $image_url = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $width = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $height = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -124,4 +133,19 @@ class SceneToken
 
         return $this;
     }
+
+    #[ORM\Column(nullable: true)]
+    private ?array $counters = null;
+
+    public function getCounters(): ?array { return $this->counters; }
+    public function setCounters(?array $counters): static { $this->counters = $counters; return $this; }
+
+    public function getImageUrl(): ?string { return $this->image_url; }
+    public function setImageUrl(?string $image_url): static { $this->image_url = $image_url; return $this; }
+
+    public function getWidth(): ?float { return $this->width; }
+    public function setWidth(?float $width): static { $this->width = $width; return $this; }
+
+    public function getHeight(): ?float { return $this->height; }
+    public function setHeight(?float $height): static { $this->height = $height; return $this; }
 }

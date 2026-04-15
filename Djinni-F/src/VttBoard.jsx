@@ -31,6 +31,50 @@ const colorMap = {
     yellow: '#FFFF00',
 };
 
+const DEFAULT_COUNTERS = [
+    { label: 'HP',  current: 10, max: 10, color: '#22c55e' },
+    { label: '',    current: 0,  max: 0,  color: '#3b82f6' },
+    { label: '',    current: 0,  max: 0,  color: '#f59e0b' },
+];
+const BAR_H = 5;
+const BAR_GAP = 2;
+const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899','#ffffff'];
+
+// Componente para tokens con imagen
+const TokenImageNode = forwardRef(function TokenImageNode(
+    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDragEnd, onTransformEnd, onContextMenu },
+    ref
+) {
+    const [img, setImg] = useState(null);
+    useEffect(() => {
+        if (!item.image_url) return;
+        const image = new window.Image();
+        image.src = API + item.image_url;
+        image.onload  = () => setImg(image);
+        image.onerror = () => console.error('Error cargando token img:', item.image_url);
+    }, [item.image_url]);
+
+    const w = item.width  || squareSize;
+    const h = item.height || squareSize;
+    const x = boardX + (item.col || 0) * squareSize + squareSize / 2 - w / 2;
+    const y = boardY + (item.row || 0) * squareSize + squareSize / 2 - h / 2;
+
+    return (
+        <KonvaImage
+            ref={ref}
+            image={img}
+            x={x} y={y} width={w} height={h}
+            opacity={opacity}
+            draggable={draggable}
+            onClick={onClick}
+            onTap={onClick}
+            onDragEnd={onDragEnd}
+            onTransformEnd={onTransformEnd}
+            onContextMenu={onContextMenu}
+        />
+    );
+});
+
 // Componente que carga y renderiza una imagen Konva
 const SceneImageNode = forwardRef(function SceneImageNode(
     { item, opacity, draggable, onClick, onDragEnd, onTransformEnd, onContextMenu },
@@ -72,14 +116,18 @@ export default function VttBoard() {
     const [sceneItems,     setSceneItems]      = useState([]);
     const [sceneImages,    setSceneImages]     = useState([]);
     const [activeLayer,    setActiveLayer]     = useState('user');
-    const [selectedImgId,  setSelectedImgId]  = useState(null);
+    const [selectedImgId,   setSelectedImgId]  = useState(null);
+    const [selectedTokenId, setSelectedTokenId] = useState(null);
     const [zoom,           setZoom]           = useState(1);
     const [ctxMenu,        setCtxMenu]        = useState(null); // {x,y,type,id,layer}
     const [dropIndicator,  setDropIndicator]  = useState(null); // {x,y,w,h} en coords de pantalla
+    const [barEditor,      setBarEditor]      = useState(null); // {tokenId, screenX, screenY}
+    const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
 
     const stageRef       = useRef(null);
     const transformerRef = useRef(null);
     const imageNodesRef  = useRef({});
+    const tokenNodesRef  = useRef({});
     const isPanning      = useRef(false);
     const lastPanPos     = useRef({ x: 0, y: 0 });
     const shiftHeld      = useRef(false);
@@ -103,13 +151,15 @@ export default function VttBoard() {
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     }, []);
 
-    // Sincronizar Transformer con la imagen seleccionada
+    // Sincronizar Transformer con imagen o token seleccionado
     useEffect(() => {
         if (!transformerRef.current) return;
-        const node = selectedImgId ? imageNodesRef.current[selectedImgId] : null;
+        let node = null;
+        if (selectedImgId)   node = imageNodesRef.current[selectedImgId];
+        if (selectedTokenId) node = tokenNodesRef.current[selectedTokenId];
         transformerRef.current.nodes(node ? [node] : []);
         transformerRef.current.getLayer()?.batchDraw();
-    }, [selectedImgId]);
+    }, [selectedImgId, selectedTokenId]);
 
     // ── PAN con botón central ─────────────────────────────────────────────────
     const handleMouseDown = (e) => {
@@ -276,8 +326,11 @@ export default function VttBoard() {
         try {
             const res = await axios.post(`${API}/api/scene-token/scene/${scene.id}`, {
                 col, row, layer: activeLayer,
-                color: tokenData.color || 'gray',
-                name:  tokenData.name  || null,
+                color:     tokenData.color     || 'gray',
+                name:      tokenData.name      || null,
+                image_url: tokenData.image_url || null,
+                width:     squareSize,
+                height:    squareSize,
             }, { headers: authHeaders() });
             setSceneItems(prev => [...prev, res.data]);
         } catch (err) {
@@ -314,11 +367,20 @@ export default function VttBoard() {
 
     // ── Tokens: mover ─────────────────────────────────────────────────────────
     const handleDragEndToken = async (e, item) => {
-        let col = Math.round((e.target.x() - boardX - squareSize / 2) / squareSize);
-        let row = Math.round((e.target.y() - boardY - squareSize / 2) / squareSize);
+        const w = item.width  || squareSize;
+        const h = item.height || squareSize;
+        // tokens con imagen → posición top-left; círculos → posición center
+        const centerX = item.image_url ? e.target.x() + w / 2 : e.target.x();
+        const centerY = item.image_url ? e.target.y() + h / 2 : e.target.y();
+        let col = Math.round((centerX - boardX - squareSize / 2) / squareSize);
+        let row = Math.round((centerY - boardY - squareSize / 2) / squareSize);
         col = Math.max(0, Math.min(col, gridWidth  - 1));
         row = Math.max(0, Math.min(row, gridHeight - 1));
-        e.target.position({ x: boardX + col * squareSize + squareSize / 2, y: boardY + row * squareSize + squareSize / 2 });
+        if (item.image_url) {
+            e.target.position({ x: boardX + col * squareSize + squareSize / 2 - w / 2, y: boardY + row * squareSize + squareSize / 2 - h / 2 });
+        } else {
+            e.target.position({ x: boardX + col * squareSize + squareSize / 2, y: boardY + row * squareSize + squareSize / 2 });
+        }
         e.target.getLayer().batchDraw();
         setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, col, row } : i));
         try {
@@ -341,6 +403,45 @@ export default function VttBoard() {
         setSceneImages(prev => prev.map(i => i.id === item.id ? { ...i, ...pos } : i));
         try {
             await axios.put(`${API}/api/scene-image/${item.id}`, pos, { headers: authHeaders() });
+        } catch (err) { console.error(err); }
+    };
+
+    // ── Tokens con imagen: redimensionar ─────────────────────────────────────
+    const handleTokenTransformEnd = async (e, item) => {
+        const node   = e.target;
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
+        node.scaleX(1);
+        node.scaleY(1);
+
+        const w = item.width  || squareSize;
+        const h = item.height || squareSize;
+        let newX      = node.x();
+        let newY      = node.y();
+        let newWidth  = Math.max(squareSize / 2, w * scaleX);
+        let newHeight = Math.max(squareSize / 2, h * scaleY);
+
+        if (!shiftHeld.current) {
+            const left   = snapX(newX);
+            const top    = snapY(newY);
+            const right  = snapX(newX + newWidth);
+            const bottom = snapY(newY + newHeight);
+            newX      = left;
+            newY      = top;
+            newWidth  = Math.max(squareSize, right - left);
+            newHeight = Math.max(squareSize, bottom - top);
+            node.x(newX); node.y(newY);
+            node.width(newWidth); node.height(newHeight);
+            node.getLayer().batchDraw();
+        }
+
+        // Calcular col/row desde el centro
+        const col = Math.max(0, Math.min(Math.round((newX + newWidth  / 2 - boardX - squareSize / 2) / squareSize), gridWidth  - 1));
+        const row = Math.max(0, Math.min(Math.round((newY + newHeight / 2 - boardY - squareSize / 2) / squareSize), gridHeight - 1));
+
+        setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, col, row, width: newWidth, height: newHeight } : i));
+        try {
+            await axios.put(`${API}/api/scene-token/${item.id}`, { col, row, width: newWidth, height: newHeight }, { headers: authHeaders() });
         } catch (err) { console.error(err); }
     };
 
@@ -399,7 +500,8 @@ export default function VttBoard() {
             } else {
                 await axios.delete(`${API}/api/scene-image/${ctxMenu.id}`, { headers: authHeaders() });
                 setSceneImages(prev => prev.filter(i => i.id !== ctxMenu.id));
-                if (selectedImgId === ctxMenu.id) setSelectedImgId(null);
+                if (selectedImgId   === ctxMenu.id) setSelectedImgId(null);
+                if (selectedTokenId === ctxMenu.id) setSelectedTokenId(null);
             }
         } catch (err) { console.error(err); }
         setCtxMenu(null);
@@ -437,6 +539,101 @@ export default function VttBoard() {
         return lines;
     };
 
+    // ── Contadores ────────────────────────────────────────────────────────────
+    const getCounters = (item) => item.counters || DEFAULT_COUNTERS;
+
+const saveCounters = async (tokenId, counters) => {
+        setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, counters } : i));
+        try {
+            await axios.put(`${API}/api/scene-token/${tokenId}`, { counters }, { headers: authHeaders() });
+        } catch (err) { console.error(err); }
+    };
+
+    const getTokenBounds = (item) => {
+        const w = item.image_url ? (item.width || squareSize) : squareSize;
+        const h = item.image_url ? (item.height || squareSize) : squareSize;
+        const x = item.image_url
+            ? boardX + (item.col || 0) * squareSize + squareSize / 2 - w / 2
+            : boardX + (item.col || 0) * squareSize;
+        const y = item.image_url
+            ? boardY + (item.row || 0) * squareSize + squareSize / 2 - h / 2
+            : boardY + (item.row || 0) * squareSize;
+        return { x, y, w, h };
+    };
+
+    const renderTokenBars = (item) => {
+        if (!isDm && item.layer === 'gm') return null;
+        const counters = getCounters(item);
+        const hasAny = counters.some(c => c.max > 0);
+        if (!hasAny) return null;
+
+        const { x, y, w, h } = getTokenBounds(item);
+        const activeCount = counters.filter(c => c.max > 0).length;
+        const totalBarsH = activeCount * BAR_H + (activeCount - 1) * BAR_GAP;
+        const barsY = y - totalBarsH - 3;
+        const opacity = getOpacity(item);
+
+        const bars = counters.map((c, i) => {
+            if (c.max <= 0) return null;
+            const pct = Math.max(0, Math.min(1, c.current / c.max));
+            const barY = barsY + i * (BAR_H + BAR_GAP);
+            return (
+                <Group key={`bar-${item.id}-${i}`} opacity={opacity} listening={false}>
+                    <Rect x={x} y={barY} width={w} height={BAR_H} fill="#0f172a" cornerRadius={2} />
+                    <Rect x={x} y={barY} width={Math.max(0, w * pct)} height={BAR_H} fill={c.color} cornerRadius={2} />
+                </Group>
+            );
+        });
+
+        return bars;
+    };
+
+    const renderTokenBadge = (item) => {
+        if (!isDm && item.layer === 'gm') return null;
+        const counters = getCounters(item);
+        const active = counters.map((c, i) => ({ c, i })).filter(({ c }) => c.max > 0);
+        if (active.length === 0 || selectedTokenId !== item.id) return null;
+
+        const { x, y, w, h } = getTokenBounds(item);
+        const opacity = getOpacity(item);
+        const badgeR = 13;
+        const gap = 4;
+        const totalW = active.length * badgeR * 2 + (active.length - 1) * gap;
+        const startX = x + w / 2 - totalW / 2 + badgeR;
+        const badgeCy = y + h + badgeR + 3;
+
+        return active.map(({ c, i }, arrIdx) => {
+            const badgeCx = startX + arrIdx * (badgeR * 2 + gap);
+            const badgeVal = String(c.current);
+            const badgeFontSize = badgeVal.length > 2 ? 9 : 12;
+            return (
+                <Group
+                    key={`badge-${item.id}-${i}`}
+                    opacity={opacity}
+                    onClick={(e) => {
+                        e.cancelBubble = true;
+                        const sp = stageToScreen(badgeCx, badgeCy);
+                        setBadgeEdit({ tokenId: item.id, counterIdx: i, screenX: sp.x, screenY: sp.y, value: String(c.current) });
+                    }}
+                    onTap={(e) => {
+                        e.cancelBubble = true;
+                        const sp = stageToScreen(badgeCx, badgeCy);
+                        setBadgeEdit({ tokenId: item.id, counterIdx: i, screenX: sp.x, screenY: sp.y, value: String(c.current) });
+                    }}
+                >
+                    <Circle x={badgeCx} y={badgeCy} radius={badgeR} fill={c.color} strokeWidth={2} stroke="#0f172a" />
+                    <Text
+                        x={badgeCx - badgeR} y={badgeCy - badgeR}
+                        width={badgeR * 2} height={badgeR * 2}
+                        text={badgeVal} fontSize={badgeFontSize}
+                        fontStyle="bold" fill="white" align="center" verticalAlign="middle"
+                        listening={false}
+                    />
+                </Group>
+            );
+        });
+    };
+
     const getX       = (item) => boardX + (item.col || 0) * squareSize + squareSize / 2;
     const getY       = (item) => boardY + (item.row || 0) * squareSize + squareSize / 2;
     const canDragTok = (item) => item.layer === activeLayer;
@@ -448,22 +645,38 @@ export default function VttBoard() {
     };
 
     const renderToken = (item) => {
+        const onCtxMenu = (e) => { if (isDm || item.layer === activeLayer) openCtxMenu(e, 'token', item.id, item.layer); };
+
+        if (item.image_url) {
+            return (
+                <TokenImageNode
+                    key={item.id}
+                    ref={(node) => { if (node) tokenNodesRef.current[item.id] = node; }}
+                    item={item}
+                    squareSize={squareSize}
+                    boardX={boardX}
+                    boardY={boardY}
+                    opacity={getOpacity(item)}
+                    draggable={canDragTok(item)}
+                    onClick={(e) => { if (item.layer === activeLayer) { setSelectedTokenId(prev => prev === item.id ? null : item.id); setSelectedImgId(null); } }}
+                    onDragEnd={(e) => handleDragEndToken(e, item)}
+                    onTransformEnd={(e) => handleTokenTransformEnd(e, item)}
+                    onContextMenu={onCtxMenu}
+                />
+            );
+        }
+
         const radius = squareSize / 2 - 5;
         const fill   = colorMap[item.color] || '#6b7280';
         return (
             <Group key={item.id} x={getX(item)} y={getY(item)}
                 opacity={getOpacity(item)}
                 draggable={canDragTok(item)}
+                onClick={(e) => { if (item.layer === activeLayer) { const next = selectedTokenId === item.id ? null : item.id; setSelectedTokenId(next); setSelectedImgId(null); if (next) openBarEditorForToken(item); else setBarEditor(null); } }}
                 onDragEnd={(e) => handleDragEndToken(e, item)}
-                onContextMenu={(e) => { if (isDm || item.layer === activeLayer) openCtxMenu(e, 'token', item.id, item.layer); }}
+                onContextMenu={onCtxMenu}
             >
                 <Circle radius={radius} fill={fill} shadowBlur={item.layer === 'user' ? 6 : 0} shadowColor={fill} />
-                {false && (
-                    <Text text={item.name} fontSize={9} fill="white" fontStyle="bold"
-                        width={squareSize * 1.4} align="center"
-                        x={-squareSize * 0.7} y={radius + 2} listening={false}
-                    />
-                )}
             </Group>
         );
     };
@@ -484,7 +697,7 @@ export default function VttBoard() {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={() => { isPanning.current = false; }}
-            onClick={() => setCtxMenu(null)}
+            onClick={() => { setCtxMenu(null); setBarEditor(null); setBadgeEdit(null); }}
             onContextMenu={(e) => e.preventDefault()}
             style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}
         >
@@ -495,7 +708,7 @@ export default function VttBoard() {
                 style={{ background: '#2c3e50', position: 'absolute', top: 0, left: 0 }}
                 ref={stageRef}
                 onWheel={handleWheel}
-                onClick={(e) => { if (e.target === stageRef.current) setSelectedImgId(null); }}
+                onClick={(e) => { if (e.target === stageRef.current) { setSelectedImgId(null); setSelectedTokenId(null); } }}
                 onContextMenu={(e) => e.evt.preventDefault()}
             >
                 {/* Fondo del tablero */}
@@ -534,6 +747,16 @@ export default function VttBoard() {
                 <Layer name="background" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>{backgroundItems.map(renderToken)}</Layer>
                 <Layer name="user"       clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>{userItems.map(renderToken)}</Layer>
                 {isDm && <Layer name="gm" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>{gmItems.map(renderToken)}</Layer>}
+
+                {/* Barras de contadores (sin clip, encima de tokens) */}
+                <Layer name="bars" listening={true}>
+                    {sceneItems.map(renderTokenBars)}
+                </Layer>
+
+                {/* Badges encima de todo */}
+                <Layer name="badges" listening={true}>
+                    {sceneItems.map(renderTokenBadge)}
+                </Layer>
 
                 {/* Transformer sin clip para que los handles sean siempre visibles */}
                 <Layer name="transformer">
@@ -579,7 +802,7 @@ export default function VttBoard() {
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                     <span style={{ color: '#94a3b8', fontSize: 12, marginRight: 4 }}>Capa:</span>
                     {(isDm ? LAYERS : LAYERS.filter(l => l.id === 'user')).map(l => (
-                        <button key={l.id} onClick={() => { setActiveLayer(l.id); setSelectedImgId(null); }}
+                        <button key={l.id} onClick={() => { setActiveLayer(l.id); setSelectedImgId(null); setSelectedTokenId(null); }}
                             style={{
                                 padding: '4px 10px', borderRadius: 4, fontSize: 12,
                                 fontWeight: activeLayer === l.id ? 700 : 400,
@@ -647,6 +870,28 @@ export default function VttBoard() {
                             <div style={{ height: 1, background: '#334155', margin: '4px 0' }} />
                         </>
                     )}
+                    {ctxMenu.type === 'token' && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    setBarEditor({ tokenId: ctxMenu.id, screenX: ctxMenu.x, screenY: ctxMenu.y });
+                                    setCtxMenu(null);
+                                }}
+                                style={{
+                                    width: '100%', padding: '9px 14px',
+                                    background: 'transparent',
+                                    color: '#cbd5e1', border: 'none',
+                                    cursor: 'pointer', textAlign: 'left',
+                                    fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                                ✏️ Editar contadores
+                            </button>
+                            <div style={{ height: 1, background: '#334155', margin: '2px 0' }} />
+                        </>
+                    )}
                     <button
                         onClick={handleDelete}
                         style={{
@@ -663,6 +908,128 @@ export default function VttBoard() {
                     </button>
                 </div>
             )}
+
+            {/* ── EDICIÓN INLINE BADGE ── */}
+            {badgeEdit && (() => {
+                const token = sceneItems.find(i => i.id === badgeEdit.tokenId);
+                if (!token) return null;
+                const counters = getCounters(token);
+                const c = counters[badgeEdit.counterIdx];
+                if (!c) return null;
+                const commit = (raw) => {
+                    const str = String(raw).trim();
+                    let next;
+                    if (str.startsWith('+')) {
+                        const delta = parseInt(str.slice(1), 10);
+                        if (!isNaN(delta)) next = Math.max(0, Math.min(c.max, c.current + delta));
+                    } else if (str.startsWith('-')) {
+                        const delta = parseInt(str.slice(1), 10);
+                        if (!isNaN(delta)) next = Math.max(0, Math.min(c.max, c.current - delta));
+                    } else {
+                        const n = parseInt(str, 10);
+                        if (!isNaN(n)) next = Math.max(0, Math.min(c.max, n));
+                    }
+                    if (next !== undefined) {
+                        const updated = counters.map((x, j) => j === badgeEdit.counterIdx ? { ...x, current: next } : x);
+                        saveCounters(token.id, updated);
+                    }
+                    setBadgeEdit(null);
+                };
+                return (
+                    <input
+                        autoFocus
+                        type="text"
+                        value={badgeEdit.value}
+                        onChange={e => setBadgeEdit(prev => ({ ...prev, value: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') commit(badgeEdit.value); if (e.key === 'Escape') setBadgeEdit(null); }}
+                        onBlur={() => commit(badgeEdit.value)}
+                        style={{
+                            position: 'fixed',
+                            top: badgeEdit.screenY - 14,
+                            left: badgeEdit.screenX - 14,
+                            width: 36, height: 28,
+                            background: '#1e293b',
+                            border: `2px solid ${c.color}`,
+                            borderRadius: 6,
+                            color: '#f1f5f9',
+                            fontSize: 13, fontWeight: 700,
+                            textAlign: 'center',
+                            outline: 'none',
+                            zIndex: 300,
+                            padding: 0,
+                            MozAppearance: 'textfield',
+                        }}
+                    />
+                );
+            })()}
+
+            {/* ── EDITOR DE CONTADORES ── */}
+            {barEditor && (() => {
+                const token    = sceneItems.find(i => i.id === barEditor.tokenId);
+                if (!token) return null;
+                const counters = getCounters(token);
+                return (
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            position: 'fixed', top: barEditor.screenY - 8, left: barEditor.screenX,
+                            background: '#1e293b', border: '1px solid #334155',
+                            borderRadius: 8, padding: '10px 12px',
+                            zIndex: 200, minWidth: 220,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Contadores</span>
+                            <button onClick={() => setBarEditor(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+                        </div>
+                        {counters.map((c, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                {/* Color */}
+                                <div style={{ position: 'relative', flexShrink: 0 }}>
+                                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: c.color, cursor: 'pointer', border: '2px solid #475569' }}
+                                        onClick={() => {
+                                            const idx = BAR_COLORS.indexOf(c.color);
+                                            const next = BAR_COLORS[(idx + 1) % BAR_COLORS.length];
+                                            const updated = counters.map((x, j) => j === i ? { ...x, color: next } : x);
+                                            saveCounters(token.id, updated);
+                                        }}
+                                    />
+                                </div>
+                                {/* Label */}
+                                <input
+                                    value={c.label}
+                                    onChange={e => {
+                                        const updated = counters.map((x, j) => j === i ? { ...x, label: e.target.value } : x);
+                                        saveCounters(token.id, updated);
+                                    }}
+                                    placeholder={`Barra ${i + 1}`}
+                                    style={{ width: 60, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
+                                />
+                                {/* Current */}
+                                <input
+                                    type="number" value={c.current}
+                                    onChange={e => {
+                                        const updated = counters.map((x, j) => j === i ? { ...x, current: Number(e.target.value) } : x);
+                                        saveCounters(token.id, updated);
+                                    }}
+                                    style={{ width: 44, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none', textAlign: 'center' }}
+                                />
+                                <span style={{ color: '#475569', fontSize: 11 }}>/</span>
+                                {/* Max */}
+                                <input
+                                    type="number" value={c.max}
+                                    onChange={e => {
+                                        const updated = counters.map((x, j) => j === i ? { ...x, max: Number(e.target.value) } : x);
+                                        saveCounters(token.id, updated);
+                                    }}
+                                    style={{ width: 44, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none', textAlign: 'center' }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                );
+            })()}
 
             {/* ── INDICADOR DE DROP ── */}
             {dropIndicator && (
