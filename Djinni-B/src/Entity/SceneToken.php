@@ -137,8 +137,20 @@ class SceneToken
     #[ORM\Column(nullable: true)]
     private ?array $counters = null;
 
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $kind = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $entity_id = null;
+
     public function getCounters(): ?array { return $this->counters; }
     public function setCounters(?array $counters): static { $this->counters = $counters; return $this; }
+
+    public function getKind(): ?string { return $this->kind; }
+    public function setKind(?string $kind): static { $this->kind = $kind; return $this; }
+
+    public function getEntityId(): ?int { return $this->entity_id; }
+    public function setEntityId(?int $entity_id): static { $this->entity_id = $entity_id; return $this; }
 
     public function getImageUrl(): ?string { return $this->image_url; }
     public function setImageUrl(?string $image_url): static { $this->image_url = $image_url; return $this; }

@@ -128,6 +128,8 @@ class ApiCharacterController extends AbstractController
                 $characters[] = [
                     'id' => $sheet->getId(),
                     'name' => $sheet->getName(),
+                    'hp' => $sheet->getHp(),
+                    'max_hp' => $sheet->getMaxHp(),
                     'caster_level' => $sheet->getCasterLevel(),
                     'level' => $levelData, // Devolvemos la estructura normalizada (array)
                     'display_level' => $totalLevel,
@@ -267,6 +269,14 @@ class ApiCharacterController extends AbstractController
 
         if ($request->request->has('exaustion')) {
             $characterSheet->setExaustion((int)$request->request->get('exaustion'));
+        }
+
+        if ($request->request->has('hp')) {
+            $characterSheet->setHp((int)$request->request->get('hp'));
+        }
+
+        if ($request->request->has('max_hp')) {
+            $characterSheet->setMaxHp((int)$request->request->get('max_hp'));
         }
 
         // Procesar JSON fields

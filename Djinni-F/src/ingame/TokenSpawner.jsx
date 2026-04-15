@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import EditCharacterModal from '../pages/EditCharacterModal.jsx';
+import EditMonsterModal from '../pages/EditMonsterModal.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -19,11 +21,12 @@ function authHeaders() {
     return { Authorization: `Bearer ${token}` };
 }
 
-function EntityRow({ name, image, color, dragData }) {
+function EntityRow({ name, image, color, dragData, onDoubleClick }) {
     return (
         <div
             draggable
             onDragStart={(e) => e.dataTransfer.setData('tokenData', JSON.stringify(dragData))}
+            onDoubleClick={onDoubleClick}
             style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 padding: '5px 8px', borderRadius: 6,
@@ -61,12 +64,14 @@ function loadPersonal() {
     catch { return []; }
 }
 
-export default function TokenSpawner({ sceneItems = [], gameId }) {
-    const [characters, setCharacters] = useState([]);
-    const [monsters,   setMonsters]   = useState([]);
-    const [used,       setUsed]       = useState([]);
-    const [loading,    setLoading]    = useState(true);
-    const [tab,        setTab]        = useState('characters');
+export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated }) {
+    const [characters,       setCharacters]       = useState([]);
+    const [monsters,         setMonsters]         = useState([]);
+    const [used,             setUsed]             = useState([]);
+    const [loading,          setLoading]          = useState(true);
+    const [tab,              setTab]              = useState('characters');
+    const [editCharacter,    setEditCharacter]    = useState(null);
+    const [editMonster,      setEditMonster]      = useState(null);
 
     // Personal
     const [personal,  setPersonal] = useState(loadPersonal);
@@ -154,7 +159,8 @@ export default function TokenSpawner({ sceneItems = [], gameId }) {
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin personajes</p>
                             : characters.map(c => (
                                 <EntityRow key={c.id} name={c.name} image={c.portrait_image || c.token_image} color="#3b82f6"
-                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue', image_url: c.token_image || null }} />
+                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue', image_url: c.token_image || null }}
+                                    onDoubleClick={() => setEditCharacter(c)} />
                             ))}
                     </div>
             )}
@@ -168,7 +174,8 @@ export default function TokenSpawner({ sceneItems = [], gameId }) {
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin monstruos</p>
                             : monsters.map(m => (
                                 <EntityRow key={m.id} name={m.name} image={m.portrait_url || m.image_url} color="#ef4444"
-                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red', image_url: m.image_url || null }} />
+                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red', image_url: m.image_url || null }}
+                                    onDoubleClick={() => setEditMonster(m)} />
                             ))}
                     </div>
             )}
@@ -261,6 +268,28 @@ export default function TokenSpawner({ sceneItems = [], gameId }) {
                     }
                 </div>
             )}
+
+            {/* ── MODALES DE EDICIÓN ── */}
+            <EditCharacterModal
+                isOpen={!!editCharacter}
+                onClose={() => setEditCharacter(null)}
+                character={editCharacter}
+                onCharacterUpdated={(updated) => {
+                    setCharacters(prev => prev.map(c => c.id === updated.id ? updated : c));
+                    setEditCharacter(null);
+                    onEntityUpdated?.('character');
+                }}
+            />
+            <EditMonsterModal
+                isOpen={!!editMonster}
+                onClose={() => setEditMonster(null)}
+                monster={editMonster}
+                onMonsterUpdated={(updated) => {
+                    setMonsters(prev => prev.map(m => m.id === updated.id ? updated : m));
+                    setEditMonster(null);
+                    onEntityUpdated?.('monster');
+                }}
+            />
         </div>
     );
 }

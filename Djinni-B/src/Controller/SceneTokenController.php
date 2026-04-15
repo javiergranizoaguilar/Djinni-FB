@@ -59,6 +59,8 @@ class SceneTokenController extends AbstractController
                 'width'     => $st->getWidth(),
                 'height'    => $st->getHeight(),
                 'counters'  => $st->getCounters(),
+                'kind'      => $st->getKind(),
+                'entity_id' => $st->getEntityId(),
             ];
 
             if ($st->getToken()) {
@@ -95,6 +97,8 @@ class SceneTokenController extends AbstractController
         $sceneToken->setWidth(isset($data['width']) ? (float)$data['width'] : null);
         $sceneToken->setHeight(isset($data['height']) ? (float)$data['height'] : null);
         $sceneToken->setCounters($data['counters'] ?? null);
+        $sceneToken->setKind($data['kind'] ?? null);
+        $sceneToken->setEntityId(isset($data['entity_id']) ? (int)$data['entity_id'] : null);
 
         if (isset($data['token_id'])) {
             $token = $tokenRepository->find($data['token_id']);
@@ -117,6 +121,8 @@ class SceneTokenController extends AbstractController
             'width'     => $sceneToken->getWidth(),
             'height'    => $sceneToken->getHeight(),
             'counters'  => $sceneToken->getCounters(),
+            'kind'      => $sceneToken->getKind(),
+            'entity_id' => $sceneToken->getEntityId(),
         ], 201);
     }
 

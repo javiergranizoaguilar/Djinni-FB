@@ -32,9 +32,19 @@ const colorMap = {
 };
 
 const DEFAULT_COUNTERS = [
-    { label: 'HP',  current: 10, max: 10, color: '#22c55e' },
-    { label: '',    current: 0,  max: 0,  color: '#3b82f6' },
-    { label: '',    current: 0,  max: 0,  color: '#f59e0b' },
+    { label: '', current: 0, max: 0, color: '#22c55e' },
+    { label: '', current: 0, max: 0, color: '#3b82f6' },
+    { label: '', current: 0, max: 0, color: '#f59e0b' },
+];
+
+// Campos de personaje: { label, getVals(entity) → {current, max} }
+const CHARACTER_COUNTER_FIELDS = [
+    { label: 'HP', getVals: c => ({ current: c.hp ?? 0, max: c.max_hp ?? c.hp ?? 0 }) },
+];
+
+// Campos de monstruo: { label, getVals(entity) → {current, max} }
+const MONSTER_COUNTER_FIELDS = [
+    { label: 'HP', getVals: m => ({ current: m.hp ?? 0, max: m.max_hp ?? m.hp ?? 0 }) },
 ];
 const BAR_H = 5;
 const BAR_GAP = 2;
@@ -124,11 +134,12 @@ export default function VttBoard() {
     const [barEditor,      setBarEditor]      = useState(null); // {tokenId, screenX, screenY}
     const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
 
-    const stageRef       = useRef(null);
-    const transformerRef = useRef(null);
-    const imageNodesRef  = useRef({});
-    const tokenNodesRef  = useRef({});
-    const isPanning      = useRef(false);
+    const stageRef        = useRef(null);
+    const transformerRef  = useRef(null);
+    const imageNodesRef   = useRef({});
+    const tokenNodesRef   = useRef({});
+    const isPanning       = useRef(false);
+    const entityCacheRef  = useRef({ characters: null, monsters: null }); // caché para fichas
     const lastPanPos     = useRef({ x: 0, y: 0 });
     const shiftHeld      = useRef(false);
 
@@ -331,6 +342,8 @@ export default function VttBoard() {
                 image_url: tokenData.image_url || null,
                 width:     squareSize,
                 height:    squareSize,
+                kind:      tokenData.kind      || null,
+                entity_id: tokenData.id        || null,
             }, { headers: authHeaders() });
             setSceneItems(prev => [...prev, res.data]);
         } catch (err) {
@@ -823,7 +836,9 @@ const saveCounters = async (tokenId, counters) => {
                 background: 'rgba(15, 23, 42, 0.85)',
                 borderRight: '1px solid #2d3e50', overflowY: 'auto',
             }}>
-                <TokenSpawner sceneItems={sceneItems} gameId={gameId} />
+                <TokenSpawner sceneItems={sceneItems} gameId={gameId}
+                    onEntityUpdated={(kind) => { entityCacheRef.current[kind === 'character' ? 'characters' : 'monsters'] = null; }}
+                />
             </div>
 
             {/* ── MENÚ CONTEXTUAL ── */}
@@ -968,6 +983,31 @@ const saveCounters = async (tokenId, counters) => {
                 const token    = sceneItems.find(i => i.id === barEditor.tokenId);
                 if (!token) return null;
                 const counters = getCounters(token);
+                const fieldDefs = token.kind === 'character' ? CHARACTER_COUNTER_FIELDS
+                                : token.kind === 'monster'   ? MONSTER_COUNTER_FIELDS
+                                : null;
+
+                const applyField = async (fieldDef, barIdx) => {
+                    let entity = null;
+                    const cache = entityCacheRef.current;
+                    if (token.kind === 'character') {
+                        if (!cache.characters) {
+                            const r = await axios.get(`${API}/api/character/my-characters`, { headers: authHeaders() });
+                            cache.characters = r.data;
+                        }
+                        entity = cache.characters.find(c => c.id === token.entity_id);
+                    } else if (token.kind === 'monster') {
+                        if (!cache.monsters) {
+                            const r = await axios.get(`${API}/api/monster/my-monsters`, { headers: authHeaders() });
+                            cache.monsters = r.data;
+                        }
+                        entity = cache.monsters.find(m => m.id === token.entity_id);
+                    }
+                    const vals = entity ? fieldDef.getVals(entity) : { current: 0, max: 0 };
+                    const updated = counters.map((x, j) => j === barIdx ? { ...x, label: fieldDef.label, ...vals } : x);
+                    saveCounters(token.id, updated);
+                };
+
                 return (
                     <div
                         onClick={e => e.stopPropagation()}
@@ -997,15 +1037,35 @@ const saveCounters = async (tokenId, counters) => {
                                     />
                                 </div>
                                 {/* Label */}
-                                <input
-                                    value={c.label}
-                                    onChange={e => {
-                                        const updated = counters.map((x, j) => j === i ? { ...x, label: e.target.value } : x);
-                                        saveCounters(token.id, updated);
-                                    }}
-                                    placeholder={`Barra ${i + 1}`}
-                                    style={{ width: 60, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
-                                />
+                                {fieldDefs ? (
+                                    <select
+                                        value={c.label}
+                                        onChange={e => {
+                                            const def = fieldDefs.find(f => f.label === e.target.value);
+                                            if (def) applyField(def, i);
+                                            else {
+                                                const updated = counters.map((x, j) => j === i ? { ...x, label: '' } : x);
+                                                saveCounters(token.id, updated);
+                                            }
+                                        }}
+                                        style={{ width: 100, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: c.label ? '#f1f5f9' : '#475569', fontSize: 11, padding: '3px 5px', outline: 'none' }}
+                                    >
+                                        <option value="">Sin nombre</option>
+                                        {fieldDefs.map(f => (
+                                            <option key={f.label} value={f.label}>{f.label}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <input
+                                        value={c.label}
+                                        onChange={e => {
+                                            const updated = counters.map((x, j) => j === i ? { ...x, label: e.target.value } : x);
+                                            saveCounters(token.id, updated);
+                                        }}
+                                        placeholder={`Barra ${i + 1}`}
+                                        style={{ width: 70, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
+                                    />
+                                )}
                                 {/* Current */}
                                 <input
                                     type="number" value={c.current}

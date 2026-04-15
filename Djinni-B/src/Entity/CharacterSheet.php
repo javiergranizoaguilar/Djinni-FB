@@ -221,6 +221,12 @@ class CharacterSheet
     private Collection $spells;
 
     #[ORM\Column(nullable: true)]
+    private ?int $hp = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $max_hp = null;
+
+    #[ORM\Column(nullable: true)]
     private ?array $modifiers = null;
 
     /**
@@ -1201,6 +1207,28 @@ class CharacterSheet
             }
         }
 
+        return $this;
+    }
+
+    public function getHp(): ?int
+    {
+        return $this->hp;
+    }
+
+    public function setHp(?int $hp): static
+    {
+        $this->hp = $hp;
+        return $this;
+    }
+
+    public function getMaxHp(): ?int
+    {
+        return $this->max_hp;
+    }
+
+    public function setMaxHp(?int $max_hp): static
+    {
+        $this->max_hp = $max_hp;
         return $this;
     }
 }

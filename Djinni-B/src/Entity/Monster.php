@@ -136,6 +136,12 @@ class Monster
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $portrait_url = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $hp = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $max_hp = null;
+
     #[ORM\ManyToOne(inversedBy: 'monsters')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $creador = null;
@@ -724,6 +730,28 @@ class Monster
     {
         $this->portrait_url = $portrait_url;
 
+        return $this;
+    }
+
+    public function getHp(): ?int
+    {
+        return $this->hp;
+    }
+
+    public function setHp(?int $hp): static
+    {
+        $this->hp = $hp;
+        return $this;
+    }
+
+    public function getMaxHp(): ?int
+    {
+        return $this->max_hp;
+    }
+
+    public function setMaxHp(?int $max_hp): static
+    {
+        $this->max_hp = $max_hp;
         return $this;
     }
 }

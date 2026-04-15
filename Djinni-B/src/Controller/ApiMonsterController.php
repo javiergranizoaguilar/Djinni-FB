@@ -91,6 +91,7 @@ class ApiMonsterController extends AbstractController
                 $monsters[] = [
                     'id' => $monster->getId(),
                     'name' => $monster->getName(),
+                    'max_hp' => $monster->getMaxHp(),
                     'source_book' => $monster->getSourceBook(),
                     'page_number' => $monster->getPageNumber(),
                     'type' => $monster->getType(),
@@ -214,6 +215,7 @@ class ApiMonsterController extends AbstractController
         if (isset($data['armor_class'])) $monster->setArmorClass((int)$data['armor_class']);
         if (isset($data['ac_description'])) $monster->setAcDescription($data['ac_description']);
         if (isset($data['hit_points_average'])) $monster->setHitPointsAverage((int)$data['hit_points_average']);
+        if (isset($data['max_hp'])) $monster->setMaxHp((int)$data['max_hp']);
         if (isset($data['hp_formula'])) $monster->setHpFormula($data['hp_formula']);
         if (isset($data['speed']) && is_array($data['speed'])) $monster->setSpeed($data['speed']);
         if (isset($data['challenge_rating'])) $monster->setChallengeRating((int)$data['challenge_rating']);
