@@ -6,6 +6,7 @@ use App\Entity\RosterFolder;
 use App\Entity\RosterItem;
 use App\Entity\RosterVisibility;
 use App\Repository\CharacterSheetRepository;
+use App\Repository\SceneRepository;
 use App\Repository\CharacterSheetUserRepository;
 use App\Repository\GameSesionRepository;
 use App\Repository\MonsterRepository;
@@ -72,15 +73,16 @@ class RosterController extends AbstractController
     private function itemToArray(RosterItem $item, $user, bool $isDm, array $grantedIds): array
     {
         $data = [
-            'id'        => $item->getId(),
-            'folder_id' => $item->getFolder()?->getId(),
-            'kind'      => $item->getKind(),
-            'entity_id' => $item->getEntityId(),
-            'name'      => $item->getName(),
-            'color'     => $item->getColor(),
-            'image_url' => $item->getImageUrl(),
-            'position'  => $item->getPosition(),
-            'is_mine'   => $user && $item->getCreatedBy()?->getId() === $user->getId(),
+            'id'               => $item->getId(),
+            'folder_id'        => $item->getFolder()?->getId(),
+            'kind'             => $item->getKind(),
+            'entity_id'        => $item->getEntityId(),
+            'name'             => $item->getName(),
+            'color'            => $item->getColor(),
+            'image_url'        => $item->getImageUrl(),
+            'position'         => $item->getPosition(),
+            'is_mine'          => $user && $item->getCreatedBy()?->getId() === $user->getId(),
+            'controlled_by_id' => $item->getControlledByUser()?->getId(),
         ];
         if ($isDm) {
             $data['visible_to']    = $grantedIds;
@@ -236,6 +238,59 @@ class RosterController extends AbstractController
             'is_dm'           => $isDm,
             'session_members' => $sessionMembers,
         ]);
+    }
+
+    // ── CONTROL ──────────────────────────────────────────────────────────────
+
+    #[Route('/item/{itemId}/control', name: 'api_roster_item_control', methods: ['PUT'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setControl(
+        int $gameId, int $itemId, Request $request,
+        GameSesionRepository $gameRepo,
+        UserGameSessionRepository $ugsRepo,
+        RosterItemRepository $itemRepo,
+        RosterVisibilityRepository $visRepo,
+        SceneRepository $sceneRepo,
+        SceneTokenRepository $stRepo,
+        UserRepository $userRepo,
+        EntityManagerInterface $em,
+    ): JsonResponse {
+        [$session, $isDm] = $this->getSessionAndDmFlag($gameId, $gameRepo, $ugsRepo);
+        if (!$session || !$isDm) return $this->json(['error' => 'Forbidden'], 403);
+
+        $item = $itemRepo->find($itemId);
+        if (!$item || $item->getGameSession()->getId() !== $gameId) {
+            return $this->json(['error' => 'Not found'], 404);
+        }
+
+        $data   = json_decode($request->getContent(), true);
+        $userId = $data['user_id'] ?? null;
+        $user   = $userId ? $userRepo->find((int)$userId) : null;
+
+        $item->setControlledByUser($user);
+
+        // If assigning control, also grant visibility (controller must see the item)
+        if ($user) {
+            $existingGrant = $visRepo->findOneBy(['rosterItem' => $item, 'user' => $user]);
+            if (!$existingGrant) {
+                $grant = new RosterVisibility();
+                $grant->setRosterItem($item)->setUser($user);
+                $em->persist($grant);
+            }
+        }
+
+        // Sync to matching SceneTokens in active scene
+        $scene = $sceneRepo->findOneBy(['session_id' => $gameId]);
+        if ($scene && $item->getEntityId()) {
+            $tokens = $stRepo->findBy(['scene' => $scene, 'kind' => $item->getKind(), 'entity_id' => $item->getEntityId()]);
+            foreach ($tokens as $st) {
+                $st->setControlledBy($user);
+            }
+        }
+
+        $em->flush();
+
+        return $this->json(['controlled_by_id' => $user?->getId()]);
     }
 
     // ── VISIBILITY ────────────────────────────────────────────────────────────

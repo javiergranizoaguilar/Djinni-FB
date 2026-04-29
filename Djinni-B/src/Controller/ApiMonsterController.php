@@ -140,6 +140,39 @@ class ApiMonsterController extends AbstractController
         return $this->json($monsters);
     }
 
+    #[Route('/{id}', name: 'api_monster_get', methods: ['GET'], requirements: ['id' => '\d+'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function getOne(int $id, EntityManagerInterface $em): JsonResponse
+    {
+        $monster = $em->getRepository(Monster::class)->find($id);
+        if (!$monster) return $this->json(['error' => 'Not found'], 404);
+
+        return $this->json([
+            'id' => $monster->getId(), 'name' => $monster->getName(),
+            'max_hp' => $monster->getMaxHp(), 'source_book' => $monster->getSourceBook(),
+            'page_number' => $monster->getPageNumber(), 'type' => $monster->getType(),
+            'size' => $monster->getSize(), 'alignment' => $monster->getAlignment(),
+            'ac' => $monster->getArmorClass(), 'ac_description' => $monster->getAcDescription(),
+            'hp' => $monster->getHitPointsAverage(), 'hp_formula' => $monster->getHpFormula(),
+            'speed' => $monster->getSpeed(), 'str' => $monster->getStr(), 'dex' => $monster->getDex(),
+            'con' => $monster->getCon(), 'int' => $monster->getIntStat(), 'wis' => $monster->getWis(),
+            'cha' => $monster->getCha(), 'saving_throws' => $monster->getSavingThrows(),
+            'skills' => $monster->getSkills(), 'passive_perception' => $monster->getPassivePerception(),
+            'cr' => $monster->getChallengeRating(), 'senses' => $monster->getSenses(),
+            'languages' => $monster->getLanguages(), 'traits' => $monster->getTraits(),
+            'spellcasting' => $monster->getSpellcasting(), 'actions' => $monster->getActions(),
+            'bonus_actions' => $monster->getBonusActions(), 'reactions' => $monster->getReactions(),
+            'legendary_resistances_count' => $monster->getLegendaryResistancesCount(),
+            'legendary_actions_count' => $monster->getLegendaryActionsCount(),
+            'legendary_actions' => $monster->getLegendaryActions(), 'mythic_actions' => $monster->getMythicActions(),
+            'lair_actions' => $monster->getLairActions(), 'regional_effects' => $monster->getRegionalEffects(),
+            'enviroment' => $monster->getEnviroment(), 'treasure' => $monster->getTreasure(),
+            'tags' => $monster->getTags(), 'vtt_metadata' => $monster->getVttMetadata(),
+            'image_url' => $monster->getImageUrl(), 'portrait_url' => $monster->getPortraitUrl(),
+            'is_editable' => false, 'default_auras' => $monster->getDefaultAuras() ?? [],
+        ]);
+    }
+
     #[Route('/delete/{id}', name: 'api_monster_delete', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function delete(int $id, EntityManagerInterface $entityManager): JsonResponse

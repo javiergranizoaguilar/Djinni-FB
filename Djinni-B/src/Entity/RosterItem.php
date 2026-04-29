@@ -44,6 +44,10 @@ class RosterItem
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?User $createdBy = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?User $controlledByUser = null;
+
     #[ORM\Column]
     private bool $isPublic = false;
 
@@ -78,4 +82,7 @@ class RosterItem
 
     public function isPublic(): bool { return $this->isPublic; }
     public function setIsPublic(bool $v): static { $this->isPublic = $v; return $this; }
+
+    public function getControlledByUser(): ?User { return $this->controlledByUser; }
+    public function setControlledByUser(?User $u): static { $this->controlledByUser = $u; return $this; }
 }

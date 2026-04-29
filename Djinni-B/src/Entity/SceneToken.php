@@ -21,6 +21,14 @@ class SceneToken
     #[ORM\JoinColumn(nullable: true)]
     private ?Token $token = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?User $owner = null;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?User $controlledBy = null;
+
     #[ORM\Column]
     private ?int $col = null;
 
@@ -178,4 +186,10 @@ class SceneToken
 
     public function getY(): ?float { return $this->y; }
     public function setY(?float $y): static { $this->y = $y; return $this; }
+
+    public function getOwner(): ?User { return $this->owner; }
+    public function setOwner(?User $owner): static { $this->owner = $owner; return $this; }
+
+    public function getControlledBy(): ?User { return $this->controlledBy; }
+    public function setControlledBy(?User $controlledBy): static { $this->controlledBy = $controlledBy; return $this; }
 }

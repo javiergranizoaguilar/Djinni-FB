@@ -4,7 +4,9 @@ namespace App\Controller;
 
 use App\Entity\Scene;
 use App\Entity\SceneToken;
+use App\Entity\User;
 use App\Repository\GameSesionRepository;
+use App\Repository\UserRepository;
 use App\Repository\SceneRepository;
 use App\Repository\SceneTokenRepository;
 use App\Repository\TokenRepository;
@@ -62,8 +64,10 @@ class SceneTokenController extends AbstractController
                 'height'    => $st->getHeight(),
                 'counters'  => $st->getCounters(),
                 'auras'     => $st->getAuras() ?? [],
-                'kind'      => $st->getKind(),
-                'entity_id' => $st->getEntityId(),
+                'kind'           => $st->getKind(),
+                'entity_id'      => $st->getEntityId(),
+                'owner_id'       => $st->getOwner()?->getId(),
+                'controlled_by_id' => $st->getControlledBy()?->getId(),
             ];
 
             if ($st->getToken()) {
@@ -105,6 +109,7 @@ class SceneTokenController extends AbstractController
         $sceneToken->setAuras($data['auras'] ?? null);
         $sceneToken->setKind($data['kind'] ?? null);
         $sceneToken->setEntityId(isset($data['entity_id']) ? (int)$data['entity_id'] : null);
+        $sceneToken->setOwner($this->getUser());
 
         if (isset($data['token_id'])) {
             $token = $tokenRepository->find($data['token_id']);
@@ -130,8 +135,10 @@ class SceneTokenController extends AbstractController
             'height'    => $sceneToken->getHeight(),
             'counters'  => $sceneToken->getCounters(),
             'auras'     => $sceneToken->getAuras() ?? [],
-            'kind'      => $sceneToken->getKind(),
-            'entity_id' => $sceneToken->getEntityId(),
+            'kind'             => $sceneToken->getKind(),
+            'entity_id'        => $sceneToken->getEntityId(),
+            'owner_id'         => $sceneToken->getOwner()?->getId(),
+            'controlled_by_id' => $sceneToken->getControlledBy()?->getId(),
         ], 201);
     }
 
@@ -188,14 +195,33 @@ class SceneTokenController extends AbstractController
 
     #[Route('/{id}', name: 'api_scene_token_update', methods: ['PUT'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function updateSceneToken(int $id, Request $request, SceneTokenRepository $sceneTokenRepository, EntityManagerInterface $em): JsonResponse
+    public function updateSceneToken(int $id, Request $request, SceneTokenRepository $sceneTokenRepository, UserGameSessionRepository $userGameSessionRepository, EntityManagerInterface $em): JsonResponse
     {
         $sceneToken = $sceneTokenRepository->find($id);
         if (!$sceneToken) {
             return $this->json(['error' => 'Scene token not found'], 404);
         }
 
+        $currentUser = $this->getUser();
+        $isDm = false;
+        $gameSession = $sceneToken->getScene()?->getSessionId();
+        if ($gameSession) {
+            $ugs = $userGameSessionRepository->findOneBy(['user' => $currentUser, 'gameSession' => $gameSession]);
+            if ($ugs) $isDm = $ugs->isDm();
+        }
+
+        $isOwner      = $sceneToken->getOwner()?->getId() === $currentUser?->getId();
+        $isController = $sceneToken->getControlledBy()?->getId() === $currentUser?->getId();
+
         $data = json_decode($request->getContent(), true);
+
+        $isPositionChange = isset($data['col']) || isset($data['row']) || isset($data['layer'])
+            || isset($data['width']) || isset($data['height'])
+            || array_key_exists('x', $data) || array_key_exists('y', $data);
+
+        if ($isPositionChange && !$isDm && !$isOwner && !$isController) {
+            return $this->json(['error' => 'Forbidden'], 403);
+        }
 
         if (isset($data['col'])) {
             $sceneToken->setCol($data['col']);
@@ -225,6 +251,39 @@ class SceneTokenController extends AbstractController
             'height'    => $sceneToken->getHeight(),
             'counters'  => $sceneToken->getCounters(),
             'auras'     => $sceneToken->getAuras() ?? [],
+        ]);
+    }
+
+    #[Route('/{id}/control', name: 'api_scene_token_set_control', methods: ['PUT'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setControl(int $id, Request $request, SceneTokenRepository $sceneTokenRepository, UserGameSessionRepository $userGameSessionRepository, UserRepository $userRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $sceneToken = $sceneTokenRepository->find($id);
+        if (!$sceneToken) {
+            return $this->json(['error' => 'Scene token not found'], 404);
+        }
+
+        $currentUser = $this->getUser();
+        $isDm = false;
+        $gameSession = $sceneToken->getScene()?->getSessionId();
+        if ($gameSession) {
+            $ugs = $userGameSessionRepository->findOneBy(['user' => $currentUser, 'gameSession' => $gameSession]);
+            if ($ugs) $isDm = $ugs->isDm();
+        }
+
+        if (!$isDm) {
+            return $this->json(['error' => 'Forbidden'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $userId = $data['user_id'] ?? null;
+
+        $sceneToken->setControlledBy($userId ? $userRepository->find($userId) : null);
+        $em->flush();
+
+        return $this->json([
+            'id'               => $sceneToken->getId(),
+            'controlled_by_id' => $sceneToken->getControlledBy()?->getId(),
         ]);
     }
 

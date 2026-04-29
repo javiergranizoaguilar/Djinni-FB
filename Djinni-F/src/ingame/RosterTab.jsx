@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import EditCharacterModal from '../pages/EditCharacterModal.jsx';
+import EditMonsterModal from '../pages/EditMonsterModal.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -14,15 +16,30 @@ const COLOR_MAP = {
     pink: '#ec4899', gray: '#6b7280',
 };
 
-function VisibilityPopover({ item, members, onSave, onClose }) {
-    const [selected, setSelected] = useState(new Set(item.visible_to || []));
-    const ref = useRef(null);
-
+function usePopoverClose(ref, onClose) {
     useEffect(() => {
         const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, [onClose]);
+}
+
+const popoverStyle = {
+    position: 'absolute', zIndex: 9999, right: 0, top: '100%',
+    background: '#1e293b', border: '1px solid #334155', borderRadius: 8,
+    padding: '10px', minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+};
+const labelStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', borderRadius: 4 };
+const saveBtn = {
+    marginTop: 10, width: '100%', background: '#6366f1', border: 'none',
+    borderRadius: 5, color: 'white', fontSize: 12, padding: '5px 0', cursor: 'pointer',
+};
+const headerStyle = { color: '#94a3b8', fontSize: 10, fontWeight: 700, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' };
+
+function VisibilityPopover({ item, members, onSave, onClose }) {
+    const [selected, setSelected] = useState(new Set(item.visible_to || []));
+    const ref = useRef(null);
+    usePopoverClose(ref, onClose);
 
     const toggle = (uid) => setSelected(prev => {
         const next = new Set(prev);
@@ -31,53 +48,59 @@ function VisibilityPopover({ item, members, onSave, onClose }) {
     });
 
     return (
-        <div ref={ref} style={{
-            position: 'absolute', zIndex: 9999, right: 0, top: '100%',
-            background: '#1e293b', border: '1px solid #334155', borderRadius: 8,
-            padding: '10px', minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-        }}>
-            <p style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, margin: '0 0 8px',
-                textTransform: 'uppercase', letterSpacing: '0.06em' }}>Visible para</p>
-
-            {members.length === 0 && (
-                <p style={{ color: '#475569', fontSize: 11, margin: 0 }}>Sin jugadores en la sesión</p>
-            )}
-
+        <div ref={ref} style={popoverStyle}>
+            <p style={headerStyle}>Visible para</p>
+            {members.length === 0 && <p style={{ color: '#475569', fontSize: 11, margin: 0 }}>Sin jugadores</p>}
             {members.map(m => {
                 const isCreator = item.created_by_id === m.id;
                 const checked   = isCreator || selected.has(m.id);
                 return (
-                    <label key={m.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 8, cursor: isCreator ? 'default' : 'pointer',
-                        padding: '4px 2px', borderRadius: 4,
-                    }}>
-                        <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={isCreator}
+                    <label key={m.id} style={{ ...labelStyle, cursor: isCreator ? 'default' : 'pointer' }}>
+                        <input type="checkbox" checked={checked} disabled={isCreator}
                             onChange={() => !isCreator && toggle(m.id)}
-                            style={{ accentColor: '#6366f1', width: 14, height: 14 }}
-                        />
+                            style={{ accentColor: '#6366f1', width: 14, height: 14 }} />
                         <span style={{ fontSize: 12, color: isCreator ? '#64748b' : '#e2e8f0' }}>
                             {m.username}{isCreator ? ' (creador)' : ''}
                         </span>
                     </label>
                 );
             })}
-
-            <button
-                onClick={() => onSave([...selected])}
-                style={{
-                    marginTop: 10, width: '100%', background: '#6366f1', border: 'none',
-                    borderRadius: 5, color: 'white', fontSize: 12, padding: '5px 0', cursor: 'pointer',
-                }}
-            >Guardar</button>
+            <button onClick={() => onSave([...selected])} style={saveBtn}>Guardar</button>
         </div>
     );
 }
 
-function ItemRow({ item, isDm, members, onDelete, onVisibilityChange }) {
-    const [showVis, setShowVis] = useState(false);
+function ControlPopover({ item, members, onSave, onClose }) {
+    const [selected, setSelected] = useState(item.controlled_by_id ?? null);
+    const ref = useRef(null);
+    usePopoverClose(ref, onClose);
+
+    return (
+        <div ref={ref} style={popoverStyle}>
+            <p style={headerStyle}>Control del token</p>
+            {members.length === 0 && <p style={{ color: '#475569', fontSize: 11, margin: 0 }}>Sin jugadores</p>}
+            <label style={{ ...labelStyle, cursor: 'pointer' }}>
+                <input type="radio" name="ctrl" checked={selected === null}
+                    onChange={() => setSelected(null)}
+                    style={{ accentColor: '#6366f1', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12, color: '#94a3b8' }}>Nadie</span>
+            </label>
+            {members.map(m => (
+                <label key={m.id} style={{ ...labelStyle, cursor: 'pointer' }}>
+                    <input type="radio" name="ctrl" checked={selected === m.id}
+                        onChange={() => setSelected(m.id)}
+                        style={{ accentColor: '#6366f1', width: 14, height: 14 }} />
+                    <span style={{ fontSize: 12, color: '#e2e8f0' }}>{m.username}</span>
+                </label>
+            ))}
+            <button onClick={() => onSave(selected)} style={saveBtn}>Guardar</button>
+        </div>
+    );
+}
+
+function ItemRow({ item, isDm, members, onDelete, onVisibilityChange, onControlChange, onOpenSheet }) {
+    const [showVis,  setShowVis]  = useState(false);
+    const [showCtrl, setShowCtrl] = useState(false);
 
     const dragData = item.kind === 'character'
         ? { kind: 'character', id: item.entity_id, name: item.name, color: 'blue', image_url: item.image_url }
@@ -90,7 +113,8 @@ function ItemRow({ item, isDm, members, onDelete, onVisibilityChange }) {
         : (COLOR_MAP[item.color] || '#6b7280');
 
     const visibleCount = (item.visible_to || []).length;
-    const visColor = visibleCount === 0 ? '#475569' : visibleCount === members.length ? '#22c55e' : '#eab308';
+    const visColor  = visibleCount === 0 ? '#475569' : visibleCount === members.length ? '#22c55e' : '#eab308';
+    const ctrlColor = item.controlled_by_id ? '#a855f7' : '#475569';
 
     return (
         <div style={{ position: 'relative' }}>
@@ -109,6 +133,7 @@ function ItemRow({ item, isDm, members, onDelete, onVisibilityChange }) {
                     cursor: 'grab', userSelect: 'none',
                     transition: 'background 0.12s',
                 }}
+                onDoubleClick={() => onOpenSheet && onOpenSheet(item)}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.09)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
             >
@@ -129,12 +154,20 @@ function ItemRow({ item, isDm, members, onDelete, onVisibilityChange }) {
                 {isDm && (
                     <>
                         <button
-                            onClick={(e) => { e.stopPropagation(); setShowVis(v => !v); }}
+                            onClick={(e) => { e.stopPropagation(); setShowVis(v => !v); setShowCtrl(false); }}
                             title="Gestionar visibilidad"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
                                 padding: '0 2px', flexShrink: 0, color: visColor }}
                         >
                             {visibleCount === 0 ? '🔒' : '👁'}
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowCtrl(v => !v); setShowVis(false); }}
+                            title="Asignar control"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
+                                padding: '0 2px', flexShrink: 0, color: ctrlColor }}
+                        >
+                            🎮
                         </button>
                         <button onClick={() => onDelete(item.id)}
                             style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer',
@@ -146,17 +179,23 @@ function ItemRow({ item, isDm, members, onDelete, onVisibilityChange }) {
 
             {showVis && isDm && (
                 <VisibilityPopover
-                    item={item}
-                    members={members}
+                    item={item} members={members}
                     onClose={() => setShowVis(false)}
                     onSave={(userIds) => { onVisibilityChange(item.id, userIds); setShowVis(false); }}
+                />
+            )}
+            {showCtrl && isDm && (
+                <ControlPopover
+                    item={item} members={members}
+                    onClose={() => setShowCtrl(false)}
+                    onSave={(userId) => { onControlChange(item.id, userId); setShowCtrl(false); }}
                 />
             )}
         </div>
     );
 }
 
-function FolderNode({ folder, isDm, gameId, members, onMoved, onFolderRenamed, onFolderDeleted, onItemDeleted, onVisibilityChange, depth = 0 }) {
+function FolderNode({ folder, isDm, gameId, members, onMoved, onFolderRenamed, onFolderDeleted, onItemDeleted, onVisibilityChange, onControlChange, onOpenSheet, depth = 0 }) {
     const [open, setOpen] = useState(true);
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState(folder.name);
@@ -278,11 +317,13 @@ function FolderNode({ folder, isDm, gameId, members, onMoved, onFolderRenamed, o
                         <FolderNode key={child.id} folder={child} isDm={isDm} gameId={gameId} members={members}
                             onMoved={onMoved} onFolderRenamed={onFolderRenamed}
                             onFolderDeleted={onFolderDeleted} onItemDeleted={onItemDeleted}
-                            onVisibilityChange={onVisibilityChange} depth={depth + 1} />
+                            onVisibilityChange={onVisibilityChange} onControlChange={onControlChange}
+                            onOpenSheet={onOpenSheet} depth={depth + 1} />
                     ))}
                     {folder.items?.map(item => (
                         <ItemRow key={item.id} item={item} isDm={isDm} members={members}
-                            onDelete={onItemDeleted} onVisibilityChange={onVisibilityChange} />
+                            onDelete={onItemDeleted} onVisibilityChange={onVisibilityChange}
+                            onControlChange={onControlChange} onOpenSheet={onOpenSheet} />
                     ))}
                     {folder.children?.length === 0 && folder.items?.length === 0 && (
                         <p style={{ color: '#334155', fontSize: 10, margin: '2px 0', paddingLeft: 4 }}>Vacía</p>
@@ -299,6 +340,18 @@ export default function RosterTab({ gameId, characters }) {
     const [newFolderName, setNewFolderName] = useState('');
     const [showAddPJ, setShowAddPJ] = useState(false);
     const [rootDragOver, setRootDragOver] = useState(false);
+    const [sheetModal, setSheetModal] = useState(null); // {kind, entity}
+
+    const openSheet = async (item) => {
+        if (!item.entity_id || !['character', 'monster'].includes(item.kind)) return;
+        try {
+            const endpoint = item.kind === 'character'
+                ? `${API}/api/character/${item.entity_id}`
+                : `${API}/api/monster/${item.entity_id}`;
+            const r = await axios.get(endpoint, { headers: authHeaders() });
+            setSheetModal({ kind: item.kind, entity: r.data });
+        } catch { /* sin acceso, ignorar */ }
+    };
 
     const load = async () => {
         try {
@@ -323,6 +376,12 @@ export default function RosterTab({ gameId, characters }) {
     const setVisibility = async (itemId, userIds) => {
         await axios.put(`${API}/api/game/${gameId}/roster/item/${itemId}/visibility`,
             { user_ids: userIds }, { headers: authHeaders() });
+        load();
+    };
+
+    const setControl = async (itemId, userId) => {
+        await axios.put(`${API}/api/game/${gameId}/roster/item/${itemId}/control`,
+            { user_id: userId }, { headers: authHeaders() });
         load();
     };
 
@@ -446,6 +505,8 @@ export default function RosterTab({ gameId, characters }) {
                         onFolderDeleted={deleteFolder}
                         onItemDeleted={deleteItem}
                         onVisibilityChange={setVisibility}
+                        onControlChange={setControl}
+                        onOpenSheet={openSheet}
                     />
                 ))}
 
@@ -453,7 +514,8 @@ export default function RosterTab({ gameId, characters }) {
                 {data?.items?.map(item => (
                     <ItemRow key={item.id} item={item} isDm={isDm}
                         members={data?.session_members || []}
-                        onDelete={deleteItem} onVisibilityChange={setVisibility} />
+                        onDelete={deleteItem} onVisibilityChange={setVisibility}
+                        onControlChange={setControl} onOpenSheet={openSheet} />
                 ))}
 
                 {data?.folders?.length === 0 && data?.items?.length === 0 && (
@@ -473,6 +535,23 @@ export default function RosterTab({ gameId, characters }) {
                     </div>
                 )}
             </div>
+
+            {sheetModal?.kind === 'character' && (
+                <EditCharacterModal
+                    isOpen={true}
+                    onClose={() => setSheetModal(null)}
+                    character={sheetModal.entity}
+                    onCharacterUpdated={() => setSheetModal(null)}
+                />
+            )}
+            {sheetModal?.kind === 'monster' && (
+                <EditMonsterModal
+                    isOpen={true}
+                    onClose={() => setSheetModal(null)}
+                    monster={sheetModal.entity}
+                    onMonsterUpdated={() => setSheetModal(null)}
+                />
+            )}
         </div>
     );
 }

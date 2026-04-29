@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import SceneSelector from './ingame/SceneSelector.jsx';
 import TokenSpawner from './ingame/TokenSpawner.jsx';
+import EditCharacterModal from './pages/EditCharacterModal.jsx';
+import EditMonsterModal from './pages/EditMonsterModal.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const HEADER_H  = 80;
@@ -53,7 +55,7 @@ const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899',
 // Componente para tokens con imagen — Group único para que auras/barras sigan el drag
 // ref apunta al KonvaImage (no al Group) → Transformer solo rodea la imagen, no las auras
 const TokenImageNode = forwardRef(function TokenImageNode(
-    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDragEnd, onTransformEnd, onContextMenu,
+    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDblClick, onDragEnd, onTransformEnd, onContextMenu,
       auras, activeCounters, isSelected, onBadgeClick },
     ref
 ) {
@@ -89,7 +91,7 @@ const TokenImageNode = forwardRef(function TokenImageNode(
 
     return (
         <Group ref={groupRef} x={x} y={y} opacity={opacity} draggable={draggable}
-            onClick={onClick} onTap={onClick} onDragEnd={onDragEnd} onContextMenu={onContextMenu}
+            onClick={onClick} onTap={onClick} onDblClick={onDblClick} onDragEnd={onDragEnd} onContextMenu={onContextMenu}
         >
             {auras.map((aura, idx) => {
                 const extent = (aura.feet / 5) * squareSize;
@@ -171,6 +173,7 @@ export default function VttBoard() {
     const [scene,          setScene]          = useState(null);
     const [error,          setError]          = useState(null);
     const [isDm,           setIsDm]           = useState(false);
+    const [currentUserId,  setCurrentUserId]  = useState(null);
     const [sceneItems,     setSceneItems]      = useState([]);
     const [sceneImages,    setSceneImages]     = useState([]);
     const [activeLayer,    setActiveLayer]     = useState('user');
@@ -178,10 +181,13 @@ export default function VttBoard() {
     const [selectedTokenId, setSelectedTokenId] = useState(null);
     const [zoom,           setZoom]           = useState(1);
     const [ctxMenu,        setCtxMenu]        = useState(null); // {x,y,type,id,layer}
+    const [gamePlayers,    setGamePlayers]    = useState([]);
+    const [ctrlSubmenu,    setCtrlSubmenu]    = useState(false);
     const [dropIndicator,  setDropIndicator]  = useState(null); // {x,y,w,h} en coords de pantalla
     const [barEditor,      setBarEditor]      = useState(null); // {tokenId, screenX, screenY}
     const [auraEditor,     setAuraEditor]     = useState(null); // {tokenId, screenX, screenY}
     const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
+    const [sheetModal,     setSheetModal]     = useState(null); // {kind, entity}
 
     const stageRef        = useRef(null);
     const transformerRef  = useRef(null);
@@ -309,6 +315,9 @@ export default function VttBoard() {
                 const res = await axios.get(`${API}/scene/api/game/${gameId}/active-scene`, { headers: authHeaders() });
                 setScene(res.data);
                 setIsDm(res.data.is_dm || false);
+                setCurrentUserId(res.data.current_user_id ?? null);
+                const playersRes = await axios.get(`${API}/scene/api/game/${gameId}/players`, { headers: authHeaders() });
+                setGamePlayers(playersRes.data ?? []);
                 await Promise.all([fetchTokens(res.data.id), fetchImages(res.data.id)]);
             } catch {
                 setError('No se pudo cargar la escena.');
@@ -600,6 +609,24 @@ export default function VttBoard() {
         } catch (err) { console.error(err); }
     };
 
+    // ── Doble clic en token → abrir ficha ────────────────────────────────────
+    const handleTokenDblClick = async (item) => {
+        if (!item.entity_id || !['character', 'monster'].includes(item.kind)) return;
+        const cache = entityCacheRef.current;
+        const cacheKey = item.kind === 'character' ? 'characters' : 'monsters';
+        let entity = (cache[cacheKey] || []).find(e => e.id === item.entity_id);
+        if (!entity) {
+            try {
+                const endpoint = item.kind === 'character'
+                    ? `${API}/api/character/${item.entity_id}`
+                    : `${API}/api/monster/${item.entity_id}`;
+                const r = await axios.get(endpoint, { headers: authHeaders() });
+                entity = r.data;
+            } catch { return; }
+        }
+        setSheetModal({ kind: item.kind, entity });
+    };
+
     // ── Menú contextual (clic derecho) ────────────────────────────────────────
     const openCtxMenu = (e, type, id, layer) => {
         e.evt.preventDefault();
@@ -675,7 +702,7 @@ const saveCounters = async (tokenId, counters) => {
     const getX = (item) => item.x != null ? item.x : boardX + (item.col || 0) * squareSize + squareSize / 2;
     const getY = (item) => item.y != null ? item.y : boardY + (item.row || 0) * squareSize + squareSize / 2;
 
-    const canDragTok = (item) => item.layer === activeLayer;
+    const canDragTok = (item) => item.layer === activeLayer && (isDm || item.owner_id === currentUserId || item.controlled_by_id === currentUserId);
     const canDragImg = (item) => item.layer === activeLayer;
     const getOpacity = (item) => {
         if (!isDm) return 1;
@@ -708,6 +735,7 @@ const saveCounters = async (tokenId, counters) => {
                         setBadgeEdit({ tokenId: item.id, counterIdx, screenX: e.evt.clientX, screenY: e.evt.clientY, value: String(currentVal) });
                     }}
                     onClick={() => { if (item.layer === activeLayer) { setSelectedTokenId(prev => prev === item.id ? null : item.id); setSelectedImgId(null); } }}
+                    onDblClick={() => handleTokenDblClick(item)}
                     onDragEnd={(e) => handleDragEndToken(e, item)}
                     onTransformEnd={(e) => handleTokenTransformEnd(e, item)}
                     onContextMenu={onCtxMenu}
@@ -732,6 +760,7 @@ const saveCounters = async (tokenId, counters) => {
                 opacity={getOpacity(item)}
                 draggable={canDragTok(item)}
                 onClick={() => { if (item.layer === activeLayer) { const next = selectedTokenId === item.id ? null : item.id; setSelectedTokenId(next); setSelectedImgId(null); if (!next) setBarEditor(null); } }}
+                onDblClick={() => handleTokenDblClick(item)}
                 onDragEnd={(e) => handleDragEndToken(e, item)}
                 onContextMenu={onCtxMenu}
             >
@@ -792,7 +821,7 @@ const saveCounters = async (tokenId, counters) => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={() => { isPanning.current = false; }}
-            onClick={() => { setCtxMenu(null); setBarEditor(null); setBadgeEdit(null); }}
+            onClick={() => { setCtxMenu(null); setCtrlSubmenu(false); setBarEditor(null); setBadgeEdit(null); }}
             onContextMenu={(e) => e.preventDefault()}
             style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}
         >
@@ -962,6 +991,74 @@ const saveCounters = async (tokenId, counters) => {
                                     {l.label}
                                 </button>
                             ))}
+                            {ctxMenu.type === 'token' && (
+                                <div style={{ position: 'relative' }}>
+                                    <button
+                                        onClick={() => setCtrlSubmenu(v => !v)}
+                                        style={{
+                                            width: '100%', padding: '7px 14px',
+                                            background: ctrlSubmenu ? 'rgba(99,102,241,0.1)' : 'transparent',
+                                            color: '#cbd5e1', border: 'none', cursor: 'pointer',
+                                            textAlign: 'left', fontSize: 13,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = ctrlSubmenu ? 'rgba(99,102,241,0.1)' : 'transparent'}
+                                    >
+                                        <span>🎮 Asignar control</span>
+                                        <span style={{ fontSize: 10 }}>▶</span>
+                                    </button>
+                                    {ctrlSubmenu && (
+                                        <div style={{
+                                            position: 'absolute', left: '100%', top: 0,
+                                            background: '#1e293b', border: '1px solid #334155',
+                                            borderRadius: 6, minWidth: 160, zIndex: 101,
+                                            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+                                        }}>
+                                            {(() => {
+                                                const tok = sceneItems.find(i => i.id === ctxMenu.id);
+                                                const assignControl = async (userId) => {
+                                                    try {
+                                                        const res = await axios.put(`${API}/api/scene-token/${ctxMenu.id}/control`, { user_id: userId }, { headers: authHeaders() });
+                                                        setSceneItems(prev => prev.map(i => i.id === ctxMenu.id ? { ...i, controlled_by_id: res.data.controlled_by_id } : i));
+                                                    } catch (err) { console.error(err); }
+                                                    setCtrlSubmenu(false);
+                                                    setCtxMenu(null);
+                                                };
+                                                return <>
+                                                    <button
+                                                        onClick={() => assignControl(null)}
+                                                        style={{
+                                                            width: '100%', padding: '7px 14px', background: tok?.controlled_by_id == null ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                                            color: tok?.controlled_by_id == null ? '#818cf8' : '#cbd5e1', border: 'none', cursor: 'pointer',
+                                                            textAlign: 'left', fontSize: 13,
+                                                        }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = tok?.controlled_by_id == null ? 'rgba(99,102,241,0.15)' : 'transparent'}
+                                                    >
+                                                        {tok?.controlled_by_id == null ? '✓ ' : ''}Sin control
+                                                    </button>
+                                                    {gamePlayers.map(p => (
+                                                        <button key={p.id}
+                                                            onClick={() => assignControl(p.id)}
+                                                            style={{
+                                                                width: '100%', padding: '7px 14px',
+                                                                background: tok?.controlled_by_id === p.id ? 'rgba(99,102,241,0.15)' : 'transparent',
+                                                                color: tok?.controlled_by_id === p.id ? '#818cf8' : '#cbd5e1',
+                                                                border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13,
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = tok?.controlled_by_id === p.id ? 'rgba(99,102,241,0.15)' : 'transparent'}
+                                                        >
+                                                            {tok?.controlled_by_id === p.id ? '✓ ' : ''}{p.name}{p.is_dm ? ' (DM)' : ''}
+                                                        </button>
+                                                    ))}
+                                                </>;
+                                            })()}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             <div style={{ height: 1, background: '#334155', margin: '4px 0' }} />
                         </>
                     )}
@@ -1350,6 +1447,23 @@ const saveCounters = async (tokenId, counters) => {
                 }}>
                     {error}
                 </div>
+            )}
+
+            {sheetModal?.kind === 'character' && (
+                <EditCharacterModal
+                    isOpen={true}
+                    onClose={() => setSheetModal(null)}
+                    character={sheetModal.entity}
+                    onCharacterUpdated={() => { entityCacheRef.current.characters = null; }}
+                />
+            )}
+            {sheetModal?.kind === 'monster' && (
+                <EditMonsterModal
+                    isOpen={true}
+                    onClose={() => setSheetModal(null)}
+                    monster={sheetModal.entity}
+                    onMonsterUpdated={() => { entityCacheRef.current.monsters = null; }}
+                />
             )}
         </div>
     );

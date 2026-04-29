@@ -76,8 +76,24 @@ final class SceneController extends AbstractController
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
-            'is_dm' => $isDm
+            'is_dm' => $isDm,
+            'current_user_id' => $user?->getId(),
         ]);
+    }
+
+    #[Route('/api/game/{gameId}/players', name: 'api_get_game_players', methods: ['GET'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function getGamePlayers(int $gameId, UserGameSessionRepository $userGameSessionRepository): JsonResponse
+    {
+        $entries = $userGameSessionRepository->findBy(['gameSession' => $gameId]);
+
+        $players = array_map(fn($ugs) => [
+            'id'    => $ugs->getUser()->getId(),
+            'name'  => $ugs->getUser()->getUsername() ?? $ugs->getUser()->getEmail(),
+            'is_dm' => $ugs->isDm(),
+        ], $entries);
+
+        return $this->json($players);
     }
 
     /**

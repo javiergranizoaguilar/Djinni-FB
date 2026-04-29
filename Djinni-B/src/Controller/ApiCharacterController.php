@@ -228,6 +228,63 @@ class ApiCharacterController extends AbstractController
         return $this->json($characters);
     }
 
+    #[Route('/{id}', name: 'api_character_get', methods: ['GET'], requirements: ['id' => '\d+'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function getOne(int $id, EntityManagerInterface $em): JsonResponse
+    {
+        $sheet = $em->getRepository(CharacterSheet::class)->find($id);
+        if (!$sheet) return $this->json(['error' => 'Not found'], 404);
+
+        $levelData  = $sheet->getLevel() ?? [];
+        $totalLevel = 0;
+        if (isset($levelData['level'])) { $totalLevel = (int)$levelData['level']; $levelData = [$levelData]; }
+        elseif (is_array($levelData)) { foreach ($levelData as $c) $totalLevel += (int)($c['level'] ?? 0); }
+
+        $fc = fn($col, $cb) => array_map($cb, iterator_to_array($col));
+
+        return $this->json([
+            'id' => $sheet->getId(), 'name' => $sheet->getName(),
+            'hp' => $sheet->getHp(), 'max_hp' => $sheet->getMaxHp(),
+            'caster_level' => $sheet->getCasterLevel(),
+            'level' => $levelData, 'display_level' => $totalLevel,
+            'token_image' => $sheet->getTokenImage(), 'default_auras' => $sheet->getDefaultAuras() ?? [],
+            'portrait_image' => $sheet->getPortraitImage(), 'stats' => $sheet->getStats(),
+            'currency' => $sheet->getCurrency(), 'is_editable' => false,
+            'spellcasting_abillity' => $sheet->getSpellcastingAbillity(),
+            'apareance' => $sheet->getApareance(), 'backstory' => $sheet->getBackstory(),
+            'personality_traits' => $sheet->getPersonalityTraits(), 'ideals' => $sheet->getIdeals(),
+            'bonds' => $sheet->getBonds(), 'flaws' => $sheet->getFlaws(), 'exaustion' => $sheet->getExaustion(),
+            'sav_str' => $sheet->isSavStr(), 'sav_str_mod' => $sheet->getSavStrMod(),
+            'sav_dex' => $sheet->isSavDex(), 'sav_dex_mod' => $sheet->getSavDexMod(),
+            'sav_int' => $sheet->isSavInt(), 'sav_int_mod' => $sheet->getSavIntMod(),
+            'sav_wis' => $sheet->isSavWis(), 'sav_wis_mod' => $sheet->getSavWisMod(),
+            'sav_cha' => $sheet->isSavCha(), 'sav_cha_mod' => $sheet->getSavChaMod(),
+            'acrobatics' => $sheet->getAcrobatics(), 'acrobatics_mod' => $sheet->getAcrobaticsMod(),
+            'animal_handling' => $sheet->getAnimalHandling(), 'animal_handling_mod' => $sheet->getAnimalHandlingMod(),
+            'arcana' => $sheet->getArcana(), 'arcana_mod' => $sheet->getArcanaMod(),
+            'athletics' => $sheet->getAthletics(), 'athletics_mod' => $sheet->getAthleticsMod(),
+            'deception' => $sheet->getDeception(), 'deception_mod' => $sheet->getDeceptionMod(),
+            'history' => $sheet->getHistory(), 'history_mod' => $sheet->getHistoryMod(),
+            'insight' => $sheet->getInsight(), 'insight_mod' => $sheet->getInsightMod(),
+            'intimidation' => $sheet->getIntimidation(), 'intimidation_mod' => $sheet->getIntimidationMod(),
+            'investigation' => $sheet->getInvestigation(), 'investigation_mod' => $sheet->getInvestigationMod(),
+            'medicine' => $sheet->getMedicine(), 'medicine_mod' => $sheet->getMedicineMod(),
+            'nature' => $sheet->getNature(), 'nature_mod' => $sheet->getNatureMod(),
+            'perception' => $sheet->getPerception(), 'perception_mod' => $sheet->getPerceptionMod(),
+            'performance' => $sheet->getPerformance(), 'performance_mod' => $sheet->getPerformanceMod(),
+            'persuasion' => $sheet->getPersuasion(), 'persuasion_mod' => $sheet->getPersuasionMod(),
+            'religion' => $sheet->getReligion(), 'religion_mod' => $sheet->getReligionMod(),
+            'sleight_of_hand' => $sheet->getSleightOfHand(), 'sleight_of_hand_mod' => $sheet->getSleightOfHandMod(),
+            'stealth' => $sheet->getStealth(), 'stealth_mod' => $sheet->getStealthMod(),
+            'survival' => $sheet->getSurvival(), 'survival_mod' => $sheet->getSurvivalMod(),
+            'attacks' => $fc($sheet->getAttacks(), fn(Attack $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'damage_dice' => $a->getDamageDice(), 'damage_type' => $a->getDamageType(), 'range' => $a->getRange(), 'description' => $a->getDescription(), 'attack_modifier' => $a->getAttackModifier(), 'is_saving_throw' => $a->isSavingThrow(), 'saving_throw_tipe' => $a->getSavingThrowTipe()]),
+            'abilities' => $fc($sheet->getAbilities(), fn(Ability $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'description' => $a->getDescription(), 'source_tipe' => $a->getSourceTipe(), 'is_active' => $a->isActive(), 'has_limited_uses' => $a->hasLimitedUses(), 'max_uses' => $a->getMaxUses(), 'current_uses' => $a->getCurrentUses(), 'recharge_type' => $a->getRechargeType()]),
+            'spells' => $fc($sheet->getSpells(), fn(Spell $s) => ['id' => $s->getId(), 'name' => $s->getName(), 'level' => $s->getLevel(), 'school' => $s->getSchool(), 'description' => $s->getDescription(), 'is_prepared' => $s->isPrepared(), 'casting_time' => $s->getCastingTime(), 'range' => $s->getSpellRange(), 'components' => $s->getComponents(), 'duration' => $s->getDuration()]),
+            'inventory' => $fc($sheet->getInventories(), fn(Inventory $i) => ['id' => $i->getId(), 'item_name' => $i->getItems()?->getName() ?? 'Unknown', 'item_description' => $i->getItems()?->getDescription() ?? '', 'quantity' => $i->getQuantity(), 'is_equipped' => $i->isEquipped()]),
+            'proficencies' => $fc($sheet->getProficencies(), fn(Proficency $p) => ['id' => $p->getId(), 'name' => $p->getName(), 'type' => $p->getType(), 'value_modifier' => $p->getValueModifier()]),
+        ]);
+    }
+
     #[Route('/edit/{id}', name: 'api_character_edit', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function edit(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
