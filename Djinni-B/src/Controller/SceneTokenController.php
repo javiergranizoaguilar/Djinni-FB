@@ -52,6 +52,8 @@ class SceneTokenController extends AbstractController
                 'id'        => $st->getId(),
                 'col'       => $st->getCol(),
                 'row'       => $st->getRow(),
+                'x'         => $st->getX(),
+                'y'         => $st->getY(),
                 'layer'     => $st->getLayer(),
                 'color'     => $st->getColor(),
                 'name'      => $st->getName(),
@@ -59,6 +61,7 @@ class SceneTokenController extends AbstractController
                 'width'     => $st->getWidth(),
                 'height'    => $st->getHeight(),
                 'counters'  => $st->getCounters(),
+                'auras'     => $st->getAuras() ?? [],
                 'kind'      => $st->getKind(),
                 'entity_id' => $st->getEntityId(),
             ];
@@ -96,7 +99,10 @@ class SceneTokenController extends AbstractController
         $sceneToken->setImageUrl($data['image_url'] ?? null);
         $sceneToken->setWidth(isset($data['width']) ? (float)$data['width'] : null);
         $sceneToken->setHeight(isset($data['height']) ? (float)$data['height'] : null);
+        $sceneToken->setX(isset($data['x']) ? (float)$data['x'] : null);
+        $sceneToken->setY(isset($data['y']) ? (float)$data['y'] : null);
         $sceneToken->setCounters($data['counters'] ?? null);
+        $sceneToken->setAuras($data['auras'] ?? null);
         $sceneToken->setKind($data['kind'] ?? null);
         $sceneToken->setEntityId(isset($data['entity_id']) ? (int)$data['entity_id'] : null);
 
@@ -114,6 +120,8 @@ class SceneTokenController extends AbstractController
             'id'        => $sceneToken->getId(),
             'col'       => $sceneToken->getCol(),
             'row'       => $sceneToken->getRow(),
+            'x'         => $sceneToken->getX(),
+            'y'         => $sceneToken->getY(),
             'layer'     => $sceneToken->getLayer(),
             'color'     => $sceneToken->getColor(),
             'name'      => $sceneToken->getName(),
@@ -121,6 +129,7 @@ class SceneTokenController extends AbstractController
             'width'     => $sceneToken->getWidth(),
             'height'    => $sceneToken->getHeight(),
             'counters'  => $sceneToken->getCounters(),
+            'auras'     => $sceneToken->getAuras() ?? [],
             'kind'      => $sceneToken->getKind(),
             'entity_id' => $sceneToken->getEntityId(),
         ], 201);
@@ -194,10 +203,13 @@ class SceneTokenController extends AbstractController
         if (isset($data['row'])) {
             $sceneToken->setRow($data['row']);
         }
+        if (array_key_exists('x', $data)) $sceneToken->setX($data['x'] !== null ? (float)$data['x'] : null);
+        if (array_key_exists('y', $data)) $sceneToken->setY($data['y'] !== null ? (float)$data['y'] : null);
         if (isset($data['layer']))    $sceneToken->setLayer($data['layer']);
         if (isset($data['width']))    $sceneToken->setWidth((float)$data['width']);
         if (isset($data['height']))   $sceneToken->setHeight((float)$data['height']);
         if (array_key_exists('counters', $data)) $sceneToken->setCounters($data['counters']);
+        if (array_key_exists('auras', $data))    $sceneToken->setAuras($data['auras']);
 
         $em->flush();
 
@@ -205,11 +217,14 @@ class SceneTokenController extends AbstractController
             'id'        => $sceneToken->getId(),
             'col'       => $sceneToken->getCol(),
             'row'       => $sceneToken->getRow(),
+            'x'         => $sceneToken->getX(),
+            'y'         => $sceneToken->getY(),
             'layer'     => $sceneToken->getLayer(),
             'image_url' => $sceneToken->getImageUrl(),
             'width'     => $sceneToken->getWidth(),
             'height'    => $sceneToken->getHeight(),
             'counters'  => $sceneToken->getCounters(),
+            'auras'     => $sceneToken->getAuras() ?? [],
         ]);
     }
 

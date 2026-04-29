@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useLayoutEffect } from 'react';
 import { Stage, Layer, Circle, Rect, Text, Group, Image as KonvaImage, Transformer } from 'react-konva';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
@@ -50,12 +50,18 @@ const BAR_H = 5;
 const BAR_GAP = 2;
 const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899','#ffffff'];
 
-// Componente para tokens con imagen
+// Componente para tokens con imagen — Group único para que auras/barras sigan el drag
+// ref apunta al KonvaImage (no al Group) → Transformer solo rodea la imagen, no las auras
 const TokenImageNode = forwardRef(function TokenImageNode(
-    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDragEnd, onTransformEnd, onContextMenu },
+    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDragEnd, onTransformEnd, onContextMenu,
+      auras, activeCounters, isSelected, onBadgeClick },
     ref
 ) {
     const [img, setImg] = useState(null);
+    const groupRef = useRef(null);
+    const imgRef   = useRef(null);
+    useImperativeHandle(ref, () => imgRef.current);
+
     useEffect(() => {
         if (!item.image_url) return;
         const image = new window.Image();
@@ -66,22 +72,64 @@ const TokenImageNode = forwardRef(function TokenImageNode(
 
     const w = item.width  || squareSize;
     const h = item.height || squareSize;
-    const x = boardX + (item.col || 0) * squareSize + squareSize / 2 - w / 2;
-    const y = boardY + (item.row || 0) * squareSize + squareSize / 2 - h / 2;
+    const x = item.x != null ? item.x : boardX + (item.col || 0) * squareSize;
+    const y = item.y != null ? item.y : boardY + (item.row || 0) * squareSize;
+    const halfW = w / 2;
+    const halfH = h / 2;
+    const halfMax = Math.max(halfW, halfH);
+
+    const barsH = activeCounters.length > 0
+        ? activeCounters.length * BAR_H + (activeCounters.length - 1) * BAR_GAP : 0;
+    const barsStartY = -barsH - 3;
+    const badgeR = 13;
+    const badgeGap = 4;
+    const totalBadgeW = activeCounters.length * badgeR * 2 + (activeCounters.length - 1) * badgeGap;
+    const badgeStartX = w / 2 - totalBadgeW / 2 + badgeR;
+    const badgeCy = h + badgeR + 3;
 
     return (
-        <KonvaImage
-            ref={ref}
-            image={img}
-            x={x} y={y} width={w} height={h}
-            opacity={opacity}
-            draggable={draggable}
-            onClick={onClick}
-            onTap={onClick}
-            onDragEnd={onDragEnd}
-            onTransformEnd={onTransformEnd}
-            onContextMenu={onContextMenu}
-        />
+        <Group ref={groupRef} x={x} y={y} opacity={opacity} draggable={draggable}
+            onClick={onClick} onTap={onClick} onDragEnd={onDragEnd} onContextMenu={onContextMenu}
+        >
+            {auras.map((aura, idx) => {
+                const extent = (aura.feet / 5) * squareSize;
+                const fo = aura.opacity ?? 0.2;
+                const color = aura.color || '#a855f7';
+                return aura.shape === 'square'
+                    ? <Rect key={idx} x={-extent} y={-extent} width={w + extent*2} height={h + extent*2}
+                        fill={color} opacity={fo} stroke={color} strokeWidth={1.5} listening={false} />
+                    : <Circle key={idx} x={halfW} y={halfH} radius={halfMax + extent}
+                        fill={color} opacity={fo} stroke={color} strokeWidth={1.5} listening={false} />;
+            })}
+            {/* onTransformEnd en la imagen: Transformer adjuntado aquí, no al Group */}
+            <KonvaImage ref={imgRef} image={img} x={0} y={0} width={w} height={h}
+                onTransformEnd={onTransformEnd} />
+            {activeCounters.map((c, i) => {
+                const pct = Math.max(0, Math.min(1, c.current / c.max));
+                const barY = barsStartY + i * (BAR_H + BAR_GAP);
+                return (
+                    <Group key={i} listening={false}>
+                        <Rect x={0} y={barY} width={w} height={BAR_H} fill="#0f172a" cornerRadius={2} />
+                        <Rect x={0} y={barY} width={Math.max(0, w * pct)} height={BAR_H} fill={c.color} cornerRadius={2} />
+                    </Group>
+                );
+            })}
+            {isSelected && activeCounters.map((c, arrIdx) => {
+                const badgeCx = badgeStartX + arrIdx * (badgeR * 2 + badgeGap);
+                const val = String(c.current);
+                return (
+                    <Group key={arrIdx}
+                        onClick={e => { e.cancelBubble = true; onBadgeClick(e, c.origIdx, c.current); }}
+                        onTap={e => { e.cancelBubble = true; onBadgeClick(e, c.origIdx, c.current); }}
+                    >
+                        <Circle x={badgeCx} y={badgeCy} radius={badgeR} fill={c.color} strokeWidth={2} stroke="#0f172a" />
+                        <Text x={badgeCx - badgeR} y={badgeCy - badgeR} width={badgeR*2} height={badgeR*2}
+                            text={val} fontSize={val.length > 2 ? 9 : 12} fontStyle="bold"
+                            fill="white" align="center" verticalAlign="middle" listening={false} />
+                    </Group>
+                );
+            })}
+        </Group>
     );
 });
 
@@ -132,6 +180,7 @@ export default function VttBoard() {
     const [ctxMenu,        setCtxMenu]        = useState(null); // {x,y,type,id,layer}
     const [dropIndicator,  setDropIndicator]  = useState(null); // {x,y,w,h} en coords de pantalla
     const [barEditor,      setBarEditor]      = useState(null); // {tokenId, screenX, screenY}
+    const [auraEditor,     setAuraEditor]     = useState(null); // {tokenId, screenX, screenY}
     const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
 
     const stageRef        = useRef(null);
@@ -139,9 +188,10 @@ export default function VttBoard() {
     const imageNodesRef   = useRef({});
     const tokenNodesRef   = useRef({});
     const isPanning       = useRef(false);
-    const entityCacheRef  = useRef({ characters: null, monsters: null }); // caché para fichas
-    const lastPanPos     = useRef({ x: 0, y: 0 });
-    const shiftHeld      = useRef(false);
+    const entityCacheRef  = useRef({ characters: null, monsters: null });
+    const lastPanPos      = useRef({ x: 0, y: 0 });
+    const shiftHeld       = useRef(false);
+    const ctxMenuRef      = useRef(null);
 
     const gridWidth        = scene?.grid_width  || 10;
     const gridHeight       = scene?.grid_height || 10;
@@ -171,6 +221,19 @@ export default function VttBoard() {
         transformerRef.current.nodes(node ? [node] : []);
         transformerRef.current.getLayer()?.batchDraw();
     }, [selectedImgId, selectedTokenId]);
+
+    // Reposicionar menú contextual para que nunca salga de la pantalla
+    useLayoutEffect(() => {
+        if (!ctxMenu || !ctxMenuRef.current) return;
+        const el = ctxMenuRef.current;
+        const { width, height } = el.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const x = ctxMenu.x + width  > vw ? vw - width  - 6 : ctxMenu.x;
+        const y = ctxMenu.y + height > vh ? vh - height - 6 : ctxMenu.y;
+        el.style.left = x + 'px';
+        el.style.top  = y + 'px';
+    }, [ctxMenu]);
 
     // ── PAN con botón central ─────────────────────────────────────────────────
     const handleMouseDown = (e) => {
@@ -329,10 +392,19 @@ export default function VttBoard() {
         const tokenData = JSON.parse(raw);
 
         const { x: stageX, y: stageY } = screenToStage(e.clientX, e.clientY);
-        let col = Math.round((stageX - boardX - squareSize / 2) / squareSize);
-        let row = Math.round((stageY - boardY - squareSize / 2) / squareSize);
+        let col = Math.round((stageX - boardX) / squareSize);
+        let row = Math.round((stageY - boardY) / squareSize);
         col = Math.max(0, Math.min(col, gridWidth  - 1));
         row = Math.max(0, Math.min(row, gridHeight - 1));
+
+        // Contador HP inicial desde la entidad
+        const initialCounters = (() => {
+            const base = DEFAULT_COUNTERS.map(c => ({ ...c }));
+            if (tokenData.max_hp > 0) {
+                base[0] = { ...base[0], label: 'HP', current: tokenData.hp ?? tokenData.max_hp, max: tokenData.max_hp, color: '#22c55e' };
+            }
+            return base;
+        })();
 
         try {
             const res = await axios.post(`${API}/api/scene-token/scene/${scene.id}`, {
@@ -344,6 +416,8 @@ export default function VttBoard() {
                 height:    squareSize,
                 kind:      tokenData.kind      || null,
                 entity_id: tokenData.id        || null,
+                counters:  initialCounters,
+                auras:     tokenData.default_auras || [],
             }, { headers: authHeaders() });
             setSceneItems(prev => [...prev, res.data]);
         } catch (err) {
@@ -380,25 +454,49 @@ export default function VttBoard() {
 
     // ── Tokens: mover ─────────────────────────────────────────────────────────
     const handleDragEndToken = async (e, item) => {
-        const w = item.width  || squareSize;
-        const h = item.height || squareSize;
-        // tokens con imagen → posición top-left; círculos → posición center
-        const centerX = item.image_url ? e.target.x() + w / 2 : e.target.x();
-        const centerY = item.image_url ? e.target.y() + h / 2 : e.target.y();
-        let col = Math.round((centerX - boardX - squareSize / 2) / squareSize);
-        let row = Math.round((centerY - boardY - squareSize / 2) / squareSize);
-        col = Math.max(0, Math.min(col, gridWidth  - 1));
-        row = Math.max(0, Math.min(row, gridHeight - 1));
-        if (item.image_url) {
-            e.target.position({ x: boardX + col * squareSize + squareSize / 2 - w / 2, y: boardY + row * squareSize + squareSize / 2 - h / 2 });
+        const freeMode = shiftHeld.current;
+
+        if (freeMode) {
+            const px = e.target.x();
+            const py = e.target.y();
+            // col/row = esquina superior izquierda del token
+            let col = item.image_url
+                ? Math.round((px - boardX) / squareSize)
+                : Math.round((px - squareSize / 2 - boardX) / squareSize);
+            let row = item.image_url
+                ? Math.round((py - boardY) / squareSize)
+                : Math.round((py - squareSize / 2 - boardY) / squareSize);
+            col = Math.max(0, Math.min(col, gridWidth  - 1));
+            row = Math.max(0, Math.min(row, gridHeight - 1));
+            setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, x: px, y: py, col, row } : i));
+            try {
+                await axios.put(`${API}/api/scene-token/${item.id}`, { x: px, y: py, col, row }, { headers: authHeaders() });
+            } catch (err) { console.error(err); }
         } else {
-            e.target.position({ x: boardX + col * squareSize + squareSize / 2, y: boardY + row * squareSize + squareSize / 2 });
+            const px = e.target.x();
+            const py = e.target.y();
+            let col, row;
+            if (item.image_url) {
+                // esquina superior izquierda del token → esquina del cuadrado
+                col = Math.round((px - boardX) / squareSize);
+                row = Math.round((py - boardY) / squareSize);
+                col = Math.max(0, Math.min(col, gridWidth  - 1));
+                row = Math.max(0, Math.min(row, gridHeight - 1));
+                e.target.position({ x: boardX + col * squareSize, y: boardY + row * squareSize });
+            } else {
+                // círculo: centro → centro del cuadrado (no cambia)
+                col = Math.round((px - boardX - squareSize / 2) / squareSize);
+                row = Math.round((py - boardY - squareSize / 2) / squareSize);
+                col = Math.max(0, Math.min(col, gridWidth  - 1));
+                row = Math.max(0, Math.min(row, gridHeight - 1));
+                e.target.position({ x: boardX + col * squareSize + squareSize / 2, y: boardY + row * squareSize + squareSize / 2 });
+            }
+            e.target.getLayer().batchDraw();
+            setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, x: null, y: null, col, row } : i));
+            try {
+                await axios.put(`${API}/api/scene-token/${item.id}`, { x: null, y: null, col, row }, { headers: authHeaders() });
+            } catch (err) { console.error(err); }
         }
-        e.target.getLayer().batchDraw();
-        setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, col, row } : i));
-        try {
-            await axios.put(`${API}/api/scene-token/${item.id}`, { col, row }, { headers: authHeaders() });
-        } catch (err) { console.error(err); }
     };
 
     // ── Imágenes: mover (snap al grid salvo Shift) ───────────────────────────
@@ -421,7 +519,10 @@ export default function VttBoard() {
 
     // ── Tokens con imagen: redimensionar ─────────────────────────────────────
     const handleTokenTransformEnd = async (e, item) => {
+        // e.target = KonvaImage (x=0,y=0 dentro del Group)
+        // El Group padre tiene la posición absoluta
         const node   = e.target;
+        const group  = node.getParent();
         const scaleX = node.scaleX();
         const scaleY = node.scaleY();
         node.scaleX(1);
@@ -429,32 +530,33 @@ export default function VttBoard() {
 
         const w = item.width  || squareSize;
         const h = item.height || squareSize;
-        let newX      = node.x();
-        let newY      = node.y();
-        let newWidth  = Math.max(squareSize / 2, w * scaleX);
-        let newHeight = Math.max(squareSize / 2, h * scaleY);
+        let newX      = group.x() + node.x();
+        let newY      = group.y() + node.y();
+        // Tamaño siempre múltiplo de squareSize (mínimo 1 cuadrado)
+        let newWidth  = Math.max(squareSize, Math.round((w * scaleX) / squareSize) * squareSize);
+        let newHeight = Math.max(squareSize, Math.round((h * scaleY) / squareSize) * squareSize);
 
         if (!shiftHeld.current) {
-            const left   = snapX(newX);
-            const top    = snapY(newY);
-            const right  = snapX(newX + newWidth);
-            const bottom = snapY(newY + newHeight);
-            newX      = left;
-            newY      = top;
-            newWidth  = Math.max(squareSize, right - left);
-            newHeight = Math.max(squareSize, bottom - top);
-            node.x(newX); node.y(newY);
-            node.width(newWidth); node.height(newHeight);
-            node.getLayer().batchDraw();
+            newX = snapX(newX);
+            newY = snapY(newY);
         }
 
-        // Calcular col/row desde el centro
-        const col = Math.max(0, Math.min(Math.round((newX + newWidth  / 2 - boardX - squareSize / 2) / squareSize), gridWidth  - 1));
-        const row = Math.max(0, Math.min(Math.round((newY + newHeight / 2 - boardY - squareSize / 2) / squareSize), gridHeight - 1));
+        group.x(newX); group.y(newY);
+        node.x(0); node.y(0);
+        node.width(newWidth); node.height(newHeight);
+        node.getLayer().batchDraw();
 
-        setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, col, row, width: newWidth, height: newHeight } : i));
+        // col/row desde esquina superior izquierda
+        const col = Math.max(0, Math.min(Math.round((newX - boardX) / squareSize), gridWidth  - 1));
+        const row = Math.max(0, Math.min(Math.round((newY - boardY) / squareSize), gridHeight - 1));
+
+        const freeTransform = shiftHeld.current;
+        const xSave = freeTransform ? newX : null;
+        const ySave = freeTransform ? newY : null;
+
+        setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, x: xSave, y: ySave, col, row, width: newWidth, height: newHeight } : i));
         try {
-            await axios.put(`${API}/api/scene-token/${item.id}`, { col, row, width: newWidth, height: newHeight }, { headers: authHeaders() });
+            await axios.put(`${API}/api/scene-token/${item.id}`, { x: xSave, y: ySave, col, row, width: newWidth, height: newHeight }, { headers: authHeaders() });
         } catch (err) { console.error(err); }
     };
 
@@ -554,6 +656,7 @@ export default function VttBoard() {
 
     // ── Contadores ────────────────────────────────────────────────────────────
     const getCounters = (item) => item.counters || DEFAULT_COUNTERS;
+    const getAuras    = (item) => item.auras    || [];
 
 const saveCounters = async (tokenId, counters) => {
         setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, counters } : i));
@@ -562,103 +665,30 @@ const saveCounters = async (tokenId, counters) => {
         } catch (err) { console.error(err); }
     };
 
-    const getTokenBounds = (item) => {
-        const w = item.image_url ? (item.width || squareSize) : squareSize;
-        const h = item.image_url ? (item.height || squareSize) : squareSize;
-        const x = item.image_url
-            ? boardX + (item.col || 0) * squareSize + squareSize / 2 - w / 2
-            : boardX + (item.col || 0) * squareSize;
-        const y = item.image_url
-            ? boardY + (item.row || 0) * squareSize + squareSize / 2 - h / 2
-            : boardY + (item.row || 0) * squareSize;
-        return { x, y, w, h };
+    const saveAuras = async (tokenId, auras) => {
+        setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, auras } : i));
+        try {
+            await axios.put(`${API}/api/scene-token/${tokenId}`, { auras }, { headers: authHeaders() });
+        } catch (err) { console.error(err); }
     };
 
-    const renderTokenBars = (item) => {
-        if (!isDm && item.layer === 'gm') return null;
-        const counters = getCounters(item);
-        const hasAny = counters.some(c => c.max > 0);
-        if (!hasAny) return null;
+    const getX = (item) => item.x != null ? item.x : boardX + (item.col || 0) * squareSize + squareSize / 2;
+    const getY = (item) => item.y != null ? item.y : boardY + (item.row || 0) * squareSize + squareSize / 2;
 
-        const { x, y, w, h } = getTokenBounds(item);
-        const activeCount = counters.filter(c => c.max > 0).length;
-        const totalBarsH = activeCount * BAR_H + (activeCount - 1) * BAR_GAP;
-        const barsY = y - totalBarsH - 3;
-        const opacity = getOpacity(item);
-
-        const bars = counters.map((c, i) => {
-            if (c.max <= 0) return null;
-            const pct = Math.max(0, Math.min(1, c.current / c.max));
-            const barY = barsY + i * (BAR_H + BAR_GAP);
-            return (
-                <Group key={`bar-${item.id}-${i}`} opacity={opacity} listening={false}>
-                    <Rect x={x} y={barY} width={w} height={BAR_H} fill="#0f172a" cornerRadius={2} />
-                    <Rect x={x} y={barY} width={Math.max(0, w * pct)} height={BAR_H} fill={c.color} cornerRadius={2} />
-                </Group>
-            );
-        });
-
-        return bars;
-    };
-
-    const renderTokenBadge = (item) => {
-        if (!isDm && item.layer === 'gm') return null;
-        const counters = getCounters(item);
-        const active = counters.map((c, i) => ({ c, i })).filter(({ c }) => c.max > 0);
-        if (active.length === 0 || selectedTokenId !== item.id) return null;
-
-        const { x, y, w, h } = getTokenBounds(item);
-        const opacity = getOpacity(item);
-        const badgeR = 13;
-        const gap = 4;
-        const totalW = active.length * badgeR * 2 + (active.length - 1) * gap;
-        const startX = x + w / 2 - totalW / 2 + badgeR;
-        const badgeCy = y + h + badgeR + 3;
-
-        return active.map(({ c, i }, arrIdx) => {
-            const badgeCx = startX + arrIdx * (badgeR * 2 + gap);
-            const badgeVal = String(c.current);
-            const badgeFontSize = badgeVal.length > 2 ? 9 : 12;
-            return (
-                <Group
-                    key={`badge-${item.id}-${i}`}
-                    opacity={opacity}
-                    onClick={(e) => {
-                        e.cancelBubble = true;
-                        const sp = stageToScreen(badgeCx, badgeCy);
-                        setBadgeEdit({ tokenId: item.id, counterIdx: i, screenX: sp.x, screenY: sp.y, value: String(c.current) });
-                    }}
-                    onTap={(e) => {
-                        e.cancelBubble = true;
-                        const sp = stageToScreen(badgeCx, badgeCy);
-                        setBadgeEdit({ tokenId: item.id, counterIdx: i, screenX: sp.x, screenY: sp.y, value: String(c.current) });
-                    }}
-                >
-                    <Circle x={badgeCx} y={badgeCy} radius={badgeR} fill={c.color} strokeWidth={2} stroke="#0f172a" />
-                    <Text
-                        x={badgeCx - badgeR} y={badgeCy - badgeR}
-                        width={badgeR * 2} height={badgeR * 2}
-                        text={badgeVal} fontSize={badgeFontSize}
-                        fontStyle="bold" fill="white" align="center" verticalAlign="middle"
-                        listening={false}
-                    />
-                </Group>
-            );
-        });
-    };
-
-    const getX       = (item) => boardX + (item.col || 0) * squareSize + squareSize / 2;
-    const getY       = (item) => boardY + (item.row || 0) * squareSize + squareSize / 2;
     const canDragTok = (item) => item.layer === activeLayer;
     const canDragImg = (item) => item.layer === activeLayer;
     const getOpacity = (item) => {
-        if (!isDm) return 1; // jugadores siempre ven todo a plena opacidad
+        if (!isDm) return 1;
         if (activeLayer === 'gm') return item.layer === 'gm' ? 1 : 0.35;
         return item.layer === 'gm' ? 0.35 : 1;
     };
 
     const renderToken = (item) => {
-        const onCtxMenu = (e) => { if (isDm || item.layer === activeLayer) openCtxMenu(e, 'token', item.id, item.layer); };
+        const onCtxMenu = (e) => { if (item.layer === activeLayer) openCtxMenu(e, 'token', item.id, item.layer); };
+        const counters = getCounters(item);
+        const activeCounters = counters.map((c, i) => ({ ...c, origIdx: i })).filter(c => c.max > 0);
+        const auras = getAuras(item);
+        const isSelected = selectedTokenId === item.id;
 
         if (item.image_url) {
             return (
@@ -671,7 +701,13 @@ const saveCounters = async (tokenId, counters) => {
                     boardY={boardY}
                     opacity={getOpacity(item)}
                     draggable={canDragTok(item)}
-                    onClick={(e) => { if (item.layer === activeLayer) { setSelectedTokenId(prev => prev === item.id ? null : item.id); setSelectedImgId(null); } }}
+                    auras={auras}
+                    activeCounters={activeCounters}
+                    isSelected={isSelected}
+                    onBadgeClick={(e, counterIdx, currentVal) => {
+                        setBadgeEdit({ tokenId: item.id, counterIdx, screenX: e.evt.clientX, screenY: e.evt.clientY, value: String(currentVal) });
+                    }}
+                    onClick={() => { if (item.layer === activeLayer) { setSelectedTokenId(prev => prev === item.id ? null : item.id); setSelectedImgId(null); } }}
                     onDragEnd={(e) => handleDragEndToken(e, item)}
                     onTransformEnd={(e) => handleTokenTransformEnd(e, item)}
                     onContextMenu={onCtxMenu}
@@ -681,15 +717,61 @@ const saveCounters = async (tokenId, counters) => {
 
         const radius = squareSize / 2 - 5;
         const fill   = colorMap[item.color] || '#6b7280';
+        const halfMax = squareSize / 2;
+        const barsH = activeCounters.length > 0
+            ? activeCounters.length * BAR_H + (activeCounters.length - 1) * BAR_GAP : 0;
+        const barsStartY = -halfMax - barsH - 3;
+        const badgeR = 13;
+        const badgeGap = 4;
+        const totalBadgeW = activeCounters.length * badgeR * 2 + (activeCounters.length - 1) * badgeGap;
+        const badgeStartX = -totalBadgeW / 2 + badgeR;
+        const badgeCy = halfMax + badgeR + 3;
+
         return (
             <Group key={item.id} x={getX(item)} y={getY(item)}
                 opacity={getOpacity(item)}
                 draggable={canDragTok(item)}
-                onClick={(e) => { if (item.layer === activeLayer) { const next = selectedTokenId === item.id ? null : item.id; setSelectedTokenId(next); setSelectedImgId(null); if (next) openBarEditorForToken(item); else setBarEditor(null); } }}
+                onClick={() => { if (item.layer === activeLayer) { const next = selectedTokenId === item.id ? null : item.id; setSelectedTokenId(next); setSelectedImgId(null); if (!next) setBarEditor(null); } }}
                 onDragEnd={(e) => handleDragEndToken(e, item)}
                 onContextMenu={onCtxMenu}
             >
+                {auras.map((aura, idx) => {
+                    const extent = (aura.feet / 5) * squareSize;
+                    const fo = aura.opacity ?? 0.2;
+                    const color = aura.color || '#a855f7';
+                    return aura.shape === 'square'
+                        ? <Rect key={idx} x={-halfMax - extent} y={-halfMax - extent}
+                            width={(halfMax + extent)*2} height={(halfMax + extent)*2}
+                            fill={color} opacity={fo} stroke={color} strokeWidth={1.5} listening={false} />
+                        : <Circle key={idx} x={0} y={0} radius={halfMax + extent}
+                            fill={color} opacity={fo} stroke={color} strokeWidth={1.5} listening={false} />;
+                })}
                 <Circle radius={radius} fill={fill} shadowBlur={item.layer === 'user' ? 6 : 0} shadowColor={fill} />
+                {activeCounters.map((c, i) => {
+                    const pct = Math.max(0, Math.min(1, c.current / c.max));
+                    const barY = barsStartY + i * (BAR_H + BAR_GAP);
+                    return (
+                        <Group key={i} listening={false}>
+                            <Rect x={-squareSize/2} y={barY} width={squareSize} height={BAR_H} fill="#0f172a" cornerRadius={2} />
+                            <Rect x={-squareSize/2} y={barY} width={Math.max(0, squareSize * pct)} height={BAR_H} fill={c.color} cornerRadius={2} />
+                        </Group>
+                    );
+                })}
+                {isSelected && activeCounters.map((c, arrIdx) => {
+                    const badgeCx = badgeStartX + arrIdx * (badgeR * 2 + badgeGap);
+                    const val = String(c.current);
+                    return (
+                        <Group key={arrIdx}
+                            onClick={e => { e.cancelBubble = true; setBadgeEdit({ tokenId: item.id, counterIdx: c.origIdx, screenX: e.evt.clientX, screenY: e.evt.clientY, value: val }); }}
+                            onTap={e => { e.cancelBubble = true; setBadgeEdit({ tokenId: item.id, counterIdx: c.origIdx, screenX: e.evt.clientX, screenY: e.evt.clientY, value: val }); }}
+                        >
+                            <Circle x={badgeCx} y={badgeCy} radius={badgeR} fill={c.color} strokeWidth={2} stroke="#0f172a" />
+                            <Text x={badgeCx - badgeR} y={badgeCy - badgeR} width={badgeR*2} height={badgeR*2}
+                                text={val} fontSize={val.length > 2 ? 9 : 12} fontStyle="bold"
+                                fill="white" align="center" verticalAlign="middle" listening={false} />
+                        </Group>
+                    );
+                })}
             </Group>
         );
     };
@@ -747,29 +829,26 @@ const saveCounters = async (tokenId, counters) => {
                                 onClick={() => { if (img.layer === activeLayer) setSelectedImgId(img.id); }}
                                 onDragEnd={(e) => handleImageDragEnd(e, img)}
                                 onTransformEnd={(e) => handleImageTransformEnd(e, img)}
-                                onContextMenu={(e) => { if (isDm || img.layer === activeLayer) openCtxMenu(e, 'image', img.id, img.layer); }}
+                                onContextMenu={(e) => { if (img.layer === activeLayer) openCtxMenu(e, 'image', img.id, img.layer); }}
                             />
                         )
                     ))}
                 </Layer>
 
-                {/* Grid encima de las imágenes */}
+                {/* Tokens por capa — auras/barras/badges dentro del mismo Group para drag en tiempo real */}
+                <Layer name="background" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                    {backgroundItems.map(renderToken)}
+                </Layer>
+
+                {/* Grid: entre background y user, sin interacción */}
                 <Layer name="grid" listening={false}>{renderGrid()}</Layer>
 
-                {/* Tokens por capa */}
-                <Layer name="background" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>{backgroundItems.map(renderToken)}</Layer>
-                <Layer name="user"       clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>{userItems.map(renderToken)}</Layer>
-                {isDm && <Layer name="gm" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>{gmItems.map(renderToken)}</Layer>}
-
-                {/* Barras de contadores (sin clip, encima de tokens) */}
-                <Layer name="bars" listening={true}>
-                    {sceneItems.map(renderTokenBars)}
+                <Layer name="user" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                    {userItems.map(renderToken)}
                 </Layer>
-
-                {/* Badges encima de todo */}
-                <Layer name="badges" listening={true}>
-                    {sceneItems.map(renderTokenBadge)}
-                </Layer>
+                {isDm && <Layer name="gm" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                    {gmItems.map(renderToken)}
+                </Layer>}
 
                 {/* Transformer sin clip para que los handles sean siempre visibles */}
                 <Layer name="transformer">
@@ -844,6 +923,7 @@ const saveCounters = async (tokenId, counters) => {
             {/* ── MENÚ CONTEXTUAL ── */}
             {ctxMenu && (
                 <div
+                    ref={ctxMenuRef}
                     onClick={(e) => e.stopPropagation()}
                     style={{
                         position: 'fixed',
@@ -904,6 +984,51 @@ const saveCounters = async (tokenId, counters) => {
                             >
                                 ✏️ Editar contadores
                             </button>
+                            <button
+                                onClick={() => {
+                                    setAuraEditor({ tokenId: ctxMenu.id, screenX: ctxMenu.x, screenY: ctxMenu.y });
+                                    setCtxMenu(null);
+                                }}
+                                style={{
+                                    width: '100%', padding: '9px 14px',
+                                    background: 'transparent',
+                                    color: '#cbd5e1', border: 'none',
+                                    cursor: 'pointer', textAlign: 'left',
+                                    fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >
+                                    🔮 Editar auras
+                            </button>
+                            {(() => {
+                                const tok = sceneItems.find(i => i.id === ctxMenu.id);
+                                if (!tok || !tok.image_url || !tok.entity_id || !['character','monster'].includes(tok.kind)) return null;
+                                return (
+                                    <button
+                                        onClick={async () => {
+                                            const endpoint = tok.kind === 'character'
+                                                ? `${API}/api/character/${tok.entity_id}/set-default-token`
+                                                : `${API}/api/monster/${tok.entity_id}/set-default-token`;
+                                            try {
+                                                await axios.post(endpoint, { image_url: tok.image_url }, { headers: authHeaders() });
+                                            } catch (err) { console.error(err); }
+                                            setCtxMenu(null);
+                                        }}
+                                        style={{
+                                            width: '100%', padding: '9px 14px',
+                                            background: 'transparent',
+                                            color: '#cbd5e1', border: 'none',
+                                            cursor: 'pointer', textAlign: 'left',
+                                            fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        ⭐ Token por defecto
+                                    </button>
+                                );
+                            })()}
                             <div style={{ height: 1, background: '#334155', margin: '2px 0' }} />
                         </>
                     )}
@@ -1091,6 +1216,100 @@ const saveCounters = async (tokenId, counters) => {
                 );
             })()}
 
+            {/* ── EDITOR DE AURAS ── */}
+            {auraEditor && (() => {
+                const token = sceneItems.find(i => i.id === auraEditor.tokenId);
+                if (!token) return null;
+                const auras = getAuras(token);
+                const AURA_COLORS = ['#a855f7','#3b82f6','#22c55e','#ef4444','#f97316','#eab308','#ec4899','#f1f5f9'];
+                const addAura = () => saveAuras(token.id, [...auras, { shape: 'circle', feet: 10, color: '#a855f7', opacity: 0.2 }]);
+                const removeAura = (idx) => saveAuras(token.id, auras.filter((_, i) => i !== idx));
+                const updateAura = (idx, patch) => saveAuras(token.id, auras.map((a, i) => i === idx ? { ...a, ...patch } : a));
+                const inputStyle = { background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' };
+
+                return (
+                    <div
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                            position: 'fixed', top: auraEditor.screenY - 8, left: auraEditor.screenX,
+                            background: '#1e293b', border: '1px solid #334155',
+                            borderRadius: 8, padding: '10px 12px',
+                            zIndex: 200, minWidth: 240,
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Auras</span>
+                            <button onClick={() => setAuraEditor(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+                        </div>
+
+                        {auras.length === 0 && (
+                            <p style={{ color: '#475569', fontSize: 11, margin: '0 0 8px' }}>Sin auras. Añade una.</p>
+                        )}
+
+                        {auras.map((aura, idx) => (
+                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 10, padding: '7px 8px', background: '#0f172a', borderRadius: 6, border: '1px solid #1e293b' }}>
+                                {/* Fila 1: forma + pies + color + borrar */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <select value={aura.shape}
+                                        onChange={e => updateAura(idx, { shape: e.target.value })}
+                                        style={{ ...inputStyle, width: 72 }}>
+                                        <option value="circle">Círculo</option>
+                                        <option value="square">Cuadrado</option>
+                                    </select>
+                                    <input type="number" min="5" step="5" value={aura.feet}
+                                        onChange={e => updateAura(idx, { feet: Math.max(5, Number(e.target.value)) })}
+                                        style={{ ...inputStyle, width: 50, textAlign: 'center' }} />
+                                    <span style={{ color: '#475569', fontSize: 11, flexShrink: 0 }}>pies</span>
+                                    <div style={{ flex: 1 }} />
+                                    <button onClick={() => removeAura(idx)}
+                                        style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 15, padding: 0 }}>×</button>
+                                </div>
+                                {/* Fila 2: paleta de color */}
+                                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                                    {AURA_COLORS.map(c => (
+                                        <div key={c} onClick={() => updateAura(idx, { color: c })}
+                                            style={{
+                                                width: 16, height: 16, borderRadius: '50%', background: c,
+                                                cursor: 'pointer', flexShrink: 0,
+                                                outline: aura.color === c ? '2px solid white' : 'none', outlineOffset: 2,
+                                            }} />
+                                    ))}
+                                    <span style={{ color: '#475569', fontSize: 10, marginLeft: 4 }}>
+                                        Op: <input type="number" min="5" max="100" step="5"
+                                            value={Math.round((aura.opacity ?? 0.2) * 100)}
+                                            onChange={e => updateAura(idx, { opacity: Math.max(0.05, Math.min(1, Number(e.target.value) / 100)) })}
+                                            style={{ ...inputStyle, width: 38, textAlign: 'center' }} />%
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+
+                        <button onClick={addAura}
+                            style={{
+                                width: '100%', background: '#334155', border: 'none', borderRadius: 5,
+                                color: '#94a3b8', fontSize: 12, padding: '6px 0', cursor: 'pointer',
+                            }}>+ Añadir aura</button>
+
+                        {token.entity_id && ['character','monster'].includes(token.kind) && (
+                            <button onClick={async () => {
+                                const endpoint = token.kind === 'character'
+                                    ? `${API}/api/character/${token.entity_id}/set-default-auras`
+                                    : `${API}/api/monster/${token.entity_id}/set-default-auras`;
+                                try {
+                                    await axios.post(endpoint, { auras }, { headers: authHeaders() });
+                                } catch (err) { console.error(err); }
+                            }}
+                            style={{
+                                width: '100%', marginTop: 4, background: 'rgba(168,85,247,0.2)',
+                                border: '1px solid #a855f7', borderRadius: 5,
+                                color: '#a855f7', fontSize: 12, padding: '6px 0', cursor: 'pointer',
+                            }}>⭐ Guardar auras como defecto</button>
+                        )}
+                    </div>
+                );
+            })()}
+
             {/* ── INDICADOR DE DROP ── */}
             {dropIndicator && (
                 <div style={{
@@ -1117,7 +1336,7 @@ const saveCounters = async (tokenId, counters) => {
                 color: '#475569', fontSize: 11,
                 pointerEvents: 'none',
             }}>
-                Arrastra una imagen al tablero · Mantén Shift para posición libre
+                Arrastra al tablero · Mantén Shift para posición libre
             </div>
 
             {/* ── ERROR ── */}

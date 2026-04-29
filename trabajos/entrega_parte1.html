@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrega Parcial TFG — Módulo de Autenticación</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Georgia', serif;
+    font-size: 11pt;
+    line-height: 1.7;
+    color: #1a1a1a;
+    background: #fff;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 50px;
+  }
+  h1 {
+    font-size: 22pt;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #111;
+    border-bottom: 2px solid #111;
+    padding-bottom: 10px;
+  }
+  h2 {
+    font-size: 15pt;
+    font-weight: bold;
+    margin-top: 36px;
+    margin-bottom: 10px;
+    color: #111;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 6px;
+  }
+  h3 {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-top: 22px;
+    margin-bottom: 8px;
+    color: #222;
+  }
+  p { margin-bottom: 10px; }
+  ul, ol { margin: 8px 0 10px 24px; }
+  li { margin-bottom: 4px; }
+  .meta {
+    margin: 14px 0 30px 0;
+    font-size: 10pt;
+    color: #555;
+    line-height: 1.8;
+  }
+  .meta strong { color: #222; }
+  .screenshot {
+    margin: 16px 0 20px 0;
+    text-align: center;
+  }
+  .screenshot img {
+    max-width: 100%;
+    max-height: 420px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    object-fit: contain;
+  }
+  .screenshot.wide img { max-height: 300px; max-width: 100%; }
+  .caption {
+    font-size: 9pt;
+    color: #666;
+    margin-top: 6px;
+    font-style: italic;
+  }
+  pre {
+    background: #f4f4f4;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px 16px;
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    overflow-x: auto;
+    margin: 10px 0 14px 0;
+    line-height: 1.5;
+  }
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 9.5pt;
+    background: #f0f0f0;
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  pre code { background: none; padding: 0; font-size: 9pt; }
+  .info-box {
+    background: #f8f9fa;
+    border-left: 4px solid #2d7a4f;
+    padding: 10px 14px;
+    margin: 12px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 10.5pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 10pt;
+  }
+  th {
+    background: #2d7a4f;
+    color: white;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  tr:nth-child(even) td { background: #f8f8f8; }
+  .page-break { page-break-before: always; }
+  hr { border: none; border-top: 1px solid #ccc; margin: 28px 0; }
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 16px 0;
+    align-items: start;
+  }
+  .two-col .screenshot { margin: 0; }
+</style>
+</head>
+<body>
+
+<h1>Entrega Parcial TFG<br>Módulo de Autenticación</h1>
+
+<div class="meta">
+  <strong>Alumno:</strong> Javier Celia<br>
+  <strong>Fecha:</strong> 29 de abril de 2026<br>
+  <strong>Proyecto:</strong> Djinni — Plataforma TTRPG Online<br>
+  <strong>Repositorio:</strong> Djinni-FB (monorepo: <code>Djinni-B/</code> backend Symfony · <code>Djinni-F/</code> frontend React)
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>1. Página de Inicio (Home)</h2>
+
+<p>
+  La ruta raíz <code>/</code> renderiza el componente <code>MainLayout</code>, que sirve como punto de entrada
+  principal de la plataforma. Presenta la interfaz de bienvenida con el layout completo de la aplicación:
+  cabecera con logo Djinni y enlaces de navegación (<em>Login</em> / <em>Register</em>),
+  el formulario de acceso centrado en pantalla, y pie de página con secciones informativas.
+  La paleta verde oscuro y el tipado Tailwind CSS son consistentes en toda la aplicación.
+</p>
+
+<div class="screenshot wide">
+  <img src="screenshots/home.png" alt="Página de inicio de Djinni">
+  <div class="caption">Fig. 1 — Página de inicio (ruta <code>/</code>) con layout completo: cabecera, contenido y footer.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>2. Formulario de Registro</h2>
+
+<h3>2.1 Formulario vacío</h3>
+<p>
+  El formulario de registro (<code>/register</code>) muestra los campos requeridos: nombre de usuario,
+  email y contraseña. Incluye un área interactiva para subir avatar (opcional). El diseño sigue
+  la guía visual de la plataforma con fondo verde oscuro y botón de acción en verde brillante.
+</p>
+
+<div class="screenshot">
+  <img src="screenshots/registro_vacio.png" alt="Formulario de registro vacío">
+  <div class="caption">Fig. 2 — Formulario de registro vacío (ruta <code>/register</code>).</div>
+</div>
+
+<h3>2.2 Formulario con datos válidos antes de enviar</h3>
+<p>
+  Los campos corresponden exactamente a los atributos de la entidad <code>User</code>:
+  <code>username</code>, <code>email</code> y <code>password</code>.
+  El campo avatar, aunque opcional, también está contemplado en el modelo de datos (<code>avatar_url</code>).
+</p>
+
+<div class="screenshot">
+  <img src="screenshots/registro_relleno.png" alt="Formulario de registro con datos">
+  <div class="caption">Fig. 3 — Formulario relleno con datos válidos: username <em>porrete</em>, email <em>porro@gmail.com</em>.</div>
+</div>
+
+<h3>2.3 Registro exitoso</h3>
+<p>
+  Tras un registro correcto, el backend responde con HTTP <code>201 Created</code> y la aplicación
+  redirige automáticamente a <code>/login</code>. El usuario puede iniciar sesión de inmediato
+  con las credenciales recién creadas.
+</p>
+
+<div class="screenshot">
+  <img src="screenshots/registro_exito.png" alt="Redirección a login tras registro exitoso">
+  <div class="caption">Fig. 4 — Redirección a <code>/login</code> tras registro exitoso.</div>
+</div>
+
+<h3>2.4 Error de validación — email ya en uso (opcional)</h3>
+<p>
+  Si el email ya existe en la base de datos, el backend responde con HTTP <code>409 Conflict</code>.
+  El frontend captura el error y muestra el mensaje inline: <em>"Error al registrarse. El email podría estar en uso."</em>
+</p>
+
+<div class="screenshot">
+  <img src="screenshots/registro_error.png" alt="Error de registro — email en uso">
+  <div class="caption">Fig. 5 — Mensaje de error cuando el email ya está registrado.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>3. Formulario de Login</h2>
+
+<h3>3.1 Formulario vacío</h3>
+<p>
+  El formulario de login (<code>/login</code>) solicita email y contraseña.
+  El diseño minimalista centra la atención en las credenciales, con enlace directo a registro
+  para nuevos usuarios.
+</p>
+
+<div class="screenshot">
+  <img src="screenshots/login_vacio.png" alt="Formulario de login vacío">
+  <div class="caption">Fig. 6 — Formulario de login vacío (ruta <code>/login</code>).</div>
+</div>
+
+<h3>3.2 Credenciales válidas antes de enviar</h3>
+<p>
+  El formulario con el email del usuario introducido, listo para ser enviado al endpoint
+  <code>POST /api/login_check</code>. La contraseña permanece enmascarada.
+</p>
+
+<div class="screenshot">
+  <img src="screenshots/login_relleno.png" alt="Formulario de login con credenciales">
+  <div class="caption">Fig. 7 — Login con credenciales válidas antes de enviar.</div>
+</div>
+
+<h3>3.3 Panel de usuario tras login exitoso</h3>
+<p>
+  Tras autenticarse, el servidor emite un JWT firmado. El cliente lo almacena en
+  <code>localStorage</code> (<code>vtt_token</code>) y redirige a <code>/Games</code>.
+  La cabecera refleja el estado autenticado: aparecen las secciones <em>Games</em>,
+  <em>Character</em>, <em>Monster</em>, <em>Logout</em> y el botón <strong>Create Game</strong>,
+  así como el avatar del usuario.
+</p>
+
+<div class="screenshot wide">
+  <img src="screenshots/login_exito.png" alt="Panel de usuario tras login exitoso">
+  <div class="caption">Fig. 8 — Página <code>/Games</code> tras login exitoso. Header autenticado con opciones de usuario.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>4. Evidencia de Conexión con la Base de Datos</h2>
+
+<p>
+  La captura muestra la tabla <code>user</code> en MariaDB visualizada con <strong>DBeaver</strong>.
+  Se observan dos usuarios registrados. El usuario <em>porrete</em> (<code>porro@gmail.com</code>)
+  fue creado el 29/04/2026 a las 08:00 a través del formulario de registro de la aplicación.
+  Las contraseñas están almacenadas como hashes <strong>bcrypt</strong> (<code>$2y$13$...</code>),
+  nunca en texto plano. Los campos coinciden exactamente con la entidad <code>User.php</code>:
+  <code>id</code>, <code>username</code>, <code>email</code>, <code>password</code>,
+  <code>avatar_url</code>, <code>datetime</code>, <code>roles</code>.
+</p>
+
+<div class="screenshot wide">
+  <img src="screenshots/base_datos.png" alt="Tabla user en DBeaver">
+  <div class="caption">Fig. 9 — Tabla <code>user</code> en MariaDB (DBeaver): 2 filas con contraseñas hasheadas en bcrypt.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="page-break"></div>
+<h2>5. Descripción Técnica</h2>
+
+<h3>5.1 Entidad Doctrine: <code>User.php</code></h3>
+
+<p>
+  La entidad principal del módulo es <code>App\Entity\User</code>, ubicada en
+  <code>Djinni-B/src/Entity/User.php</code>. Implementa <code>UserInterface</code>
+  y <code>PasswordAuthenticatedUserInterface</code> de Symfony Security.
+</p>
+
+<table>
+  <tr><th>Campo</th><th>Tipo Doctrine</th><th>Descripción</th></tr>
+  <tr><td><code>id</code></td><td>integer (PK, auto)</td><td>Clave primaria autoincremental</td></tr>
+  <tr><td><code>username</code></td><td>string(255)</td><td>Nombre visible del usuario</td></tr>
+  <tr><td><code>email</code></td><td>string(255)</td><td>Identificador único; usado en <code>getUserIdentifier()</code></td></tr>
+  <tr><td><code>password</code></td><td>string(255)</td><td>Hash bcrypt de la contraseña</td></tr>
+  <tr><td><code>avatar_url</code></td><td>string(255), nullable</td><td>Ruta relativa a la imagen de perfil</td></tr>
+  <tr><td><code>datetime</code></td><td>datetime_immutable</td><td>Fecha y hora de registro</td></tr>
+  <tr><td><code>roles</code></td><td>json</td><td>Array de roles; <code>ROLE_USER</code> siempre incluido</td></tr>
+</table>
+
+<p>Relaciones ORM configuradas:</p>
+<ul>
+  <li><code>OneToMany</code> → <code>UserGameSession</code>: sesiones de juego en las que participa</li>
+  <li><code>OneToMany</code> → <code>Monster</code>: monstruos creados por el usuario</li>
+  <li><code>OneToMany</code> → <code>MonsterUser</code>, <code>CharacterSheetUser</code></li>
+</ul>
+
+<h3>5.2 Controladores y Rutas</h3>
+
+<p><strong>Registro</strong> — <code>App\Controller\control_usuario\RegisterController</code>:</p>
+
+<pre><code>#[Route('/api/register', name: 'api_register', methods: ['POST'])]
+public function register(
+    Request $request,
+    UserPasswordHasherInterface $passwordHasher,
+    EntityManagerInterface $entityManager,
+    SluggerInterface $slugger
+): JsonResponse</code></pre>
+
+<p>
+  Recibe <code>multipart/form-data</code> con <code>username</code>, <code>email</code>,
+  <code>password</code> y <code>avatar</code> (opcional). Flujo:
+</p>
+<ol>
+  <li>Valida presencia de campos obligatorios (HTTP 400 si faltan)</li>
+  <li>Hashea la contraseña con <code>UserPasswordHasherInterface::hashPassword()</code></li>
+  <li>Si hay avatar, lo mueve a <code>public/uploads/avatars/</code> con nombre único via <code>SluggerInterface</code></li>
+  <li>Persiste con <code>EntityManager::persist() + flush()</code></li>
+  <li>Devuelve <code>201 Created</code> en éxito, <code>409 Conflict</code> si el email ya existe</li>
+</ol>
+
+<p><strong>Login</strong> — gestionado por <code>lexik/jwt-authentication-bundle</code>:</p>
+
+<pre><code>POST /api/login_check
+Content-Type: application/json
+{"email": "porro@gmail.com", "password": "..."}</code></pre>
+
+<p>
+  No requiere controlador personalizado. Symfony intercepta esta ruta a través del firewall
+  definido en <code>config/packages/security.yaml</code>. Devuelve un JWT firmado con RS256
+  en caso de credenciales correctas.
+</p>
+
+<p><strong>SecurityController</strong> (<code>App\Controller\SecurityController</code>):</p>
+<ul>
+  <li><code>#[Route('/login')]</code> — renderiza <code>security/login.html.twig</code> (contextos no-SPA)</li>
+  <li><code>#[Route('/logout')]</code> — interceptada por el firewall para invalidar sesión</li>
+</ul>
+
+<h3>5.3 Arquitectura Frontend — React SPA</h3>
+
+<p>
+  Djinni emplea una arquitectura desacoplada: el backend Symfony actúa exclusivamente como
+  REST API, mientras que React gestiona toda la capa de presentación. No existe un
+  <code>base.html.twig</code> como plantilla compartida para las vistas de autenticación;
+  en su lugar:
+</p>
+
+<table>
+  <tr><th>Elemento React</th><th>Equivalente Symfony/Twig</th><th>Ruta</th></tr>
+  <tr><td><code>index.html</code> (Vite)</td><td><code>base.html.twig</code></td><td>—</td></tr>
+  <tr><td><code>App.jsx</code></td><td>Layout raíz + router</td><td>todas</td></tr>
+  <tr><td><code>Header.jsx</code> / <code>Footer.jsx</code></td><td>Bloques Twig comunes</td><td>todas</td></tr>
+  <tr><td><code>MainLayout.jsx</code></td><td>Vista <em>home</em></td><td><code>/</code></td></tr>
+  <tr><td><code>RegisterPage.jsx</code></td><td>Vista de registro</td><td><code>/register</code></td></tr>
+  <tr><td><code>LoginPage.jsx</code></td><td>Vista de login</td><td><code>/login</code></td></tr>
+</table>
+
+<p>
+  <code>RegisterPage.jsx</code> construye un <code>FormData</code> y lo envía como
+  <code>multipart/form-data</code> a <code>POST /api/register</code>.
+  <code>LoginPage.jsx</code> envía JSON a <code>POST /api/login_check</code>; si el servidor
+  responde con un JWT, éste se guarda en <code>localStorage</code> como <code>vtt_token</code>
+  y se inyecta en todas las peticiones axios siguientes mediante un interceptor global en
+  <code>axiosConfig.js</code>.
+</p>
+
+<p>
+  Las rutas privadas (<code>/Games</code>, <code>/play/:id</code>, <code>/Character</code>,
+  <code>/Monster</code>) están protegidas por el componente <code>PrivateRoute</code>, que
+  comprueba la existencia de <code>vtt_token</code> y redirige a <code>/login</code> si no existe.
+</p>
+
+<p>Framework CSS: <strong>Tailwind CSS</strong>, integrado en <code>vite.config.js</code>.</p>
+
+<h3>5.4 Configuración Docker y Base de Datos</h3>
+
+<p>
+  Base de datos: <strong>MariaDB 10.11.2</strong> levantada con Docker Compose
+  (<code>Djinni-B/compose.yaml</code>). Configuración relevante:
+</p>
+
+<pre><code>services:
+  database:
+    image: mariadb:10.11.2
+    environment:
+      MARIADB_DATABASE: app
+      MARIADB_USER: app
+      MARIADB_PASSWORD: !ChangeMe!
+    ports:
+      - "3306:3306"</code></pre>
+
+<p>Cadena de conexión en <code>Djinni-B/.env</code>:</p>
+
+<pre><code>DATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app
+             ?serverVersion=10.11.2-MariaDB&amp;charset=utf8mb4"</code></pre>
+
+<p>
+  El esquema de la tabla <code>user</code> fue generado por Doctrine Migrations a partir
+  de la entidad <code>User.php</code>. Para aplicar las migraciones:
+</p>
+
+<pre><code>php bin/console doctrine:migrations:migrate</code></pre>
+
+<p>
+  El servicio <code>mailhog</code> también está incluido en el compose para capturar emails
+  en desarrollo (puerto 8025). El servicio <code>mercure</code> gestiona los eventos
+  en tiempo real del tablero virtual.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<h2>6. Píldoras de Investigación</h2>
+
+<h3>Seguridad en contraseñas: bcrypt y hashing seguro</h3>
+
+<p>
+  Symfony utiliza por defecto el algoritmo <strong>bcrypt</strong> a través de
+  <code>UserPasswordHasherInterface</code>. El prefijo <code>$2y$13$</code> visible en la
+  captura de base de datos indica bcrypt con factor de coste 13, lo que implica aproximadamente
+  300 ms por operación de hash, haciendo los ataques de fuerza bruta computacionalmente inviables.
+</p>
+<p>
+  El <em>salting</em> es automático: cada hash incluye una sal aleatoria de 22 caracteres,
+  por lo que dos usuarios con la misma contraseña producen hashes completamente distintos.
+  Las contraseñas nunca se almacenan en texto plano, como demuestra la evidencia de base de datos.
+  Actualmente, los algoritmos recomendados son <strong>bcrypt</strong>, <strong>Argon2id</strong>
+  y <strong>scrypt</strong> por su resistencia a ataques con hardware especializado (GPUs/ASICs).
+</p>
+
+<h3>Manejo de sesiones y JWT en arquitecturas SPA</h3>
+
+<p>
+  Djinni implementa autenticación <strong>stateless</strong> mediante JWT
+  (JSON Web Tokens, RFC 7519) con el bundle <code>lexik/jwt-authentication-bundle</code>.
+  Tras el login, el backend emite un token firmado con clave RSA privada (RS256);
+  el frontend lo almacena en <code>localStorage</code> y lo adjunta en cada petición como
+  <code>Authorization: Bearer &lt;token&gt;</code>.
+</p>
+
+<div class="info-box">
+  <strong>JWT vs Sesiones tradicionales:</strong> las sesiones en cookie requieren estado en
+  el servidor (tabla de sesiones o caché). Los JWT son autocontenidos y verificables sin
+  consultar la base de datos, lo que facilita la escalabilidad horizontal y es idiomático
+  en arquitecturas SPA + REST API como la de este proyecto.
+</div>
+
+</body>
+</html>

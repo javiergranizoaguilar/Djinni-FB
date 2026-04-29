@@ -20,6 +20,11 @@ security:
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
                 username_path: email
 
+        register:
+            pattern: ^/api/register
+            stateless: true
+            security: false
+
         # Firewall para las rutas /scene/api/
         api_scene:
             pattern:   ^/scene/api
@@ -41,6 +46,7 @@ security:
 
     access_control:
         - { path: ^/api/login, roles: PUBLIC_ACCESS }
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }
         - { path: ^/scene/api, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/avatar, roles: PUBLIC_ACCESS }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EditCharacterModal from '../pages/EditCharacterModal.jsx';
 import EditMonsterModal from '../pages/EditMonsterModal.jsx';
+import RosterTab from './RosterTab.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
@@ -67,11 +68,15 @@ function loadPersonal() {
 export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated }) {
     const [characters,       setCharacters]       = useState([]);
     const [monsters,         setMonsters]         = useState([]);
-    const [used,             setUsed]             = useState([]);
     const [loading,          setLoading]          = useState(true);
     const [tab,              setTab]              = useState('characters');
     const [editCharacter,    setEditCharacter]    = useState(null);
     const [editMonster,      setEditMonster]      = useState(null);
+
+    // Quick-create
+    const [createMenu,   setCreateMenu]   = useState(null); // null | 'choice' | 'character' | 'monster'
+    const [createName,   setCreateName]   = useState('');
+    const [creating,     setCreating]     = useState(false);
 
     // Personal
     const [personal,  setPersonal] = useState(loadPersonal);
@@ -96,13 +101,31 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
         load();
     }, []);
 
-    // Cargar historial cuando se abre esa pestaña
-    useEffect(() => {
-        if (tab !== 'history' || !gameId) return;
-        axios.get(`${API}/api/scene-token/session/${gameId}/used`, { headers: authHeaders() })
-            .then(r => setUsed(r.data))
-            .catch(err => console.error(err));
-    }, [tab, gameId]);
+
+    const doCreate = async () => {
+        const name = createName.trim();
+        if (!name || creating || !createMenu || createMenu === 'choice') return;
+        setCreating(true);
+        try {
+            if (createMenu === 'character') {
+                const res = await axios.post(`${API}/api/character/create`, { name }, { headers: authHeaders() });
+                const newChar = { id: res.data.id, name, hp: 0, max_hp: 0, default_auras: [], token_image: null, portrait_image: null };
+                setCharacters(prev => [...prev, newChar]);
+                setEditCharacter(newChar);
+            } else {
+                const res = await axios.post(`${API}/api/monster/create`, { name }, { headers: authHeaders() });
+                const newMon = { id: res.data.id, name, hp: 10, max_hp: 10, default_auras: [], image_url: null, portrait_url: null };
+                setMonsters(prev => [...prev, newMon]);
+                setEditMonster(newMon);
+            }
+            setCreateName('');
+            setCreateMenu(null);
+        } catch (err) {
+            console.error('Error creating entity:', err);
+        } finally {
+            setCreating(false);
+        }
+    };
 
     const savePersonal = (list) => {
         setPersonal(list);
@@ -131,9 +154,77 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
 
     return (
         <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
-            <p style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
-                Tokens
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <p style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', margin: 0 }}>
+                    Tokens
+                </p>
+                <div style={{ position: 'relative' }}>
+                    <button
+                        onClick={() => setCreateMenu(m => m ? null : 'choice')}
+                        style={{
+                            background: '#22c55e', border: 'none', borderRadius: 5,
+                            color: 'white', fontSize: 11, fontWeight: 700,
+                            padding: '4px 10px', cursor: 'pointer',
+                        }}
+                    >
+                        + Crear
+                    </button>
+                    {createMenu === 'choice' && (
+                        <div style={{
+                            position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                            background: '#1e293b', border: '1px solid #334155',
+                            borderRadius: 6, overflow: 'hidden', zIndex: 50, minWidth: 130,
+                            boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
+                        }}>
+                            <button onClick={() => { setCreateMenu('character'); setCreateName(''); }}
+                                style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', color: '#cbd5e1', fontSize: 12, textAlign: 'left', cursor: 'pointer' }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >🧙 Personaje</button>
+                            <button onClick={() => { setCreateMenu('monster'); setCreateName(''); }}
+                                style={{ width: '100%', padding: '8px 12px', background: 'transparent', border: 'none', color: '#cbd5e1', fontSize: 12, textAlign: 'left', cursor: 'pointer' }}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            >🐉 Monstruo</button>
+                        </div>
+                    )}
+                    {(createMenu === 'character' || createMenu === 'monster') && (
+                        <div style={{
+                            position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                            background: '#1e293b', border: '1px solid #334155',
+                            borderRadius: 6, padding: 8, zIndex: 50, minWidth: 160,
+                            boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
+                            display: 'flex', flexDirection: 'column', gap: 6,
+                        }}>
+                            <span style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                {createMenu === 'character' ? '🧙 Nuevo personaje' : '🐉 Nuevo monstruo'}
+                            </span>
+                            <input
+                                autoFocus
+                                value={createName}
+                                onChange={e => setCreateName(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') doCreate(); if (e.key === 'Escape') setCreateMenu(null); }}
+                                placeholder="Nombre…"
+                                style={{
+                                    background: '#0f172a', border: '1px solid #334155',
+                                    borderRadius: 4, padding: '5px 8px',
+                                    color: '#f1f5f9', fontSize: 12, outline: 'none',
+                                }}
+                            />
+                            <div style={{ display: 'flex', gap: 4 }}>
+                                <button onClick={() => setCreateMenu(null)}
+                                    style={{ flex: 1, background: '#334155', border: 'none', borderRadius: 4, color: '#94a3b8', fontSize: 11, padding: '5px 0', cursor: 'pointer' }}>
+                                    Cancelar
+                                </button>
+                                <button onClick={doCreate} disabled={creating}
+                                    style={{ flex: 1, background: createMenu === 'character' ? '#3b82f6' : '#ef4444', border: 'none', borderRadius: 4, color: 'white', fontSize: 11, padding: '5px 0', cursor: 'pointer' }}>
+                                    {creating ? '…' : 'Crear'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Tabs fila 1 */}
             <div style={{ display: 'flex', gap: 4, background: '#0f172a', borderRadius: 6, padding: 3 }}>
@@ -143,11 +234,11 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
             {/* Tabs fila 2 */}
             <div style={{ display: 'flex', gap: 4, background: '#0f172a', borderRadius: 6, padding: 3 }}>
                 <button style={tabStyle(tab === 'personal')} onClick={() => setTab('personal')}>Personal</button>
-                <button style={tabStyle(tab === 'history')}  onClick={() => setTab('history')}>Historial</button>
+                <button style={tabStyle(tab === 'roster')}   onClick={() => setTab('roster')}>Recuento</button>
             </div>
 
             <p style={{ color: '#475569', fontSize: 10, margin: 0 }}>
-                {tab === 'history' ? 'Usados en la sesión' : 'Arrastra al tablero'}
+                {tab === 'roster' ? 'Elenco de la sesión' : 'Arrastra al tablero'}
             </p>
 
             {/* ── PERSONAJES ── */}
@@ -159,7 +250,7 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin personajes</p>
                             : characters.map(c => (
                                 <EntityRow key={c.id} name={c.name} image={c.portrait_image || c.token_image} color="#3b82f6"
-                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue', image_url: c.token_image || null }}
+                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue', image_url: c.token_image || null, hp: c.hp ?? 0, max_hp: c.max_hp ?? c.hp ?? 0, default_auras: c.default_auras || [] }}
                                     onDoubleClick={() => setEditCharacter(c)} />
                             ))}
                     </div>
@@ -174,7 +265,7 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin monstruos</p>
                             : monsters.map(m => (
                                 <EntityRow key={m.id} name={m.name} image={m.portrait_url || m.image_url} color="#ef4444"
-                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red', image_url: m.image_url || null }}
+                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red', image_url: m.image_url || null, hp: m.hp ?? 0, max_hp: m.max_hp ?? m.hp ?? 0, default_auras: m.default_auras || [] }}
                                     onDoubleClick={() => setEditMonster(m)} />
                             ))}
                     </div>
@@ -247,26 +338,9 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                 </div>
             )}
 
-            {/* ── HISTORIAL ── */}
-            {tab === 'history' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, overflowY: 'auto', flex: 1 }}>
-                    {used.length === 0
-                        ? <p style={{ color: '#475569', fontSize: 12 }}>Sin historial en esta sesión</p>
-                        : used.map((item, i) => (
-                            <EntityRow
-                                key={i}
-                                name={item.name || '(sin nombre)'}
-                                image={item.image_url || null}
-                                color={colorHex(item.color)}
-                                dragData={
-                                    item.kind === 'linked'
-                                        ? { kind: 'character', id: item.token_id, name: item.name, color: item.color || 'gray' }
-                                        : { kind: 'custom', name: item.name, color: item.color || 'gray' }
-                                }
-                            />
-                        ))
-                    }
-                </div>
+            {/* ── RECUENTO ── */}
+            {tab === 'roster' && (
+                <RosterTab gameId={gameId} characters={characters} />
             )}
 
             {/* ── MODALES DE EDICIÓN ── */}

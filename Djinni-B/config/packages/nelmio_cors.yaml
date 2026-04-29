@@ -12,7 +12,7 @@ nelmio_cors:
         '^/api/':
             allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
             allow_headers: ['*']
-            allow_methods: ['POST', 'PUT', 'GET', 'DELETE', 'OPTIONS']
+            allow_methods: ['POST', 'PUT', 'PATCH', 'GET', 'DELETE', 'OPTIONS']
             max_age: 3600
             allow_credentials: true # CORREGIDO: Usar allow_credentials en lugar de supports_credentials
         '^/avatar':

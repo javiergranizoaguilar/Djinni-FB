@@ -129,9 +129,10 @@ class ApiMonsterController extends AbstractController
                     'treasure' => $monster->getTreasure(),
                     'tags' => $monster->getTags(),
                     'vtt_metadata' => $monster->getVttMetadata(),
-                    'image_url'    => $monster->getImageUrl(),
-                    'portrait_url' => $monster->getPortraitUrl(),
-                    'is_editable'  => $mu->isEditable(),
+                    'image_url'     => $monster->getImageUrl(),
+                    'portrait_url'  => $monster->getPortraitUrl(),
+                    'is_editable'   => $mu->isEditable(),
+                    'default_auras' => $monster->getDefaultAuras() ?? [],
                 ];
             }
         }
@@ -257,6 +258,68 @@ class ApiMonsterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['message' => 'Monster updated successfully']);
+    }
+
+    #[Route('/{id}/set-default-auras', name: 'api_monster_set_default_auras', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setDefaultAuras(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+
+        if (!$monster) {
+            return $this->json(['error' => 'Monster not found'], 404);
+        }
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy([
+            'user' => $user,
+            'monster' => $monster,
+        ]);
+
+        if (!$mu || !$mu->isEditable()) {
+            return $this->json(['error' => 'No permission'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $monster->setDefaultAuras($data['auras'] ?? []);
+        $entityManager->flush();
+
+        return $this->json(['default_auras' => $monster->getDefaultAuras()]);
+    }
+
+    #[Route('/{id}/set-default-token', name: 'api_monster_set_default_token', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setDefaultToken(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+
+        if (!$monster) {
+            return $this->json(['error' => 'Monster not found'], 404);
+        }
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy([
+            'user' => $user,
+            'monster' => $monster,
+        ]);
+
+        if (!$mu || !$mu->isEditable()) {
+            return $this->json(['error' => 'No permission'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $imageUrl = $data['image_url'] ?? null;
+
+        if (!$imageUrl) {
+            return $this->json(['error' => 'image_url required'], 400);
+        }
+
+        $monster->setImageUrl($imageUrl);
+        $entityManager->flush();
+
+        return $this->json(['image_url' => $monster->getImageUrl()]);
     }
 
     #[Route('/{id}/upload-token', name: 'api_monster_upload_token', methods: ['POST'])]

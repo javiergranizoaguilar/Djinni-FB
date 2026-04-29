@@ -45,6 +45,12 @@ class SceneToken
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $height = null;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $x = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $y = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -137,6 +143,9 @@ class SceneToken
     #[ORM\Column(nullable: true)]
     private ?array $counters = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $auras = null;
+
     #[ORM\Column(length: 20, nullable: true)]
     private ?string $kind = null;
 
@@ -145,6 +154,9 @@ class SceneToken
 
     public function getCounters(): ?array { return $this->counters; }
     public function setCounters(?array $counters): static { $this->counters = $counters; return $this; }
+
+    public function getAuras(): ?array { return $this->auras; }
+    public function setAuras(?array $auras): static { $this->auras = $auras; return $this; }
 
     public function getKind(): ?string { return $this->kind; }
     public function setKind(?string $kind): static { $this->kind = $kind; return $this; }
@@ -160,4 +172,10 @@ class SceneToken
 
     public function getHeight(): ?float { return $this->height; }
     public function setHeight(?float $height): static { $this->height = $height; return $this; }
+
+    public function getX(): ?float { return $this->x; }
+    public function setX(?float $x): static { $this->x = $x; return $this; }
+
+    public function getY(): ?float { return $this->y; }
+    public function setY(?float $y): static { $this->y = $y; return $this; }
 }

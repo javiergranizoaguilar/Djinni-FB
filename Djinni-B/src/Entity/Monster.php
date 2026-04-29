@@ -142,6 +142,9 @@ class Monster
     #[ORM\Column(nullable: true)]
     private ?int $max_hp = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $default_auras = null;
+
     #[ORM\ManyToOne(inversedBy: 'monsters')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $creador = null;
@@ -627,6 +630,9 @@ class Monster
 
         return $this;
     }
+
+    public function getDefaultAuras(): ?array { return $this->default_auras; }
+    public function setDefaultAuras(?array $default_auras): static { $this->default_auras = $default_auras; return $this; }
 
     public function getCreador(): ?User
     {
