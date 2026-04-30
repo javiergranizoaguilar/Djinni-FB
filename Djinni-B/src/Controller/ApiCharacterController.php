@@ -133,8 +133,9 @@ class ApiCharacterController extends AbstractController
                     'caster_level' => $sheet->getCasterLevel(),
                     'level' => $levelData, // Devolvemos la estructura normalizada (array)
                     'display_level' => $totalLevel,
-                    'token_image' => $sheet->getTokenImage(),
-                    'default_auras' => $sheet->getDefaultAuras() ?? [],
+                    'token_image'        => $sheet->getTokenImage(),
+                    'default_auras'      => $sheet->getDefaultAuras() ?? [],
+                    'default_token_data' => $sheet->getDefaultTokenData(),
                     'portrait_image' => $sheet->getPortraitImage(),
                     'stats' => $sheet->getStats(),
                     'currency' => $sheet->getCurrency(),
@@ -248,6 +249,7 @@ class ApiCharacterController extends AbstractController
             'caster_level' => $sheet->getCasterLevel(),
             'level' => $levelData, 'display_level' => $totalLevel,
             'token_image' => $sheet->getTokenImage(), 'default_auras' => $sheet->getDefaultAuras() ?? [],
+            'default_token_data' => $sheet->getDefaultTokenData(),
             'portrait_image' => $sheet->getPortraitImage(), 'stats' => $sheet->getStats(),
             'currency' => $sheet->getCurrency(), 'is_editable' => false,
             'spellcasting_abillity' => $sheet->getSpellcastingAbillity(),
@@ -461,6 +463,34 @@ class ApiCharacterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['message' => 'Character deleted successfully']);
+    }
+
+    #[Route('/{id}/set-default-token-data', name: 'api_character_set_default_token_data', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setDefaultTokenData(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $characterSheet = $entityManager->getRepository(CharacterSheet::class)->find($id);
+
+        if (!$characterSheet) {
+            return $this->json(['error' => 'Character not found'], 404);
+        }
+
+        $csu = $entityManager->getRepository(CharacterSheetUser::class)->findOneBy([
+            'user_id' => $user,
+            'charactersheet_id' => $characterSheet,
+        ]);
+
+        if (!$csu || !$csu->isEdit()) {
+            return $this->json(['error' => 'No permission'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $characterSheet->setDefaultTokenData($data);
+        $entityManager->flush();
+
+        return $this->json(['default_token_data' => $characterSheet->getDefaultTokenData()]);
     }
 
     #[Route('/{id}/set-default-auras', name: 'api_character_set_default_auras', methods: ['POST'])]

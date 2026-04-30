@@ -145,6 +145,9 @@ class Monster
     #[ORM\Column(nullable: true)]
     private ?array $default_auras = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $default_token_data = null;
+
     #[ORM\ManyToOne(inversedBy: 'monsters')]
     #[ORM\JoinColumn(nullable: false)]
     private ?User $creador = null;
@@ -633,6 +636,9 @@ class Monster
 
     public function getDefaultAuras(): ?array { return $this->default_auras; }
     public function setDefaultAuras(?array $default_auras): static { $this->default_auras = $default_auras; return $this; }
+
+    public function getDefaultTokenData(): ?array { return $this->default_token_data; }
+    public function setDefaultTokenData(?array $data): static { $this->default_token_data = $data; return $this; }
 
     public function getCreador(): ?User
     {

@@ -189,15 +189,15 @@ export default function VttBoard() {
     const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
     const [sheetModal,     setSheetModal]     = useState(null); // {kind, entity}
 
-    const stageRef        = useRef(null);
-    const transformerRef  = useRef(null);
-    const imageNodesRef   = useRef({});
-    const tokenNodesRef   = useRef({});
-    const isPanning       = useRef(false);
-    const entityCacheRef  = useRef({ characters: null, monsters: null });
-    const lastPanPos      = useRef({ x: 0, y: 0 });
-    const shiftHeld       = useRef(false);
-    const ctxMenuRef      = useRef(null);
+    const stageRef            = useRef(null);
+    const transformerRef      = useRef(null);
+    const imageNodesRef       = useRef({});
+    const tokenNodesRef       = useRef({});
+    const isPanning           = useRef(false);
+    const entityCacheRef      = useRef({ characters: null, monsters: null });
+    const lastPanPos          = useRef({ x: 0, y: 0 });
+    const shiftHeld           = useRef(false);
+    const ctxMenuRef          = useRef(null);
 
     const gridWidth        = scene?.grid_width  || 10;
     const gridHeight       = scene?.grid_height || 10;
@@ -406,14 +406,15 @@ export default function VttBoard() {
         col = Math.max(0, Math.min(col, gridWidth  - 1));
         row = Math.max(0, Math.min(row, gridHeight - 1));
 
-        // Contador HP inicial desde la entidad
-        const initialCounters = (() => {
-            const base = DEFAULT_COUNTERS.map(c => ({ ...c }));
-            if (tokenData.max_hp > 0) {
-                base[0] = { ...base[0], label: 'HP', current: tokenData.hp ?? tokenData.max_hp, max: tokenData.max_hp, color: '#22c55e' };
-            }
-            return base;
-        })();
+        const initialCounters = tokenData.default_counters
+            ? tokenData.default_counters
+            : (() => {
+                const base = DEFAULT_COUNTERS.map(c => ({ ...c }));
+                if (tokenData.max_hp > 0) {
+                    base[0] = { ...base[0], label: 'HP', current: tokenData.hp ?? tokenData.max_hp, max: tokenData.max_hp, color: '#22c55e' };
+                }
+                return base;
+            })();
 
         try {
             const res = await axios.post(`${API}/api/scene-token/scene/${scene.id}`, {
@@ -421,8 +422,8 @@ export default function VttBoard() {
                 color:     tokenData.color     || 'gray',
                 name:      tokenData.name      || null,
                 image_url: tokenData.image_url || null,
-                width:     squareSize,
-                height:    squareSize,
+                width:     tokenData.default_width  || squareSize,
+                height:    tokenData.default_height || squareSize,
                 kind:      tokenData.kind      || null,
                 entity_id: tokenData.id        || null,
                 counters:  initialCounters,
@@ -698,6 +699,7 @@ const saveCounters = async (tokenId, counters) => {
             await axios.put(`${API}/api/scene-token/${tokenId}`, { auras }, { headers: authHeaders() });
         } catch (err) { console.error(err); }
     };
+
 
     const getX = (item) => item.x != null ? item.x : boardX + (item.col || 0) * squareSize + squareSize / 2;
     const getY = (item) => item.y != null ? item.y : boardY + (item.row || 0) * squareSize + squareSize / 2;
@@ -1100,15 +1102,27 @@ const saveCounters = async (tokenId, counters) => {
                             </button>
                             {(() => {
                                 const tok = sceneItems.find(i => i.id === ctxMenu.id);
-                                if (!tok || !tok.image_url || !tok.entity_id || !['character','monster'].includes(tok.kind)) return null;
+                                if (!tok || !tok.entity_id) return null;
+                                const isChar = tok.kind === 'character';
+                                const isMon  = tok.kind === 'monster';
+                                if (!isChar && !isMon) return null;
+
                                 return (
                                     <button
                                         onClick={async () => {
-                                            const endpoint = tok.kind === 'character'
-                                                ? `${API}/api/character/${tok.entity_id}/set-default-token`
-                                                : `${API}/api/monster/${tok.entity_id}/set-default-token`;
+                                            const payload = {
+                                                image_url: tok.image_url || null,
+                                                auras:     tok.auras    || [],
+                                                counters:  tok.counters || [],
+                                                color:     tok.color    || (isMon ? 'red' : 'blue'),
+                                                width:     tok.width    || squareSize,
+                                                height:    tok.height   || squareSize,
+                                            };
+                                            const endpoint = isMon
+                                                ? `${API}/api/monster/${tok.entity_id}/set-default-token-data`
+                                                : `${API}/api/character/${tok.entity_id}/set-default-token-data`;
                                             try {
-                                                await axios.post(endpoint, { image_url: tok.image_url }, { headers: authHeaders() });
+                                                await axios.post(endpoint, payload, { headers: authHeaders() });
                                             } catch (err) { console.error(err); }
                                             setCtxMenu(null);
                                         }}

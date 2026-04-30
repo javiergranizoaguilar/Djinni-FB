@@ -129,7 +129,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
             });
 
             if (response.status === 200) {
-                onMonsterUpdated();
+                onMonsterUpdated?.({ ...monster, name: formData.name, hp: formData.hit_points_average, image_url: tokenUrl, portrait_url: portraitUrl });
                 onClose();
             }
         } catch (err) {
@@ -153,7 +153,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
             });
             setTokenUrl(res.data.image_url);
             setPortraitUrl(res.data.portrait_url);
-            onMonsterUpdated();
+            onMonsterUpdated?.({ ...monster, image_url: res.data.image_url, portrait_url: res.data.portrait_url });
         } catch (err) {
             setError('Error al subir la imagen.');
         } finally {

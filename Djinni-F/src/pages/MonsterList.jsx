@@ -130,7 +130,15 @@ export default function MonsterList() {
                     {filteredMonsters.map((monster) => (
                         <div key={monster.id} className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-[#23482f] hover:shadow-lg transition-shadow duration-300 flex flex-col">
                             <div className="h-48 bg-gray-200 dark:bg-gray-800 flex items-center justify-center relative overflow-hidden">
-                                <span className="material-symbols-outlined text-6xl text-gray-400">pest_control</span>
+                                {(monster.portrait_url || monster.image_url) ? (
+                                    <img
+                                        src={`http://localhost:8000${monster.portrait_url || monster.image_url}`}
+                                        alt={monster.name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="material-symbols-outlined text-6xl text-gray-400">pest_control</span>
+                                )}
                             </div>
                             <div className="p-5 flex-grow flex flex-col">
                                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">{monster.name}</h3>

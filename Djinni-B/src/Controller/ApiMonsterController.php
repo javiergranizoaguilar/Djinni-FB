@@ -131,8 +131,9 @@ class ApiMonsterController extends AbstractController
                     'vtt_metadata' => $monster->getVttMetadata(),
                     'image_url'     => $monster->getImageUrl(),
                     'portrait_url'  => $monster->getPortraitUrl(),
-                    'is_editable'   => $mu->isEditable(),
-                    'default_auras' => $monster->getDefaultAuras() ?? [],
+                    'is_editable'        => $mu->isEditable(),
+                    'default_auras'      => $monster->getDefaultAuras() ?? [],
+                    'default_token_data' => $monster->getDefaultTokenData(),
                 ];
             }
         }
@@ -170,6 +171,7 @@ class ApiMonsterController extends AbstractController
             'tags' => $monster->getTags(), 'vtt_metadata' => $monster->getVttMetadata(),
             'image_url' => $monster->getImageUrl(), 'portrait_url' => $monster->getPortraitUrl(),
             'is_editable' => false, 'default_auras' => $monster->getDefaultAuras() ?? [],
+            'default_token_data' => $monster->getDefaultTokenData(),
         ]);
     }
 
@@ -196,7 +198,7 @@ class ApiMonsterController extends AbstractController
             'monster' => $monster
         ]);
 
-        if (!$mu || !$mu->isEditable()) {
+        if (!$mu || $mu->isEditable() === false) {
             return $this->json(['error' => 'You do not have permission to delete this monster'], 403);
         }
 
@@ -229,7 +231,7 @@ class ApiMonsterController extends AbstractController
             'monster' => $monster
         ]);
 
-        if (!$mu || !$mu->isEditable()) {
+        if (!$mu || $mu->isEditable() === false) {
             return $this->json(['error' => 'You do not have permission to edit this monster'], 403);
         }
 
@@ -310,7 +312,7 @@ class ApiMonsterController extends AbstractController
             'monster' => $monster,
         ]);
 
-        if (!$mu || !$mu->isEditable()) {
+        if (!$mu || $mu->isEditable() === false) {
             return $this->json(['error' => 'No permission'], 403);
         }
 
@@ -319,6 +321,34 @@ class ApiMonsterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['default_auras' => $monster->getDefaultAuras()]);
+    }
+
+    #[Route('/{id}/set-default-token-data', name: 'api_monster_set_default_token_data', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setDefaultTokenData(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+
+        if (!$monster) {
+            return $this->json(['error' => 'Monster not found'], 404);
+        }
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy([
+            'user' => $user,
+            'monster' => $monster,
+        ]);
+
+        if (!$mu || $mu->isEditable() === false) {
+            return $this->json(['error' => 'No permission'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $monster->setDefaultTokenData($data);
+        $entityManager->flush();
+
+        return $this->json(['default_token_data' => $monster->getDefaultTokenData()]);
     }
 
     #[Route('/{id}/set-default-token', name: 'api_monster_set_default_token', methods: ['POST'])]
@@ -338,7 +368,7 @@ class ApiMonsterController extends AbstractController
             'monster' => $monster,
         ]);
 
-        if (!$mu || !$mu->isEditable()) {
+        if (!$mu || $mu->isEditable() === false) {
             return $this->json(['error' => 'No permission'], 403);
         }
 
@@ -380,7 +410,7 @@ class ApiMonsterController extends AbstractController
         }
 
         $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy(['user' => $user, 'monster' => $monster]);
-        if (!$mu || !$mu->isEditable()) {
+        if (!$mu || $mu->isEditable() === false) {
             return $this->json(['error' => 'Permission denied'], 403);
         }
 

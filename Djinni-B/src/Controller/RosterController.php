@@ -70,7 +70,7 @@ class RosterController extends AbstractController
         return false;
     }
 
-    private function itemToArray(RosterItem $item, $user, bool $isDm, array $grantedIds): array
+    private function itemToArray(RosterItem $item, $user, bool $isDm, array $grantedIds, array $entityExtra = []): array
     {
         $data = [
             'id'               => $item->getId(),
@@ -83,6 +83,10 @@ class RosterController extends AbstractController
             'position'         => $item->getPosition(),
             'is_mine'          => $user && $item->getCreatedBy()?->getId() === $user->getId(),
             'controlled_by_id' => $item->getControlledByUser()?->getId(),
+            'hp'                 => $entityExtra['hp'] ?? null,
+            'max_hp'             => $entityExtra['max_hp'] ?? null,
+            'default_auras'      => $entityExtra['default_auras'] ?? [],
+            'default_token_data' => $entityExtra['default_token_data'] ?? null,
         ];
         if ($isDm) {
             $data['visible_to']    = $grantedIds;
@@ -91,7 +95,7 @@ class RosterController extends AbstractController
         return $data;
     }
 
-    private function folderToArray(RosterFolder $f, array $allFolders, array $allItems, array $grantMap, $user, bool $isDm): array
+    private function folderToArray(RosterFolder $f, array $allFolders, array $allItems, array $grantMap, $user, bool $isDm, array $entityMap = []): array
     {
         $children = array_values(array_filter(
             $allFolders,
@@ -112,8 +116,8 @@ class RosterController extends AbstractController
             'parent_id' => $f->getParent()?->getId(),
             'name'      => $f->getName(),
             'position'  => $f->getPosition(),
-            'children'  => array_map(fn($cf) => $this->folderToArray($cf, $allFolders, $allItems, $grantMap, $user, $isDm), $children),
-            'items'     => array_map(fn($i) => $this->itemToArray($i, $user, $isDm, $grantMap[$i->getId()] ?? []), $items),
+            'children'  => array_map(fn($cf) => $this->folderToArray($cf, $allFolders, $allItems, $grantMap, $user, $isDm, $entityMap), $children),
+            'items'     => array_map(fn($i) => $this->itemToArray($i, $user, $isDm, $grantMap[$i->getId()] ?? [], $entityMap[$i->getId()] ?? []), $items),
         ];
     }
 
@@ -218,6 +222,45 @@ class RosterController extends AbstractController
             }
         }
 
+        // Build entity data map for token spawning (hp, max_hp, default_auras)
+        $entityMap = [];
+        $charIds    = [];
+        $monsterIds = [];
+        foreach ($allItems as $item) {
+            if ($item->getKind() === 'character' && $item->getEntityId()) $charIds[]    = $item->getEntityId();
+            elseif ($item->getKind() === 'monster' && $item->getEntityId())  $monsterIds[] = $item->getEntityId();
+        }
+        if ($charIds) {
+            $charById = [];
+            foreach ($charRepo->findBy(['id' => array_unique($charIds)]) as $c) $charById[$c->getId()] = $c;
+            foreach ($allItems as $item) {
+                if ($item->getKind() === 'character' && isset($charById[$item->getEntityId()])) {
+                    $c = $charById[$item->getEntityId()];
+                    $entityMap[$item->getId()] = [
+                        'hp'                 => $c->getHp() ?? 0,
+                        'max_hp'             => $c->getMaxHp() ?? ($c->getHp() ?? 0),
+                        'default_auras'      => $c->getDefaultAuras() ?? [],
+                        'default_token_data' => $c->getDefaultTokenData(),
+                    ];
+                }
+            }
+        }
+        if ($monsterIds) {
+            $monsterById = [];
+            foreach ($monsterRepo->findBy(['id' => array_unique($monsterIds)]) as $m) $monsterById[$m->getId()] = $m;
+            foreach ($allItems as $item) {
+                if ($item->getKind() === 'monster' && isset($monsterById[$item->getEntityId()])) {
+                    $m = $monsterById[$item->getEntityId()];
+                    $entityMap[$item->getId()] = [
+                        'hp'                 => $m->getHp() ?? 0,
+                        'max_hp'             => $m->getMaxHp() ?? ($m->getHp() ?? 0),
+                        'default_auras'      => $m->getDefaultAuras() ?? [],
+                        'default_token_data' => $m->getDefaultTokenData(),
+                    ];
+                }
+            }
+        }
+
         $rootFolders = array_values(array_filter(
             $allFolders,
             fn($f) => $f->getParent() === null
@@ -233,8 +276,8 @@ class RosterController extends AbstractController
         usort($rootItems, fn($a, $b) => $a->getPosition() <=> $b->getPosition());
 
         return $this->json([
-            'folders'         => array_map(fn($f) => $this->folderToArray($f, $allFolders, $allItems, $grantMap, $currentUser, $isDm), $rootFolders),
-            'items'           => array_map(fn($i) => $this->itemToArray($i, $currentUser, $isDm, $grantMap[$i->getId()] ?? []), $rootItems),
+            'folders'         => array_map(fn($f) => $this->folderToArray($f, $allFolders, $allItems, $grantMap, $currentUser, $isDm, $entityMap), $rootFolders),
+            'items'           => array_map(fn($i) => $this->itemToArray($i, $currentUser, $isDm, $grantMap[$i->getId()] ?? [], $entityMap[$i->getId()] ?? []), $rootItems),
             'is_dm'           => $isDm,
             'session_members' => $sessionMembers,
         ]);

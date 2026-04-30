@@ -102,10 +102,29 @@ function ItemRow({ item, isDm, members, onDelete, onVisibilityChange, onControlC
     const [showVis,  setShowVis]  = useState(false);
     const [showCtrl, setShowCtrl] = useState(false);
 
+    const dtd = item.default_token_data;
     const dragData = item.kind === 'character'
-        ? { kind: 'character', id: item.entity_id, name: item.name, color: 'blue', image_url: item.image_url }
+        ? {
+            kind: 'character', id: item.entity_id, name: item.name,
+            color:            dtd?.color     || 'blue',
+            image_url:        dtd?.image_url ?? item.image_url ?? null,
+            hp: item.hp ?? 0, max_hp: item.max_hp ?? item.hp ?? 0,
+            default_auras:    dtd?.auras    || item.default_auras || [],
+            default_counters: dtd?.counters || null,
+            default_width:    dtd?.width    || null,
+            default_height:   dtd?.height   || null,
+          }
         : item.kind === 'monster'
-        ? { kind: 'monster', id: item.entity_id, name: item.name, color: 'red', image_url: item.image_url }
+        ? {
+            kind: 'monster', id: item.entity_id, name: item.name,
+            color:            dtd?.color     || 'red',
+            image_url:        dtd?.image_url ?? item.image_url ?? null,
+            hp: item.hp ?? 0, max_hp: item.max_hp ?? item.hp ?? 0,
+            default_auras:    dtd?.auras    || item.default_auras || [],
+            default_counters: dtd?.counters || null,
+            default_width:    dtd?.width    || null,
+            default_height:   dtd?.height   || null,
+          }
         : { kind: 'custom', name: item.name, color: item.color || 'gray' };
 
     const color = item.kind === 'character' ? '#3b82f6'

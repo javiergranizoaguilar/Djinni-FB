@@ -2,10 +2,15 @@
 
 namespace App\Controller;
 
+use App\Entity\RosterItem;
 use App\Entity\Scene;
 use App\Entity\SceneToken;
 use App\Entity\User;
+use App\Repository\CharacterSheetRepository;
+use App\Repository\CharacterSheetUserRepository;
 use App\Repository\GameSesionRepository;
+use App\Repository\MonsterRepository;
+use App\Repository\RosterItemRepository;
 use App\Repository\UserRepository;
 use App\Repository\SceneRepository;
 use App\Repository\SceneTokenRepository;
@@ -84,7 +89,7 @@ class SceneTokenController extends AbstractController
 
     #[Route('/scene/{sceneId}', name: 'api_scene_token_create', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function createSceneToken(int $sceneId, Request $request, SceneRepository $sceneRepository, TokenRepository $tokenRepository, EntityManagerInterface $em): JsonResponse
+    public function createSceneToken(int $sceneId, Request $request, SceneRepository $sceneRepository, TokenRepository $tokenRepository, EntityManagerInterface $em, RosterItemRepository $rosterItemRepo, CharacterSheetRepository $charRepo, CharacterSheetUserRepository $charUserRepo, MonsterRepository $monsterRepo): JsonResponse
     {
         $scene = $sceneRepository->find($sceneId);
         if (!$scene) {
@@ -120,6 +125,32 @@ class SceneTokenController extends AbstractController
 
         $em->persist($sceneToken);
         $em->flush();
+
+        // Auto-add to roster when a character/monster token is placed on the map
+        $session = $scene->getSessionId();
+        $kind    = $sceneToken->getKind();
+        $entityId = $sceneToken->getEntityId();
+        if ($session && $entityId && in_array($kind, ['character', 'monster'], true)) {
+            $existing = $rosterItemRepo->findOneBy(['gameSession' => $session, 'kind' => $kind, 'entityId' => $entityId]);
+            if (!$existing) {
+                $ri = new RosterItem();
+                $ri->setGameSession($session)->setKind($kind)->setEntityId($entityId);
+                if ($kind === 'character') {
+                    $char = $charRepo->find($entityId);
+                    $ri->setName($char ? $char->getName() : ($sceneToken->getName() ?? ''));
+                    $ri->setImageUrl($char ? ($char->getTokenImage() ?? $char->getPortraitImage()) : null);
+                    $charUser = $charUserRepo->findOneBy(['charactersheet_id' => $entityId]);
+                    if ($charUser) $ri->setCreatedBy($charUser->getUserId());
+                } else {
+                    $monster = $monsterRepo->find($entityId);
+                    $ri->setName($monster ? $monster->getName() : ($sceneToken->getName() ?? ''));
+                    $ri->setImageUrl($monster ? $monster->getImageUrl() : $sceneToken->getImageUrl());
+                    $ri->setCreatedBy($sceneToken->getOwner());
+                }
+                $em->persist($ri);
+                $em->flush();
+            }
+        }
 
         return $this->json([
             'id'        => $sceneToken->getId(),

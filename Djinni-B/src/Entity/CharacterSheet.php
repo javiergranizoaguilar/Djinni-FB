@@ -28,6 +28,9 @@ class CharacterSheet
     #[ORM\Column(nullable: true)]
     private ?array $default_auras = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $default_token_data = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $portrait_image = null;
 
@@ -306,6 +309,9 @@ class CharacterSheet
 
     public function getDefaultAuras(): ?array { return $this->default_auras; }
     public function setDefaultAuras(?array $default_auras): static { $this->default_auras = $default_auras; return $this; }
+
+    public function getDefaultTokenData(): ?array { return $this->default_token_data; }
+    public function setDefaultTokenData(?array $data): static { $this->default_token_data = $data; return $this; }
 
     public function getPortraitImage(): ?string
     {

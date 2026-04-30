@@ -250,7 +250,16 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin personajes</p>
                             : characters.map(c => (
                                 <EntityRow key={c.id} name={c.name} image={c.portrait_image || c.token_image} color="#3b82f6"
-                                    dragData={{ kind: 'character', id: c.id, name: c.name, color: 'blue', image_url: c.token_image || null, hp: c.hp ?? 0, max_hp: c.max_hp ?? c.hp ?? 0, default_auras: c.default_auras || [] }}
+                                    dragData={{
+                                        kind: 'character', id: c.id, name: c.name,
+                                        color:            c.default_token_data?.color     || 'blue',
+                                        image_url:        c.default_token_data?.image_url ?? c.token_image ?? null,
+                                        hp: c.hp ?? 0, max_hp: c.max_hp ?? c.hp ?? 0,
+                                        default_auras:    c.default_token_data?.auras    || c.default_auras || [],
+                                        default_counters: c.default_token_data?.counters || null,
+                                        default_width:    c.default_token_data?.width    || null,
+                                        default_height:   c.default_token_data?.height   || null,
+                                    }}
                                     onDoubleClick={() => setEditCharacter(c)} />
                             ))}
                     </div>
@@ -265,7 +274,16 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                             ? <p style={{ color: '#475569', fontSize: 12 }}>Sin monstruos</p>
                             : monsters.map(m => (
                                 <EntityRow key={m.id} name={m.name} image={m.portrait_url || m.image_url} color="#ef4444"
-                                    dragData={{ kind: 'monster', id: m.id, name: m.name, color: 'red', image_url: m.image_url || null, hp: m.hp ?? 0, max_hp: m.max_hp ?? m.hp ?? 0, default_auras: m.default_auras || [] }}
+                                    dragData={{
+                                        kind: 'monster', id: m.id, name: m.name,
+                                        color:     m.default_token_data?.color     || 'red',
+                                        image_url: m.default_token_data?.image_url ?? m.image_url ?? null,
+                                        hp: m.hp ?? 0, max_hp: m.max_hp ?? m.hp ?? 0,
+                                        default_auras:    m.default_token_data?.auras    || m.default_auras || [],
+                                        default_counters: m.default_token_data?.counters || null,
+                                        default_width:    m.default_token_data?.width    || null,
+                                        default_height:   m.default_token_data?.height   || null,
+                                    }}
                                     onDoubleClick={() => setEditMonster(m)} />
                             ))}
                     </div>
@@ -359,8 +377,7 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                 onClose={() => setEditMonster(null)}
                 monster={editMonster}
                 onMonsterUpdated={(updated) => {
-                    setMonsters(prev => prev.map(m => m.id === updated.id ? updated : m));
-                    setEditMonster(null);
+                    if (updated?.id) setMonsters(prev => prev.map(m => m.id === updated.id ? updated : m));
                     onEntityUpdated?.('monster');
                 }}
             />
