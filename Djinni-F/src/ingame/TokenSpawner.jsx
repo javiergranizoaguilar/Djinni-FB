@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import axios from 'axios';
 import EditCharacterModal from '../pages/EditCharacterModal.jsx';
 import EditMonsterModal from '../pages/EditMonsterModal.jsx';
@@ -65,9 +65,26 @@ function loadPersonal() {
     catch { return []; }
 }
 
-export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated }) {
+const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated }, ref) {
     const [characters,       setCharacters]       = useState([]);
     const [monsters,         setMonsters]         = useState([]);
+
+    useImperativeHandle(ref, () => ({
+        updateEntityDefault(kind, entityId, defaultTokenData) {
+            if (kind === 'character') {
+                setCharacters(prev => prev.map(c => c.id === entityId ? { ...c, default_token_data: defaultTokenData } : c));
+            } else {
+                setMonsters(prev => prev.map(m => m.id === entityId ? { ...m, default_token_data: defaultTokenData } : m));
+            }
+        },
+        updateEntityField(kind, entityId, fields) {
+            if (kind === 'character') {
+                setCharacters(prev => prev.map(c => c.id === entityId ? { ...c, ...fields } : c));
+            } else {
+                setMonsters(prev => prev.map(m => m.id === entityId ? { ...m, ...fields } : m));
+            }
+        },
+    }));
     const [loading,          setLoading]          = useState(true);
     const [tab,              setTab]              = useState('characters');
     const [editCharacter,    setEditCharacter]    = useState(null);
@@ -369,7 +386,7 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                 onCharacterUpdated={(updated) => {
                     setCharacters(prev => prev.map(c => c.id === updated.id ? updated : c));
                     setEditCharacter(null);
-                    onEntityUpdated?.('character');
+                    onEntityUpdated?.('character', updated);
                 }}
             />
             <EditMonsterModal
@@ -378,9 +395,11 @@ export default function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated 
                 monster={editMonster}
                 onMonsterUpdated={(updated) => {
                     if (updated?.id) setMonsters(prev => prev.map(m => m.id === updated.id ? updated : m));
-                    onEntityUpdated?.('monster');
+                    onEntityUpdated?.('monster', updated);
                 }}
             />
         </div>
     );
-}
+});
+
+export default TokenSpawner;

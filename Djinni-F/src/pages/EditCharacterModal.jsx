@@ -403,7 +403,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       const response = await axios.post(`${API}/api/character/edit/${character.id}`, data, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
-      if (response.status === 200) { onCharacterUpdated(response.data || { ...character, ...formData }); onClose(); }
+      if (response.status === 200) { onCharacterUpdated({ ...character, ...formData }); onClose(); }
     } catch (err) {
       console.error(err); setError('Error al actualizar el personaje.');
     } finally { setSaving(false); }

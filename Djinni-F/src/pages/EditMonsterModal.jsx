@@ -129,7 +129,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
             });
 
             if (response.status === 200) {
-                onMonsterUpdated?.({ ...monster, name: formData.name, hp: formData.hit_points_average, image_url: tokenUrl, portrait_url: portraitUrl });
+                onMonsterUpdated?.({ ...monster, name: formData.name, hp: formData.hit_points_average, max_hp: formData.max_hp ?? monster.max_hp, ac: formData.armor_class, image_url: tokenUrl, portrait_url: portraitUrl });
                 onClose();
             }
         } catch (err) {

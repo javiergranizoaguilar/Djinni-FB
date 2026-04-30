@@ -34,19 +34,20 @@ const colorMap = {
 };
 
 const DEFAULT_COUNTERS = [
-    { label: '', current: 0, max: 0, color: '#22c55e' },
-    { label: '', current: 0, max: 0, color: '#3b82f6' },
-    { label: '', current: 0, max: 0, color: '#f59e0b' },
+    { label: '', current: 0, max: 0, color: '#22c55e', linked_field: null },
+    { label: '', current: 0, max: 0, color: '#3b82f6', linked_field: null },
+    { label: '', current: 0, max: 0, color: '#f59e0b', linked_field: null },
 ];
 
-// Campos de personaje: { label, getVals(entity) → {current, max} }
+// Campos de personaje: { label, key, getVals(entity) → {current, max} }
 const CHARACTER_COUNTER_FIELDS = [
-    { label: 'HP', getVals: c => ({ current: c.hp ?? 0, max: c.max_hp ?? c.hp ?? 0 }) },
+    { label: 'HP', key: 'hp', maxKey: 'max_hp', getVals: c => ({ current: c.hp ?? 0, max: c.max_hp ?? c.hp ?? 0 }) },
 ];
 
-// Campos de monstruo: { label, getVals(entity) → {current, max} }
+// Campos de monstruo: { label, key, maxKey?, getVals(entity) → {current, max} }
 const MONSTER_COUNTER_FIELDS = [
-    { label: 'HP', getVals: m => ({ current: m.hp ?? 0, max: m.max_hp ?? m.hp ?? 0 }) },
+    { label: 'HP', key: 'hp', maxKey: 'max_hp', getVals: m => ({ current: m.hp ?? 0, max: m.max_hp ?? m.hp ?? 0 }) },
+    { label: 'CA', key: 'ac', getVals: m => ({ current: m.ac ?? 0, max: m.ac ?? 0 }) },
 ];
 const BAR_H = 5;
 const BAR_GAP = 2;
@@ -195,6 +196,7 @@ export default function VttBoard() {
     const tokenNodesRef       = useRef({});
     const isPanning           = useRef(false);
     const entityCacheRef      = useRef({ characters: null, monsters: null });
+    const spawnerRef          = useRef(null);
     const lastPanPos          = useRef({ x: 0, y: 0 });
     const shiftHeld           = useRef(false);
     const ctxMenuRef          = useRef(null);
@@ -407,7 +409,12 @@ export default function VttBoard() {
         row = Math.max(0, Math.min(row, gridHeight - 1));
 
         const initialCounters = tokenData.default_counters
-            ? tokenData.default_counters
+            ? tokenData.default_counters.map(c => {
+                if (c.linked_field === 'hp' && tokenData.max_hp > 0) {
+                    return { ...c, current: tokenData.hp ?? tokenData.max_hp, max: tokenData.max_hp };
+                }
+                return c;
+            })
             : (() => {
                 const base = DEFAULT_COUNTERS.map(c => ({ ...c }));
                 if (tokenData.max_hp > 0) {
@@ -686,6 +693,29 @@ export default function VttBoard() {
     const getCounters = (item) => item.counters || DEFAULT_COUNTERS;
     const getAuras    = (item) => item.auras    || [];
 
+    const syncLinkedCounters = (kind, updatedEntity) => {
+        const fieldDefs = kind === 'character' ? CHARACTER_COUNTER_FIELDS : MONSTER_COUNTER_FIELDS;
+        setSceneItems(prev => prev.map(tok => {
+            if (tok.kind !== kind || tok.entity_id !== updatedEntity.id) return tok;
+            const counters = tok.counters || DEFAULT_COUNTERS;
+            let changed = false;
+            const newCounters = counters.map(c => {
+                if (!c.linked_field) return c;
+                const def = fieldDefs.find(f => f.key === c.linked_field);
+                if (!def) return c;
+                const vals = def.getVals(updatedEntity);
+                if (vals.current !== c.current || vals.max !== c.max) {
+                    changed = true;
+                    return { ...c, ...vals };
+                }
+                return c;
+            });
+            if (!changed) return tok;
+            axios.put(`${API}/api/scene-token/${tok.id}`, { counters: newCounters }, { headers: authHeaders() }).catch(() => {});
+            return { ...tok, counters: newCounters };
+        }));
+    };
+
 const saveCounters = async (tokenId, counters) => {
         setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, counters } : i));
         try {
@@ -946,8 +976,11 @@ const saveCounters = async (tokenId, counters) => {
                 background: 'rgba(15, 23, 42, 0.85)',
                 borderRight: '1px solid #2d3e50', overflowY: 'auto',
             }}>
-                <TokenSpawner sceneItems={sceneItems} gameId={gameId}
-                    onEntityUpdated={(kind) => { entityCacheRef.current[kind === 'character' ? 'characters' : 'monsters'] = null; }}
+                <TokenSpawner ref={spawnerRef} sceneItems={sceneItems} gameId={gameId}
+                    onEntityUpdated={(kind, updatedEntity) => {
+                        entityCacheRef.current[kind === 'character' ? 'characters' : 'monsters'] = null;
+                        if (updatedEntity) syncLinkedCounters(kind, updatedEntity);
+                    }}
                 />
             </div>
 
@@ -1123,6 +1156,11 @@ const saveCounters = async (tokenId, counters) => {
                                                 : `${API}/api/character/${tok.entity_id}/set-default-token-data`;
                                             try {
                                                 await axios.post(endpoint, payload, { headers: authHeaders() });
+                                                spawnerRef.current?.updateEntityDefault(
+                                                    isMon ? 'monster' : 'character',
+                                                    tok.entity_id,
+                                                    payload
+                                                );
                                             } catch (err) { console.error(err); }
                                             setCtxMenu(null);
                                         }}
@@ -1183,6 +1221,15 @@ const saveCounters = async (tokenId, counters) => {
                     if (next !== undefined) {
                         const updated = counters.map((x, j) => j === badgeEdit.counterIdx ? { ...x, current: next } : x);
                         saveCounters(token.id, updated);
+                        if (c.linked_field === 'hp' && token.entity_id) {
+                            if (token.kind === 'character') {
+                                const fd = new FormData();
+                                fd.append('hp', String(next));
+                                axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(console.error);
+                            } else if (token.kind === 'monster') {
+                                axios.post(`${API}/api/monster/edit/${token.entity_id}`, { hp: next }, { headers: authHeaders() }).catch(console.error);
+                            }
+                        }
                     }
                     setBadgeEdit(null);
                 };
@@ -1240,7 +1287,7 @@ const saveCounters = async (tokenId, counters) => {
                         entity = cache.monsters.find(m => m.id === token.entity_id);
                     }
                     const vals = entity ? fieldDef.getVals(entity) : { current: 0, max: 0 };
-                    const updated = counters.map((x, j) => j === barIdx ? { ...x, label: fieldDef.label, ...vals } : x);
+                    const updated = counters.map((x, j) => j === barIdx ? { ...x, label: fieldDef.label, linked_field: fieldDef.key, ...vals } : x);
                     saveCounters(token.id, updated);
                 };
 
@@ -1251,7 +1298,7 @@ const saveCounters = async (tokenId, counters) => {
                             position: 'fixed', top: barEditor.screenY - 8, left: barEditor.screenX,
                             background: '#1e293b', border: '1px solid #334155',
                             borderRadius: 8, padding: '10px 12px',
-                            zIndex: 200, minWidth: 220,
+                            zIndex: 200, minWidth: 270,
                             boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
                         }}
                     >
@@ -1272,42 +1319,55 @@ const saveCounters = async (tokenId, counters) => {
                                         }}
                                     />
                                 </div>
-                                {/* Label */}
-                                {fieldDefs ? (
+                                {/* Select de campo enlazado — solo para PJ/monstruo */}
+                                {fieldDefs && (
                                     <select
-                                        value={c.label}
+                                        value={c.linked_field ?? ''}
                                         onChange={e => {
-                                            const def = fieldDefs.find(f => f.label === e.target.value);
-                                            if (def) applyField(def, i);
-                                            else {
-                                                const updated = counters.map((x, j) => j === i ? { ...x, label: '' } : x);
+                                            if (e.target.value === '') {
+                                                const updated = counters.map((x, j) => j === i ? { ...x, linked_field: null, label: '' } : x);
                                                 saveCounters(token.id, updated);
+                                            } else {
+                                                const def = fieldDefs.find(f => f.key === e.target.value);
+                                                if (def) applyField(def, i);
                                             }
                                         }}
-                                        style={{ width: 100, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: c.label ? '#f1f5f9' : '#475569', fontSize: 11, padding: '3px 5px', outline: 'none' }}
+                                        style={{ width: 60, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
                                     >
-                                        <option value="">Sin nombre</option>
+                                        <option value="">—</option>
                                         {fieldDefs.map(f => (
-                                            <option key={f.label} value={f.label}>{f.label}</option>
+                                            <option key={f.key} value={f.key}>{f.label}</option>
                                         ))}
                                     </select>
-                                ) : (
-                                    <input
-                                        value={c.label}
-                                        onChange={e => {
-                                            const updated = counters.map((x, j) => j === i ? { ...x, label: e.target.value } : x);
-                                            saveCounters(token.id, updated);
-                                        }}
-                                        placeholder={`Barra ${i + 1}`}
-                                        style={{ width: 70, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
-                                    />
                                 )}
+                                {/* Nombre personalizado */}
+                                <input
+                                    type="text" value={c.label}
+                                    onChange={e => {
+                                        const updated = counters.map((x, j) => j === i ? { ...x, label: e.target.value } : x);
+                                        saveCounters(token.id, updated);
+                                    }}
+                                    placeholder="Nombre…"
+                                    style={{ width: 56, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
+                                />
                                 {/* Current */}
                                 <input
                                     type="number" value={c.current}
                                     onChange={e => {
-                                        const updated = counters.map((x, j) => j === i ? { ...x, current: Number(e.target.value) } : x);
+                                        const newValue = Number(e.target.value);
+                                        const updated = counters.map((x, j) => j === i ? { ...x, current: newValue } : x);
                                         saveCounters(token.id, updated);
+                                        if (c.linked_field && token.entity_id) {
+                                            if (token.kind === 'character') {
+                                                const fd = new FormData();
+                                                fd.append(c.linked_field, newValue);
+                                                axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(() => {});
+                                            } else if (token.kind === 'monster') {
+                                                axios.post(`${API}/api/monster/edit/${token.entity_id}`, { [c.linked_field]: newValue }, { headers: authHeaders() }).catch(() => {});
+                                            }
+                                            entityCacheRef.current[token.kind === 'character' ? 'characters' : 'monsters'] = null;
+                                            spawnerRef.current?.updateEntityField(token.kind, token.entity_id, { [c.linked_field]: newValue });
+                                        }
                                     }}
                                     style={{ width: 44, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none', textAlign: 'center' }}
                                 />
@@ -1316,8 +1376,23 @@ const saveCounters = async (tokenId, counters) => {
                                 <input
                                     type="number" value={c.max}
                                     onChange={e => {
-                                        const updated = counters.map((x, j) => j === i ? { ...x, max: Number(e.target.value) } : x);
+                                        const newMax = Number(e.target.value);
+                                        const updated = counters.map((x, j) => j === i ? { ...x, max: newMax } : x);
                                         saveCounters(token.id, updated);
+                                        if (c.linked_field && token.entity_id) {
+                                            const def = fieldDefs?.find(f => f.key === c.linked_field);
+                                            if (def?.maxKey) {
+                                                if (token.kind === 'character') {
+                                                    const fd = new FormData();
+                                                    fd.append(def.maxKey, newMax);
+                                                    axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(() => {});
+                                                } else if (token.kind === 'monster') {
+                                                    axios.post(`${API}/api/monster/edit/${token.entity_id}`, { [def.maxKey]: newMax }, { headers: authHeaders() }).catch(() => {});
+                                                }
+                                                entityCacheRef.current[token.kind === 'character' ? 'characters' : 'monsters'] = null;
+                                                spawnerRef.current?.updateEntityField(token.kind, token.entity_id, { [def.maxKey]: newMax });
+                                            }
+                                        }
                                     }}
                                     style={{ width: 44, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none', textAlign: 'center' }}
                                 />
@@ -1468,7 +1543,7 @@ const saveCounters = async (tokenId, counters) => {
                     isOpen={true}
                     onClose={() => setSheetModal(null)}
                     character={sheetModal.entity}
-                    onCharacterUpdated={() => { entityCacheRef.current.characters = null; }}
+                    onCharacterUpdated={(updated) => { entityCacheRef.current.characters = null; if (updated) syncLinkedCounters('character', updated); }}
                 />
             )}
             {sheetModal?.kind === 'monster' && (
@@ -1476,7 +1551,7 @@ const saveCounters = async (tokenId, counters) => {
                     isOpen={true}
                     onClose={() => setSheetModal(null)}
                     monster={sheetModal.entity}
-                    onMonsterUpdated={() => { entityCacheRef.current.monsters = null; }}
+                    onMonsterUpdated={(updated) => { entityCacheRef.current.monsters = null; if (updated) syncLinkedCounters('monster', updated); }}
                 />
             )}
         </div>
