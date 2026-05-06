@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useLayoutEffect } from 'react';
 import { Stage, Layer, Circle, Rect, Text, Group, Image as KonvaImage, Transformer } from 'react-konva';
 import axios from 'axios';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import SceneSelector from './ingame/SceneSelector.jsx';
 import TokenSpawner from './ingame/TokenSpawner.jsx';
+import ChatTab from './ingame/ChatTab.jsx';
 import EditCharacterModal from './pages/EditCharacterModal.jsx';
 import EditMonsterModal from './pages/EditMonsterModal.jsx';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-const HEADER_H  = 80;
+const API    = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const WS_URL = import.meta.env.VITE_WS_URL  || 'ws://localhost:8081';
+const HEADER_H  = 0;
 const TOOLBAR_H = 44;
-const SIDEBAR_W = 200;
+const SIDEBAR_W_DEFAULT = 200;
 const ZOOM_MIN  = 0.2;
 const ZOOM_MAX  = 4;
 const ZOOM_STEP = 1.12;
@@ -56,7 +58,7 @@ const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899',
 // Componente para tokens con imagen — Group único para que auras/barras sigan el drag
 // ref apunta al KonvaImage (no al Group) → Transformer solo rodea la imagen, no las auras
 const TokenImageNode = forwardRef(function TokenImageNode(
-    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDblClick, onDragEnd, onTransformEnd, onContextMenu,
+    { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDblClick, onDragStart, onDragEnd, onTransformEnd, onContextMenu,
       auras, activeCounters, isSelected, onBadgeClick },
     ref
 ) {
@@ -92,7 +94,7 @@ const TokenImageNode = forwardRef(function TokenImageNode(
 
     return (
         <Group ref={groupRef} x={x} y={y} opacity={opacity} draggable={draggable}
-            onClick={onClick} onTap={onClick} onDblClick={onDblClick} onDragEnd={onDragEnd} onContextMenu={onContextMenu}
+            onClick={onClick} onTap={onClick} onDblClick={onDblClick} onDragStart={onDragStart} onDragEnd={onDragEnd} onContextMenu={onContextMenu}
         >
             {auras.map((aura, idx) => {
                 const extent = (aura.feet / 5) * squareSize;
@@ -171,6 +173,7 @@ const SceneImageNode = forwardRef(function SceneImageNode(
 
 export default function VttBoard() {
     const { id: gameId } = useParams();
+    const navigate = useNavigate();
     const [scene,          setScene]          = useState(null);
     const [error,          setError]          = useState(null);
     const [isDm,           setIsDm]           = useState(false);
@@ -182,13 +185,13 @@ export default function VttBoard() {
     const [selectedTokenId, setSelectedTokenId] = useState(null);
     const [zoom,           setZoom]           = useState(1);
     const [ctxMenu,        setCtxMenu]        = useState(null); // {x,y,type,id,layer}
-    const [gamePlayers,    setGamePlayers]    = useState([]);
-    const [ctrlSubmenu,    setCtrlSubmenu]    = useState(false);
     const [dropIndicator,  setDropIndicator]  = useState(null); // {x,y,w,h} en coords de pantalla
     const [barEditor,      setBarEditor]      = useState(null); // {tokenId, screenX, screenY}
     const [auraEditor,     setAuraEditor]     = useState(null); // {tokenId, screenX, screenY}
     const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
     const [sheetModal,     setSheetModal]     = useState(null); // {kind, entity}
+    const [sidebarTab,     setSidebarTab]     = useState('tokens');
+    const [sidebarW,       setSidebarW]       = useState(SIDEBAR_W_DEFAULT);
 
     const stageRef            = useRef(null);
     const transformerRef      = useRef(null);
@@ -200,15 +203,21 @@ export default function VttBoard() {
     const lastPanPos          = useRef({ x: 0, y: 0 });
     const shiftHeld           = useRef(false);
     const ctxMenuRef          = useRef(null);
+    const vttWsRef            = useRef(null);
+    const sceneIdRef          = useRef(null);
+    const draggingTokenIdRef  = useRef(null);
+    const currentUserIdRef    = useRef(null);
+    const isDmRef             = useRef(false);
+    const sceneItemsRef       = useRef([]);
 
     const gridWidth        = scene?.grid_width  || 10;
     const gridHeight       = scene?.grid_height || 10;
     const squareSize       = 50;
     const boardPixelWidth  = gridWidth  * squareSize;
     const boardPixelHeight = gridHeight * squareSize;
-    const availableW = window.innerWidth  - SIDEBAR_W;
+    const availableW = window.innerWidth  - sidebarW;
     const availableH = window.innerHeight - HEADER_H - TOOLBAR_H;
-    const boardX = SIDEBAR_W + Math.floor((availableW - boardPixelWidth)  / 2);
+    const boardX = sidebarW + Math.floor((availableW - boardPixelWidth)  / 2);
     const boardY = HEADER_H + TOOLBAR_H + Math.floor((availableH - boardPixelHeight) / 2);
 
     // ── Rastrear Shift globalmente ────────────────────────────────────────────
@@ -283,7 +292,7 @@ export default function VttBoard() {
         const stage    = stageRef.current;
         const oldScale = stage.scaleX();
         const newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldScale * factor));
-        const cx = SIDEBAR_W + availableW / 2;
+        const cx = sidebarW + availableW / 2;
         const cy = HEADER_H + TOOLBAR_H + availableH / 2;
         const mousePointTo = { x: (cx - stage.x()) / oldScale, y: (cy - stage.y()) / oldScale };
         stage.scale({ x: newScale, y: newScale });
@@ -318,14 +327,98 @@ export default function VttBoard() {
                 setScene(res.data);
                 setIsDm(res.data.is_dm || false);
                 setCurrentUserId(res.data.current_user_id ?? null);
-                const playersRes = await axios.get(`${API}/scene/api/game/${gameId}/players`, { headers: authHeaders() });
-                setGamePlayers(playersRes.data ?? []);
                 await Promise.all([fetchTokens(res.data.id), fetchImages(res.data.id)]);
             } catch {
                 setError('No se pudo cargar la escena.');
             }
         };
         load();
+    }, [gameId]);
+
+    useEffect(() => { sceneIdRef.current = scene?.id ?? null; }, [scene]);
+    useEffect(() => { currentUserIdRef.current = currentUserId; }, [currentUserId]);
+    useEffect(() => { isDmRef.current = isDm; }, [isDm]);
+    useEffect(() => { sceneItemsRef.current = sceneItems; }, [sceneItems]);
+
+    const sendTokenEvent = (type, payload) => {
+        if (vttWsRef.current?.readyState === WebSocket.OPEN) {
+            vttWsRef.current.send(JSON.stringify({ type, ...payload }));
+        }
+    };
+
+    useEffect(() => {
+        if (!gameId) return;
+        let attempts = 0;
+        let ws = null;
+        let destroyed = false;
+        let connectTimer = null;
+
+        const connect = () => {
+            ws = new WebSocket(WS_URL);
+            vttWsRef.current = ws;
+
+            ws.onopen = () => {
+                attempts = 0;
+                ws.send(JSON.stringify({ type: 'auth', token: localStorage.getItem('vtt_token'), gameId: Number(gameId) }));
+            };
+
+            ws.onmessage = (e) => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    if (msg.actorId !== undefined && msg.actorId === currentUserIdRef.current) return;
+                    if (msg.sceneId !== undefined && msg.sceneId !== sceneIdRef.current) return;
+
+                    if (msg.type === 'scene_token_created') {
+                        const tok = msg.token;
+                        if (!isDmRef.current && tok.layer === 'gm') return;
+                        setSceneItems(prev => prev.some(i => i.id === tok.id) ? prev : [...prev, tok]);
+                    } else if (msg.type === 'scene_token_updated') {
+                        const tok = msg.token;
+                        if (!isDmRef.current && tok.layer === 'gm') {
+                            setSceneItems(prev => prev.filter(i => i.id !== tok.id));
+                            return;
+                        }
+                        setSceneItems(prev => {
+                            const exists = prev.some(i => i.id === tok.id);
+                            if (!exists) return [...prev, tok];
+                            return prev.map(i => {
+                                if (i.id !== tok.id) return i;
+                                if (draggingTokenIdRef.current === tok.id) {
+                                    const { x, y, col, row, ...rest } = tok;
+                                    return { ...i, ...rest };
+                                }
+                                return { ...i, ...tok };
+                            });
+                        });
+                    } else if (msg.type === 'scene_token_deleted') {
+                        setSceneItems(prev => prev.filter(i => i.id !== msg.tokenId));
+                    } else if (msg.type === 'scene_image_moved') {
+                        setSceneImages(prev => prev.map(i => i.id === msg.imageId ? { ...i, x: msg.x, y: msg.y } : i));
+                    } else if (msg.type === 'scene_image_resized') {
+                        setSceneImages(prev => prev.map(i => i.id === msg.imageId ? { ...i, x: msg.x, y: msg.y, width: msg.width, height: msg.height } : i));
+                    }
+                } catch {}
+            };
+
+            ws.onerror = () => {};
+            ws.onclose = () => {
+                vttWsRef.current = null;
+                if (destroyed) return;
+                if (attempts < 5) {
+                    const delay = Math.pow(2, attempts) * 1000;
+                    attempts++;
+                    connectTimer = setTimeout(connect, delay);
+                }
+            };
+        };
+
+        connectTimer = setTimeout(connect, 0);
+
+        return () => {
+            destroyed = true;
+            clearTimeout(connectTimer);
+            ws?.close();
+        };
     }, [gameId]);
 
     const handleSceneSelect = async (newScene) => {
@@ -437,6 +530,7 @@ export default function VttBoard() {
                 auras:     tokenData.default_auras || [],
             }, { headers: authHeaders() });
             setSceneItems(prev => [...prev, res.data]);
+            sendTokenEvent('scene_token_created', { token: res.data, sceneId: scene.id });
         } catch (err) {
             console.error('Failed to create token:', err);
         }
@@ -471,6 +565,7 @@ export default function VttBoard() {
 
     // ── Tokens: mover ─────────────────────────────────────────────────────────
     const handleDragEndToken = async (e, item) => {
+        draggingTokenIdRef.current = null;
         const freeMode = shiftHeld.current;
 
         if (freeMode) {
@@ -488,6 +583,7 @@ export default function VttBoard() {
             setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, x: px, y: py, col, row } : i));
             try {
                 await axios.put(`${API}/api/scene-token/${item.id}`, { x: px, y: py, col, row }, { headers: authHeaders() });
+                sendTokenEvent('scene_token_updated', { token: { ...item, x: px, y: py, col, row }, sceneId: sceneIdRef.current });
             } catch (err) { console.error(err); }
         } else {
             const px = e.target.x();
@@ -512,6 +608,7 @@ export default function VttBoard() {
             setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, x: null, y: null, col, row } : i));
             try {
                 await axios.put(`${API}/api/scene-token/${item.id}`, { x: null, y: null, col, row }, { headers: authHeaders() });
+                sendTokenEvent('scene_token_updated', { token: { ...item, x: null, y: null, col, row }, sceneId: sceneIdRef.current });
             } catch (err) { console.error(err); }
         }
     };
@@ -531,11 +628,13 @@ export default function VttBoard() {
         setSceneImages(prev => prev.map(i => i.id === item.id ? { ...i, ...pos } : i));
         try {
             await axios.put(`${API}/api/scene-image/${item.id}`, pos, { headers: authHeaders() });
+            sendTokenEvent('scene_image_moved', { imageId: item.id, sceneId: sceneIdRef.current, ...pos });
         } catch (err) { console.error(err); }
     };
 
     // ── Tokens con imagen: redimensionar ─────────────────────────────────────
     const handleTokenTransformEnd = async (e, item) => {
+        draggingTokenIdRef.current = null;
         // e.target = KonvaImage (x=0,y=0 dentro del Group)
         // El Group padre tiene la posición absoluta
         const node   = e.target;
@@ -574,6 +673,7 @@ export default function VttBoard() {
         setSceneItems(prev => prev.map(i => i.id === item.id ? { ...i, x: xSave, y: ySave, col, row, width: newWidth, height: newHeight } : i));
         try {
             await axios.put(`${API}/api/scene-token/${item.id}`, { x: xSave, y: ySave, col, row, width: newWidth, height: newHeight }, { headers: authHeaders() });
+            sendTokenEvent('scene_token_updated', { token: { ...item, x: xSave, y: ySave, col, row, width: newWidth, height: newHeight }, sceneId: sceneIdRef.current });
         } catch (err) { console.error(err); }
     };
 
@@ -614,6 +714,7 @@ export default function VttBoard() {
                 { x: newX, y: newY, width: newWidth, height: newHeight },
                 { headers: authHeaders() }
             );
+            sendTokenEvent('scene_image_resized', { imageId: item.id, sceneId: sceneIdRef.current, x: newX, y: newY, width: newWidth, height: newHeight });
         } catch (err) { console.error(err); }
     };
 
@@ -647,6 +748,7 @@ export default function VttBoard() {
             if (ctxMenu.type === 'token') {
                 await axios.delete(`${API}/api/scene-token/${ctxMenu.id}`, { headers: authHeaders() });
                 setSceneItems(prev => prev.filter(i => i.id !== ctxMenu.id));
+                sendTokenEvent('scene_token_deleted', { tokenId: ctxMenu.id, sceneId: sceneIdRef.current });
             } else {
                 await axios.delete(`${API}/api/scene-image/${ctxMenu.id}`, { headers: authHeaders() });
                 setSceneImages(prev => prev.filter(i => i.id !== ctxMenu.id));
@@ -663,6 +765,8 @@ export default function VttBoard() {
             if (ctxMenu.type === 'token') {
                 await axios.put(`${API}/api/scene-token/${ctxMenu.id}`, { layer: newLayer }, { headers: authHeaders() });
                 setSceneItems(prev => prev.map(i => i.id === ctxMenu.id ? { ...i, layer: newLayer } : i));
+                const tok = sceneItemsRef.current.find(i => i.id === ctxMenu.id);
+                if (tok) sendTokenEvent('scene_token_updated', { token: { ...tok, layer: newLayer }, sceneId: sceneIdRef.current });
             } else {
                 await axios.put(`${API}/api/scene-image/${ctxMenu.id}`, { layer: newLayer }, { headers: authHeaders() });
                 setSceneImages(prev => prev.map(i => i.id === ctxMenu.id ? { ...i, layer: newLayer } : i));
@@ -711,7 +815,10 @@ export default function VttBoard() {
                 return c;
             });
             if (!changed) return tok;
-            axios.put(`${API}/api/scene-token/${tok.id}`, { counters: newCounters }, { headers: authHeaders() }).catch(() => {});
+            const updatedTok = { ...tok, counters: newCounters };
+            axios.put(`${API}/api/scene-token/${tok.id}`, { counters: newCounters }, { headers: authHeaders() })
+                .then(() => sendTokenEvent('scene_token_updated', { token: updatedTok, sceneId: sceneIdRef.current }))
+                .catch(() => {});
             return { ...tok, counters: newCounters };
         }));
     };
@@ -720,6 +827,8 @@ const saveCounters = async (tokenId, counters) => {
         setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, counters } : i));
         try {
             await axios.put(`${API}/api/scene-token/${tokenId}`, { counters }, { headers: authHeaders() });
+            const tok = sceneItemsRef.current.find(i => i.id === tokenId);
+            if (tok) sendTokenEvent('scene_token_updated', { token: { ...tok, counters }, sceneId: sceneIdRef.current });
         } catch (err) { console.error(err); }
     };
 
@@ -727,6 +836,8 @@ const saveCounters = async (tokenId, counters) => {
         setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, auras } : i));
         try {
             await axios.put(`${API}/api/scene-token/${tokenId}`, { auras }, { headers: authHeaders() });
+            const tok = sceneItemsRef.current.find(i => i.id === tokenId);
+            if (tok) sendTokenEvent('scene_token_updated', { token: { ...tok, auras }, sceneId: sceneIdRef.current });
         } catch (err) { console.error(err); }
     };
 
@@ -768,6 +879,7 @@ const saveCounters = async (tokenId, counters) => {
                     }}
                     onClick={() => { if (item.layer === activeLayer) { setSelectedTokenId(prev => prev === item.id ? null : item.id); setSelectedImgId(null); } }}
                     onDblClick={() => handleTokenDblClick(item)}
+                    onDragStart={() => { draggingTokenIdRef.current = item.id; }}
                     onDragEnd={(e) => handleDragEndToken(e, item)}
                     onTransformEnd={(e) => handleTokenTransformEnd(e, item)}
                     onContextMenu={onCtxMenu}
@@ -793,6 +905,7 @@ const saveCounters = async (tokenId, counters) => {
                 draggable={canDragTok(item)}
                 onClick={() => { if (item.layer === activeLayer) { const next = selectedTokenId === item.id ? null : item.id; setSelectedTokenId(next); setSelectedImgId(null); if (!next) setBarEditor(null); } }}
                 onDblClick={() => handleTokenDblClick(item)}
+                onDragStart={() => { draggingTokenIdRef.current = item.id; }}
                 onDragEnd={(e) => handleDragEndToken(e, item)}
                 onContextMenu={onCtxMenu}
             >
@@ -853,7 +966,7 @@ const saveCounters = async (tokenId, counters) => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={() => { isPanning.current = false; }}
-            onClick={() => { setCtxMenu(null); setCtrlSubmenu(false); setBarEditor(null); setBadgeEdit(null); }}
+            onClick={() => { setCtxMenu(null); setBarEditor(null); setBadgeEdit(null); }}
             onContextMenu={(e) => e.preventDefault()}
             style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}
         >
@@ -867,18 +980,9 @@ const saveCounters = async (tokenId, counters) => {
                 onClick={(e) => { if (e.target === stageRef.current) { setSelectedImgId(null); setSelectedTokenId(null); } }}
                 onContextMenu={(e) => e.evt.preventDefault()}
             >
-                {/* Fondo del tablero */}
-                <Layer name="board-bg">
-                    <Rect
-                        x={boardX} y={boardY}
-                        width={boardPixelWidth} height={boardPixelHeight}
-                        fill="#ecf0f1"
-                        listening={false}
-                    />
-                </Layer>
-
-                {/* Imágenes (debajo del grid para que las líneas queden encima) */}
+                {/* Fondo + imágenes de escena (debajo del grid) */}
                 <Layer name="images" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                    <Rect x={boardX} y={boardY} width={boardPixelWidth} height={boardPixelHeight} fill="#ecf0f1" listening={false} />
                     {sceneImages.map(img => (
                         (!isDm && img.layer === 'gm') ? null : (
                             <SceneImageNode
@@ -896,20 +1000,19 @@ const saveCounters = async (tokenId, counters) => {
                     ))}
                 </Layer>
 
-                {/* Tokens por capa — auras/barras/badges dentro del mismo Group para drag en tiempo real */}
+                {/* Tokens de capa background */}
                 <Layer name="background" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
                     {backgroundItems.map(renderToken)}
                 </Layer>
 
-                {/* Grid: entre background y user, sin interacción */}
+                {/* Grid: entre background y tokens, sin interacción */}
                 <Layer name="grid" listening={false}>{renderGrid()}</Layer>
 
-                <Layer name="user" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                {/* Tokens de capas user y gm */}
+                <Layer name="tokens" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
                     {userItems.map(renderToken)}
+                    {isDm && gmItems.map(renderToken)}
                 </Layer>
-                {isDm && <Layer name="gm" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
-                    {gmItems.map(renderToken)}
-                </Layer>}
 
                 {/* Transformer sin clip para que los handles sean siempre visibles */}
                 <Layer name="transformer">
@@ -972,15 +1075,77 @@ const saveCounters = async (tokenId, counters) => {
             {/* ── PANEL IZQUIERDO ── */}
             <div style={{
                 position: 'absolute', top: HEADER_H + TOOLBAR_H, left: 0,
-                width: SIDEBAR_W, bottom: 0, zIndex: 10,
+                width: sidebarW, bottom: 0, zIndex: 10,
                 background: 'rgba(15, 23, 42, 0.85)',
-                borderRight: '1px solid #2d3e50', overflowY: 'auto',
+                borderRight: '1px solid #2d3e50',
+                display: 'flex', flexDirection: 'column',
+                overflowX: 'hidden',
             }}>
-                <TokenSpawner ref={spawnerRef} sceneItems={sceneItems} gameId={gameId}
-                    onEntityUpdated={(kind, updatedEntity) => {
-                        entityCacheRef.current[kind === 'character' ? 'characters' : 'monsters'] = null;
-                        if (updatedEntity) syncLinkedCounters(kind, updatedEntity);
+                {/* Tab bar */}
+                <div style={{ display: 'flex', borderBottom: '1px solid #2d3e50', flexShrink: 0 }}>
+                    {['tokens', 'chat', 'ajustes'].map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setSidebarTab(tab)}
+                            style={{
+                                flex: 1, padding: '6px 0', fontSize: 12, fontWeight: sidebarTab === tab ? 700 : 400,
+                                background: sidebarTab === tab ? '#3b82f6' : '#334155',
+                                color: 'white', border: 'none', cursor: 'pointer',
+                                textTransform: 'capitalize', transition: 'background 0.15s',
+                            }}
+                        >
+                            {tab === 'tokens' ? 'Tokens' : tab === 'chat' ? 'Chat' : 'Ajustes'}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Tab content */}
+                <div style={{ flex: 1, minHeight: 0, overflowX: 'hidden', overflowY: sidebarTab === 'tokens' ? 'auto' : 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    {sidebarTab === 'tokens' ? (
+                        <TokenSpawner ref={spawnerRef} sceneItems={sceneItems} gameId={gameId}
+                            onEntityUpdated={(kind, updatedEntity) => {
+                                entityCacheRef.current[kind === 'character' ? 'characters' : 'monsters'] = null;
+                                if (updatedEntity) syncLinkedCounters(kind, updatedEntity);
+                            }}
+                        />
+                    ) : sidebarTab === 'chat' ? (
+                        <ChatTab gameId={gameId} />
+                    ) : (
+                        <div style={{ padding: '16px 12px' }}>
+                            <button
+                                onClick={() => navigate('/Games')}
+                                style={{
+                                    width: '100%', padding: '8px 0', fontSize: 13, fontWeight: 600,
+                                    background: '#ef4444', color: 'white', border: 'none',
+                                    borderRadius: 6, cursor: 'pointer', transition: 'background 0.15s',
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
+                            >
+                                Salir de la partida
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Handle de resize */}
+                <div
+                    onMouseDown={(e) => {
+                        e.preventDefault();
+                        const onMove = (ev) => setSidebarW(Math.min(420, Math.max(160, ev.clientX)));
+                        const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                        };
+                        window.addEventListener('mousemove', onMove);
+                        window.addEventListener('mouseup', onUp);
                     }}
+                    style={{
+                        position: 'absolute', top: 0, right: 0, width: 6, bottom: 0,
+                        cursor: 'col-resize', background: 'transparent', zIndex: 11,
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#334155'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 />
             </div>
 
@@ -1026,74 +1191,6 @@ const saveCounters = async (tokenId, counters) => {
                                     {l.label}
                                 </button>
                             ))}
-                            {ctxMenu.type === 'token' && (
-                                <div style={{ position: 'relative' }}>
-                                    <button
-                                        onClick={() => setCtrlSubmenu(v => !v)}
-                                        style={{
-                                            width: '100%', padding: '7px 14px',
-                                            background: ctrlSubmenu ? 'rgba(99,102,241,0.1)' : 'transparent',
-                                            color: '#cbd5e1', border: 'none', cursor: 'pointer',
-                                            textAlign: 'left', fontSize: 13,
-                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                        }}
-                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
-                                        onMouseLeave={e => e.currentTarget.style.background = ctrlSubmenu ? 'rgba(99,102,241,0.1)' : 'transparent'}
-                                    >
-                                        <span>🎮 Asignar control</span>
-                                        <span style={{ fontSize: 10 }}>▶</span>
-                                    </button>
-                                    {ctrlSubmenu && (
-                                        <div style={{
-                                            position: 'absolute', left: '100%', top: 0,
-                                            background: '#1e293b', border: '1px solid #334155',
-                                            borderRadius: 6, minWidth: 160, zIndex: 101,
-                                            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-                                        }}>
-                                            {(() => {
-                                                const tok = sceneItems.find(i => i.id === ctxMenu.id);
-                                                const assignControl = async (userId) => {
-                                                    try {
-                                                        const res = await axios.put(`${API}/api/scene-token/${ctxMenu.id}/control`, { user_id: userId }, { headers: authHeaders() });
-                                                        setSceneItems(prev => prev.map(i => i.id === ctxMenu.id ? { ...i, controlled_by_id: res.data.controlled_by_id } : i));
-                                                    } catch (err) { console.error(err); }
-                                                    setCtrlSubmenu(false);
-                                                    setCtxMenu(null);
-                                                };
-                                                return <>
-                                                    <button
-                                                        onClick={() => assignControl(null)}
-                                                        style={{
-                                                            width: '100%', padding: '7px 14px', background: tok?.controlled_by_id == null ? 'rgba(99,102,241,0.15)' : 'transparent',
-                                                            color: tok?.controlled_by_id == null ? '#818cf8' : '#cbd5e1', border: 'none', cursor: 'pointer',
-                                                            textAlign: 'left', fontSize: 13,
-                                                        }}
-                                                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
-                                                        onMouseLeave={e => e.currentTarget.style.background = tok?.controlled_by_id == null ? 'rgba(99,102,241,0.15)' : 'transparent'}
-                                                    >
-                                                        {tok?.controlled_by_id == null ? '✓ ' : ''}Sin control
-                                                    </button>
-                                                    {gamePlayers.map(p => (
-                                                        <button key={p.id}
-                                                            onClick={() => assignControl(p.id)}
-                                                            style={{
-                                                                width: '100%', padding: '7px 14px',
-                                                                background: tok?.controlled_by_id === p.id ? 'rgba(99,102,241,0.15)' : 'transparent',
-                                                                color: tok?.controlled_by_id === p.id ? '#818cf8' : '#cbd5e1',
-                                                                border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 13,
-                                                            }}
-                                                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.1)'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = tok?.controlled_by_id === p.id ? 'rgba(99,102,241,0.15)' : 'transparent'}
-                                                        >
-                                                            {tok?.controlled_by_id === p.id ? '✓ ' : ''}{p.name}{p.is_dm ? ' (DM)' : ''}
-                                                        </button>
-                                                    ))}
-                                                </>;
-                                            })()}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
                             <div style={{ height: 1, background: '#334155', margin: '4px 0' }} />
                         </>
                     )}
@@ -1518,7 +1615,7 @@ const saveCounters = async (tokenId, counters) => {
             {/* ── AVISO DROP IMAGEN ── */}
             <div style={{
                 position: 'absolute', bottom: 16,
-                left: SIDEBAR_W + 16, zIndex: 10,
+                left: sidebarW + 16, zIndex: 10,
                 color: '#475569', fontSize: 11,
                 pointerEvents: 'none',
             }}>

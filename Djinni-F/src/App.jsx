@@ -23,7 +23,7 @@ function AppContent() {
 
     return (
         <>
-            <Header/>
+            {!isVtt && <Header/>}
             <Routes>
                 <Route path="/" element={<MainLayout/>}/>
                 <Route path="/login" element={<LoginPage/>} />
