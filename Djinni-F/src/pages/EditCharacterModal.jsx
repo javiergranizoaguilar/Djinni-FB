@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'http://localhost:8000';
@@ -306,9 +306,20 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const [newItem, setNewItem]       = useState({ item_name: '', quantity: 1, is_equipped: false });
   const [newSpell, setNewSpell]     = useState({ name: '', level: 0, school: 'Evocación', casting_time: '1 acción', range: '18m', duration: 'Instantáneo' });
 
+  const [pos, setPos]   = useState({ x: 0, y: 0 });
+  const [size, setSize] = useState({ w: 1020, h: 700 });
+  const [minimized, setMinimized] = useState(false);
+  const modalRef = useRef(null);
+
   useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    if (!isOpen) return;
+    const initW = Math.min(1020, Math.round(window.innerWidth * 0.9));
+    const initH = Math.min(700, Math.round(window.innerHeight * 0.85));
+    setSize({ w: initW, h: initH });
+    setPos({
+      x: Math.round((window.innerWidth - initW) / 2),
+      y: Math.round((window.innerHeight - initH) / 2),
+    });
   }, [isOpen]);
 
   useEffect(() => {
@@ -493,23 +504,96 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const inp = (overrides={}) => ({ ...S.input, ...overrides });
   const smallInp = { ...S.input, padding:'6px 8px', fontSize:12 };
 
+  const handleDragStart = (e) => {
+    if (e.target.closest('button,input,select,textarea,label,a')) return;
+    e.preventDefault();
+    const startX = e.clientX - pos.x, startY = e.clientY - pos.y;
+    const onMove = (ev) => {
+      let nx = ev.clientX - startX, ny = ev.clientY - startY;
+      nx = Math.max(80 - size.w, Math.min(window.innerWidth - 80, nx));
+      ny = Math.max(0, Math.min(window.innerHeight - 40, ny));
+      setPos({ x: nx, y: ny });
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const handleResizeStart = (e, dir) => {
+    e.preventDefault(); e.stopPropagation();
+    const sx = e.clientX, sy = e.clientY, sl = pos.x, st = pos.y, sw = size.w, sh = size.h;
+    const MIN_W = 320, MIN_H = 240, MAX_W = Math.round(window.innerWidth * 0.95), MAX_H = Math.round(window.innerHeight * 0.95);
+    const onMove = (ev) => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      let nx = sl, ny = st, nw = sw, nh = sh;
+      if (dir.includes('e')) nw = Math.min(MAX_W, Math.max(MIN_W, sw + dx));
+      if (dir.includes('s')) nh = Math.min(MAX_H, Math.max(MIN_H, sh + dy));
+      if (dir.includes('w')) { nw = Math.min(MAX_W, Math.max(MIN_W, sw - dx)); nx = sl + sw - nw; }
+      if (dir.includes('n')) { nh = Math.min(MAX_H, Math.max(MIN_H, sh - dy)); ny = st + sh - nh; }
+      setPos({ x: nx, y: ny }); setSize({ w: nw, h: nh });
+    };
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  const rh = (dir) => {
+    const b = { position: 'absolute', zIndex: 10 }, E = 6, C = 14;
+    if (dir === 'n')  return { ...b, cursor: 'n-resize',  top: 0,    left: C,  right: C,  height: E };
+    if (dir === 's')  return { ...b, cursor: 's-resize',  bottom: 0, left: C,  right: C,  height: E };
+    if (dir === 'e')  return { ...b, cursor: 'e-resize',  right: 0,  top: C,   bottom: C, width:  E };
+    if (dir === 'w')  return { ...b, cursor: 'w-resize',  left: 0,   top: C,   bottom: C, width:  E };
+    if (dir === 'ne') return { ...b, cursor: 'ne-resize', top: 0,    right: 0, width: C,  height: C };
+    if (dir === 'nw') return { ...b, cursor: 'nw-resize', top: 0,    left: 0,  width: C,  height: C };
+    if (dir === 'se') return { ...b, cursor: 'se-resize', bottom: 0, right: 0, width: C,  height: C };
+    if (dir === 'sw') return { ...b, cursor: 'sw-resize', bottom: 0, left: 0,  width: C,  height: C };
+  };
+
+  if (!isOpen || !character) return null;
+
+  if (minimized) {
+    return (
+      <div style={{
+        position: 'fixed', top: 32, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 9999,
+        background: 'linear-gradient(160deg,#0f172a 0%,#111827 100%)',
+        border: '1px solid #6366f1', borderRadius: 12,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px #334155 inset',
+        overflow: 'hidden', minWidth: 260, maxWidth: 340,
+        cursor: 'pointer', userSelect: 'none',
+      }}>
+        <div style={{ height: 3, background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#6366f1)', width: '100%' }} />
+        <div
+          style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
+          onDoubleClick={() => setMinimized(false)}
+        >
+          <span style={{ color: '#6366f1', fontSize: 18 }}>⚔</span>
+          <span style={{ color: '#f1f5f9', fontSize: 16, fontWeight: 700, fontFamily: "'Cinzel','Georgia',serif", letterSpacing: '0.04em' }}>
+            {formData.name || 'Sin nombre'}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={S.overlay} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div ref={modalRef} style={{ ...S.modal, position: 'fixed', left: pos.x, top: pos.y, width: size.w, height: size.h, maxWidth: 'none', display: 'flex', flexDirection: 'column' }}>
+      {['n','s','e','w','ne','nw','se','sw'].map(dir => (
+        <div key={dir} style={rh(dir)} onMouseDown={e => handleResizeStart(e, dir)} />
+      ))}
       {/* Google Font hint */}
       <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet" />
-
-      <div style={S.modal}>
         <div style={S.topAccent} />
 
         {/* HEADER */}
-        <div style={S.header}>
+        <div style={{ ...S.header, cursor: 'move', userSelect: 'none', flexShrink: 0 }} onMouseDown={handleDragStart}>
           <div style={S.portraitRing}>
             {previewPortrait
               ? <img src={previewPortrait} style={S.portraitImg} alt="portrait" />
               : <span style={S.portraitPlaceholder}>⚔</span>}
           </div>
           <div style={S.headerInfo}>
-            <h2 style={S.charName}>{formData.name || 'Nuevo Personaje'}</h2>
+            <h2 style={S.charName} onDoubleClick={e => { e.stopPropagation(); setMinimized(true); }}>{formData.name || 'Nuevo Personaje'}</h2>
             <div style={S.classBadges}>
               {formData.level.filter(l => l.class).map((l, i) => (
                 <span key={i} style={S.badge}>{l.class} {l.subclass ? `· ${l.subclass}` : ''}</span>
@@ -530,6 +614,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
             </div>
           </div>
           <button style={S.closeBtn} onClick={onClose}
+            onMouseDown={e=>e.stopPropagation()}
             onMouseEnter={e=>e.currentTarget.style.color='#f1f5f9'}
             onMouseLeave={e=>e.currentTarget.style.color='#64748b'}>✕</button>
         </div>
@@ -546,8 +631,8 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         </div>
 
         {/* BODY */}
-        <form onSubmit={handleSubmit}>
-          <div style={S.body}>
+        <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ ...S.body, flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {error && <div style={S.errorBox}>{error}</div>}
 
             {/* ── GENERAL ── */}
@@ -919,6 +1004,5 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
           </div>
         </form>
       </div>
-    </div>
   );
 }

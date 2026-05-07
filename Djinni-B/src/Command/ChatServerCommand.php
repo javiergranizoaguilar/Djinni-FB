@@ -238,6 +238,57 @@ class ChatServerCommand extends Command
                 return;
             }
 
+            // ── SCENE IMAGE created/deleted broadcast ───────────────────────
+            if ($payload['type'] === 'scene_image_created') {
+                if (!isset($this->meta[$tcpConn])) {
+                    return;
+                }
+                $m       = $this->meta[$tcpConn];
+                $image   = $payload['image'] ?? null;
+                $sceneId = isset($payload['sceneId']) ? (int) $payload['sceneId'] : 0;
+                if (!$image || !$sceneId) {
+                    return;
+                }
+                $broadcast = json_encode([
+                    'type'    => 'scene_image_created',
+                    'image'   => $image,
+                    'sceneId' => $sceneId,
+                    'actorId' => $m['userId'],
+                ]);
+                $room = $this->rooms[$m['gameId']] ?? null;
+                if ($room) {
+                    foreach ($room as $peer) {
+                        $peer->send($broadcast);
+                    }
+                }
+                return;
+            }
+
+            if ($payload['type'] === 'scene_image_deleted') {
+                if (!isset($this->meta[$tcpConn])) {
+                    return;
+                }
+                $m       = $this->meta[$tcpConn];
+                $imageId = isset($payload['imageId']) ? (int) $payload['imageId'] : 0;
+                $sceneId = isset($payload['sceneId']) ? (int) $payload['sceneId'] : 0;
+                if (!$imageId || !$sceneId) {
+                    return;
+                }
+                $broadcast = json_encode([
+                    'type'    => 'scene_image_deleted',
+                    'imageId' => $imageId,
+                    'sceneId' => $sceneId,
+                    'actorId' => $m['userId'],
+                ]);
+                $room = $this->rooms[$m['gameId']] ?? null;
+                if ($room) {
+                    foreach ($room as $peer) {
+                        $peer->send($broadcast);
+                    }
+                }
+                return;
+            }
+
             // ── CHAT message ────────────────────────────────────────────────
             if ($payload['type'] === 'message') {
                 if (!isset($this->meta[$tcpConn])) {

@@ -56,6 +56,7 @@ class RosterController extends AbstractController
 
     private function folderHasVisibleItems(RosterFolder $folder, array $allFolders, array $allItems, array $grantMap, $user, bool $isDm): bool
     {
+        if ($isDm) return true;
         foreach ($allItems as $item) {
             if ($item->getFolder()?->getId() === $folder->getId()) {
                 $grants = $grantMap[$item->getId()] ?? [];

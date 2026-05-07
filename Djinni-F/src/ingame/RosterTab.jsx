@@ -455,7 +455,7 @@ export default function RosterTab({ gameId, characters }) {
                         onKeyDown={e => e.key === 'Enter' && createFolder()}
                         placeholder="Nueva carpeta…"
                         style={{
-                            flex: 1, background: '#0f172a', border: '1px solid #334155',
+                            flex: 1, minWidth: 0, background: '#0f172a', border: '1px solid #334155',
                             borderRadius: 5, padding: '4px 7px',
                             color: '#f1f5f9', fontSize: 11, outline: 'none',
                         }}
@@ -464,6 +464,7 @@ export default function RosterTab({ gameId, characters }) {
                         style={{
                             background: '#334155', border: 'none', borderRadius: 5,
                             color: '#94a3b8', fontSize: 13, padding: '0 8px', cursor: 'pointer',
+                            flexShrink: 0,
                         }}
                         title="Crear carpeta">📁+</button>
                 </div>

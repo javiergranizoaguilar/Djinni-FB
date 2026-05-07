@@ -59,7 +59,7 @@ const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899',
 // ref apunta al KonvaImage (no al Group) → Transformer solo rodea la imagen, no las auras
 const TokenImageNode = forwardRef(function TokenImageNode(
     { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDblClick, onDragStart, onDragEnd, onTransformEnd, onContextMenu,
-      auras, activeCounters, isSelected, onBadgeClick },
+      auras, activeCounters, isSelected, onBadgeClick, onNameDblClick },
     ref
 ) {
     const [img, setImg] = useState(null);
@@ -134,6 +134,15 @@ const TokenImageNode = forwardRef(function TokenImageNode(
                     </Group>
                 );
             })}
+            {item.name && (
+                <Text
+                    x={0} y={h + 4} width={w}
+                    text={item.name} fontSize={12} fill="#9ca3af"
+                    align="center" fontFamily="sans-serif"
+                    onDblClick={(e) => { e.cancelBubble = true; onNameDblClick && onNameDblClick(e); }}
+                    onTap={(e) => { e.cancelBubble = true; onNameDblClick && onNameDblClick(e); }}
+                />
+            )}
         </Group>
     );
 });
@@ -189,9 +198,20 @@ export default function VttBoard() {
     const [barEditor,      setBarEditor]      = useState(null); // {tokenId, screenX, screenY}
     const [auraEditor,     setAuraEditor]     = useState(null); // {tokenId, screenX, screenY}
     const [badgeEdit,      setBadgeEdit]      = useState(null); // {tokenId, counterIdx, screenX, screenY, value}
+    const [namePopups,     setNamePopups]     = useState([]); // [{id, name, x, y}]
     const [sheetModal,     setSheetModal]     = useState(null); // {kind, entity}
     const [sidebarTab,     setSidebarTab]     = useState('tokens');
     const [sidebarW,       setSidebarW]       = useState(SIDEBAR_W_DEFAULT);
+    const [windowSize,     setWindowSize]     = useState({ w: window.innerWidth, h: window.innerHeight });
+    const [boardOrigin,    setBoardOrigin]    = useState(() => {
+        const bw = 10 * 50, bh = 10 * 50;
+        const availW = window.innerWidth  - SIDEBAR_W_DEFAULT;
+        const availH = window.innerHeight - HEADER_H - TOOLBAR_H;
+        return {
+            x: SIDEBAR_W_DEFAULT + Math.floor((availW - bw) / 2),
+            y: HEADER_H + TOOLBAR_H + Math.floor((availH - bh) / 2),
+        };
+    });
 
     const stageRef            = useRef(null);
     const transformerRef      = useRef(null);
@@ -215,10 +235,10 @@ export default function VttBoard() {
     const squareSize       = 50;
     const boardPixelWidth  = gridWidth  * squareSize;
     const boardPixelHeight = gridHeight * squareSize;
-    const availableW = window.innerWidth  - sidebarW;
-    const availableH = window.innerHeight - HEADER_H - TOOLBAR_H;
-    const boardX = sidebarW + Math.floor((availableW - boardPixelWidth)  / 2);
-    const boardY = HEADER_H + TOOLBAR_H + Math.floor((availableH - boardPixelHeight) / 2);
+    const availableW = windowSize.w - sidebarW;
+    const availableH = windowSize.h - HEADER_H - TOOLBAR_H;
+    const boardX = boardOrigin.x;
+    const boardY = boardOrigin.y;
 
     // ── Rastrear Shift globalmente ────────────────────────────────────────────
     useEffect(() => {
@@ -228,6 +248,25 @@ export default function VttBoard() {
         window.addEventListener('keyup',   up);
         return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
     }, []);
+
+    // ── Actualizar dimensiones al redimensionar la ventana ───────────────────
+    useEffect(() => {
+        const onResize = () => setWindowSize({ w: window.innerWidth, h: window.innerHeight });
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // ── Recentrar el tablero al cambiar la escena o el sidebar (no en resize) ─
+    useEffect(() => {
+        const bw = (scene?.grid_width  || 10) * 50;
+        const bh = (scene?.grid_height || 10) * 50;
+        const availW = windowSize.w - sidebarW;
+        const availH = windowSize.h - HEADER_H - TOOLBAR_H;
+        setBoardOrigin({
+            x: sidebarW + Math.floor((availW - bw) / 2),
+            y: HEADER_H + TOOLBAR_H + Math.floor((availH - bh) / 2),
+        });
+    }, [scene?.id, scene?.grid_width, scene?.grid_height, sidebarW, windowSize.w, windowSize.h]);
 
     // Sincronizar Transformer con imagen o token seleccionado
     useEffect(() => {
@@ -396,6 +435,10 @@ export default function VttBoard() {
                         setSceneImages(prev => prev.map(i => i.id === msg.imageId ? { ...i, x: msg.x, y: msg.y } : i));
                     } else if (msg.type === 'scene_image_resized') {
                         setSceneImages(prev => prev.map(i => i.id === msg.imageId ? { ...i, x: msg.x, y: msg.y, width: msg.width, height: msg.height } : i));
+                    } else if (msg.type === 'scene_image_created') {
+                        setSceneImages(prev => prev.some(i => i.id === msg.image.id) ? prev : [...prev, msg.image]);
+                    } else if (msg.type === 'scene_image_deleted') {
+                        setSceneImages(prev => prev.filter(i => i.id !== msg.imageId));
                     }
                 } catch {}
             };
@@ -450,8 +493,8 @@ export default function VttBoard() {
 
     // ── Snap al grid ──────────────────────────────────────────────────────────
     const snapImageToGrid = (x, y) => ({
-        x: boardX + Math.round((x - boardX) / squareSize) * squareSize,
-        y: boardY + Math.round((y - boardY) / squareSize) * squareSize,
+        x: Math.round(x / squareSize) * squareSize,
+        y: Math.round(y / squareSize) * squareSize,
     });
 
     const snapX = (val) => boardX + Math.round((val - boardX) / squareSize) * squareSize;
@@ -464,8 +507,8 @@ export default function VttBoard() {
         if (!isFileDrag(e) || !stageRef.current) return;
         const defaultW = 200, defaultH = 200;
         const { x: stageX, y: stageY } = screenToStage(e.clientX, e.clientY);
-        const snapped = snapImageToGrid(stageX - defaultW / 2, stageY - defaultH / 2);
-        const screenTL = stageToScreen(snapped.x, snapped.y);
+        const snapped = snapImageToGrid(stageX - boardX - defaultW / 2, stageY - boardY - defaultH / 2);
+        const screenTL = stageToScreen(boardX + snapped.x, boardY + snapped.y);
         const scale = stageRef.current.scaleX();
         setDropIndicator({ x: screenTL.x, y: screenTL.y, w: defaultW * scale, h: defaultH * scale });
     };
@@ -541,7 +584,7 @@ export default function VttBoard() {
         const defaultW = 200;
         const defaultH = 200;
 
-        const snapped = snapImageToGrid(stageX - defaultW / 2, stageY - defaultH / 2);
+        const snapped = snapImageToGrid(stageX - boardX - defaultW / 2, stageY - boardY - defaultH / 2);
 
         const formData = new FormData();
         formData.append('image',  file);
@@ -558,6 +601,7 @@ export default function VttBoard() {
                 { headers: { ...authHeaders() } }
             );
             setSceneImages(prev => [...prev, res.data]);
+            sendTokenEvent('scene_image_created', { image: res.data, sceneId: scene.id });
         } catch (err) {
             console.error('Failed to upload image:', err);
         }
@@ -691,10 +735,11 @@ export default function VttBoard() {
         let newHeight = Math.max(squareSize, node.height() * scaleY);
 
         if (!shiftHeld.current) {
-            const left   = snapX(newX);
-            const top    = snapY(newY);
-            const right  = snapX(newX + newWidth);
-            const bottom = snapY(newY + newHeight);
+            const sr     = (v) => Math.round(v / squareSize) * squareSize;
+            const left   = sr(newX);
+            const top    = sr(newY);
+            const right  = sr(newX + newWidth);
+            const bottom = sr(newY + newHeight);
             newX      = left;
             newY      = top;
             newWidth  = Math.max(squareSize, right - left);
@@ -752,6 +797,7 @@ export default function VttBoard() {
             } else {
                 await axios.delete(`${API}/api/scene-image/${ctxMenu.id}`, { headers: authHeaders() });
                 setSceneImages(prev => prev.filter(i => i.id !== ctxMenu.id));
+                sendTokenEvent('scene_image_deleted', { imageId: ctxMenu.id, sceneId: sceneIdRef.current });
                 if (selectedImgId   === ctxMenu.id) setSelectedImgId(null);
                 if (selectedTokenId === ctxMenu.id) setSelectedTokenId(null);
             }
@@ -879,6 +925,7 @@ const saveCounters = async (tokenId, counters) => {
                     }}
                     onClick={() => { if (item.layer === activeLayer) { setSelectedTokenId(prev => prev === item.id ? null : item.id); setSelectedImgId(null); } }}
                     onDblClick={() => handleTokenDblClick(item)}
+                    onNameDblClick={(e) => { if (item.name) setNamePopups(prev => [...prev, { id: Date.now(), name: item.name, x: e.evt.clientX, y: e.evt.clientY }]); }}
                     onDragStart={() => { draggingTokenIdRef.current = item.id; }}
                     onDragEnd={(e) => handleDragEndToken(e, item)}
                     onTransformEnd={(e) => handleTokenTransformEnd(e, item)}
@@ -946,6 +993,15 @@ const saveCounters = async (tokenId, counters) => {
                         </Group>
                     );
                 })}
+                {item.name && (
+                    <Text
+                        x={-squareSize / 2} y={halfMax + 4} width={squareSize}
+                        text={item.name} fontSize={12} fill="#9ca3af"
+                        align="center" fontFamily="sans-serif"
+                        onDblClick={(e) => { e.cancelBubble = true; setNamePopups(prev => [...prev, { id: Date.now(), name: item.name, x: e.evt.clientX, y: e.evt.clientY }]); }}
+                        onTap={(e) => { e.cancelBubble = true; setNamePopups(prev => [...prev, { id: Date.now(), name: item.name, x: e.evt.clientX, y: e.evt.clientY }]); }}
+                    />
+                )}
             </Group>
         );
     };
@@ -972,8 +1028,8 @@ const saveCounters = async (tokenId, counters) => {
         >
             {/* ── CANVAS ── */}
             <Stage
-                width={window.innerWidth}
-                height={window.innerHeight}
+                width={windowSize.w}
+                height={windowSize.h}
                 style={{ background: '#2c3e50', position: 'absolute', top: 0, left: 0 }}
                 ref={stageRef}
                 onWheel={handleWheel}
@@ -983,21 +1039,23 @@ const saveCounters = async (tokenId, counters) => {
                 {/* Fondo + imágenes de escena (debajo del grid) */}
                 <Layer name="images" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
                     <Rect x={boardX} y={boardY} width={boardPixelWidth} height={boardPixelHeight} fill="#ecf0f1" listening={false} />
-                    {sceneImages.map(img => (
-                        (!isDm && img.layer === 'gm') ? null : (
-                            <SceneImageNode
-                                key={img.id}
-                                ref={(node) => { if (node) imageNodesRef.current[img.id] = node; }}
-                                item={img}
-                                opacity={getOpacity(img)}
-                                draggable={canDragImg(img)}
-                                onClick={() => { if (img.layer === activeLayer) setSelectedImgId(img.id); }}
-                                onDragEnd={(e) => handleImageDragEnd(e, img)}
-                                onTransformEnd={(e) => handleImageTransformEnd(e, img)}
-                                onContextMenu={(e) => { if (img.layer === activeLayer) openCtxMenu(e, 'image', img.id, img.layer); }}
-                            />
-                        )
-                    ))}
+                    <Group x={boardX} y={boardY}>
+                        {sceneImages.map(img => (
+                            (!isDm && img.layer === 'gm') ? null : (
+                                <SceneImageNode
+                                    key={img.id}
+                                    ref={(node) => { if (node) imageNodesRef.current[img.id] = node; }}
+                                    item={img}
+                                    opacity={getOpacity(img)}
+                                    draggable={canDragImg(img)}
+                                    onClick={() => { if (img.layer === activeLayer) setSelectedImgId(img.id); }}
+                                    onDragEnd={(e) => handleImageDragEnd(e, img)}
+                                    onTransformEnd={(e) => handleImageTransformEnd(e, img)}
+                                    onContextMenu={(e) => { if (img.layer === activeLayer) openCtxMenu(e, 'image', img.id, img.layer); }}
+                                />
+                            )
+                        ))}
+                    </Group>
                 </Layer>
 
                 {/* Tokens de capa background */}
@@ -1025,6 +1083,50 @@ const saveCounters = async (tokenId, counters) => {
                     />
                 </Layer>
             </Stage>
+
+            {/* ── NAME POPUPS ── */}
+            {namePopups.map(popup => (
+                <div
+                    key={popup.id}
+                    onMouseDown={(e) => {
+                        e.stopPropagation();
+                        const ox = e.clientX - popup.x;
+                        const oy = e.clientY - popup.y;
+                        const id = popup.id;
+                        const onMove = (ev) => {
+                            setNamePopups(prev => prev.map(p => p.id === id ? { ...p, x: ev.clientX - ox, y: ev.clientY - oy } : p));
+                        };
+                        const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                        };
+                        window.addEventListener('mousemove', onMove);
+                        window.addEventListener('mouseup', onUp);
+                    }}
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                        position: 'fixed',
+                        top: popup.y,
+                        left: popup.x,
+                        background: 'rgba(0,0,0,0.45)',
+                        borderRadius: 8,
+                        padding: '6px 12px',
+                        zIndex: 250,
+                        cursor: 'grab',
+                        userSelect: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                    }}
+                >
+                    <span style={{ color: '#9ca3af', fontSize: 14, fontFamily: 'sans-serif' }}>{popup.name}</span>
+                    <button
+                        onMouseDown={e => e.stopPropagation()}
+                        onClick={e => { e.stopPropagation(); setNamePopups(prev => prev.filter(p => p.id !== popup.id)); }}
+                        style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 0 }}
+                    >×</button>
+                </div>
+            ))}
 
             {/* ── TOOLBAR ── */}
             <div style={{

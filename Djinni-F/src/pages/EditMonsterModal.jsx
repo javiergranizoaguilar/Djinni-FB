@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUpdated }) {
@@ -44,9 +44,20 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
     const [uploadingToken,  setUploadingToken] = useState(false);
     const [uploadingPortrait, setUploadingPortrait] = useState(false);
 
+    const [pos, setPos]   = useState({ x: 0, y: 0 });
+    const [size, setSize] = useState({ w: 860, h: 640 });
+    const [minimized, setMinimized] = useState(false);
+    const modalRef = useRef(null);
+
     useEffect(() => {
-        document.body.style.overflow = isOpen ? 'hidden' : '';
-        return () => { document.body.style.overflow = ''; };
+        if (!isOpen) return;
+        const initW = Math.min(860, Math.round(window.innerWidth * 0.9));
+        const initH = Math.min(640, Math.round(window.innerHeight * 0.85));
+        setSize({ w: initW, h: initH });
+        setPos({
+            x: Math.round((window.innerWidth - initW) / 2),
+            y: Math.round((window.innerHeight - initH) / 2),
+        });
     }, [isOpen]);
 
     useEffect(() => {
@@ -97,6 +108,31 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
     }, [monster, isOpen]);
 
     if (!isOpen || !monster) return null;
+
+    if (minimized) {
+        return (
+            <div style={{
+                position: 'fixed', top: 32, left: '50%', transform: 'translateX(-50%)',
+                zIndex: 9999,
+                background: 'linear-gradient(160deg,#0f172a 0%,#111827 100%)',
+                border: '1px solid #6366f1', borderRadius: 12,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px #334155 inset',
+                overflow: 'hidden', minWidth: 260, maxWidth: 340,
+                cursor: 'pointer', userSelect: 'none',
+            }}>
+                <div style={{ height: 3, background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#6366f1)', width: '100%' }} />
+                <div
+                    style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
+                    onDoubleClick={() => setMinimized(false)}
+                >
+                    <span style={{ color: '#6366f1', fontSize: 18 }}>⚔</span>
+                    <span style={{ color: '#f1f5f9', fontSize: 16, fontWeight: 700, fontFamily: "'Cinzel','Georgia',serif", letterSpacing: '0.04em' }}>
+                        {formData.name || 'Sin nombre'}
+                    </span>
+                </div>
+            </div>
+        );
+    }
 
     const handleInputChange = (e) => {
         const { name, value, type } = e.target;
@@ -164,10 +200,81 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
     const sizes = ['Tiny', 'Small', 'Medium', 'Large', 'Huge', 'Gargantuan'];
     const types = ['Aberration', 'Beast', 'Celestial', 'Construct', 'Dragon', 'Elemental', 'Fey', 'Fiend', 'Giant', 'Humanoid', 'Monstrosity', 'Ooze', 'Plant', 'Undead'];
 
+    const handleDragStart = (e) => {
+        if (e.target.closest('button,input,select,textarea,label,a')) return;
+        e.preventDefault();
+        const startX = e.clientX - pos.x, startY = e.clientY - pos.y;
+        const onMove = (ev) => {
+            let nx = ev.clientX - startX, ny = ev.clientY - startY;
+            nx = Math.max(80 - size.w, Math.min(window.innerWidth - 80, nx));
+            ny = Math.max(0, Math.min(window.innerHeight - 40, ny));
+            setPos({ x: nx, y: ny });
+        };
+        const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    };
+
+    const handleResizeStart = (e, dir) => {
+        e.preventDefault(); e.stopPropagation();
+        const sx = e.clientX, sy = e.clientY, sl = pos.x, st = pos.y, sw = size.w, sh = size.h;
+        const MIN_W = 320, MIN_H = 240, MAX_W = Math.round(window.innerWidth * 0.95), MAX_H = Math.round(window.innerHeight * 0.95);
+        const onMove = (ev) => {
+            const dx = ev.clientX - sx, dy = ev.clientY - sy;
+            let nx = sl, ny = st, nw = sw, nh = sh;
+            if (dir.includes('e')) nw = Math.min(MAX_W, Math.max(MIN_W, sw + dx));
+            if (dir.includes('s')) nh = Math.min(MAX_H, Math.max(MIN_H, sh + dy));
+            if (dir.includes('w')) { nw = Math.min(MAX_W, Math.max(MIN_W, sw - dx)); nx = sl + sw - nw; }
+            if (dir.includes('n')) { nh = Math.min(MAX_H, Math.max(MIN_H, sh - dy)); ny = st + sh - nh; }
+            setPos({ x: nx, y: ny }); setSize({ w: nw, h: nh });
+        };
+        const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    };
+
+    const rh = (dir) => {
+        const b = { position: 'absolute', zIndex: 10 }, E = 6, C = 14;
+        if (dir === 'n')  return { ...b, cursor: 'n-resize',  top: 0,    left: C,  right: C,  height: E };
+        if (dir === 's')  return { ...b, cursor: 's-resize',  bottom: 0, left: C,  right: C,  height: E };
+        if (dir === 'e')  return { ...b, cursor: 'e-resize',  right: 0,  top: C,   bottom: C, width:  E };
+        if (dir === 'w')  return { ...b, cursor: 'w-resize',  left: 0,   top: C,   bottom: C, width:  E };
+        if (dir === 'ne') return { ...b, cursor: 'ne-resize', top: 0,    right: 0, width: C,  height: C };
+        if (dir === 'nw') return { ...b, cursor: 'nw-resize', top: 0,    left: 0,  width: C,  height: C };
+        if (dir === 'se') return { ...b, cursor: 'se-resize', bottom: 0, right: 0, width: C,  height: C };
+        if (dir === 'sw') return { ...b, cursor: 'sw-resize', bottom: 0, left: 0,  width: C,  height: C };
+    };
+
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto py-10">
-            <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-lg shadow-xl w-full max-w-4xl border border-gray-200 dark:border-[#23482f] max-h-full overflow-y-auto">
-                <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">Editar Monstruo: {formData.name}</h2>
+        <div ref={modalRef} style={{
+            position: 'fixed', zIndex: 9999, left: pos.x, top: pos.y,
+            width: size.w, height: size.h,
+            background: '#1a2c20', border: '1px solid #23482f',
+            borderRadius: 8, display: 'flex', flexDirection: 'column',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)', overflow: 'hidden',
+            fontFamily: 'sans-serif',
+        }}>
+            {['n','s','e','w','ne','nw','se','sw'].map(dir => (
+                <div key={dir} style={rh(dir)} onMouseDown={e => handleResizeStart(e, dir)} />
+            ))}
+            <div
+                style={{ cursor: 'move', userSelect: 'none', padding: '10px 16px', borderBottom: '1px solid #23482f', display: 'flex', alignItems: 'center', gap: 8, background: '#112217', flexShrink: 0 }}
+                onMouseDown={handleDragStart}
+            >
+                <h2
+                    style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#d1fae5', flex: 1 }}
+                    onDoubleClick={e => { e.stopPropagation(); setMinimized(true); }}
+                >
+                    Editar Monstruo: {formData.name}
+                </h2>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    onMouseDown={e => e.stopPropagation()}
+                    style={{ background: 'transparent', border: '1px solid #374151', borderRadius: 6, color: '#6b7280', cursor: 'pointer', padding: '4px 9px', fontSize: 16, lineHeight: 1 }}
+                >✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 24px' }}>
                 
                 {error && (
                     <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
