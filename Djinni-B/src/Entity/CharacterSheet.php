@@ -488,7 +488,7 @@ class CharacterSheet
 
     public function setAcrobatics(?string $acrobatics): static
     {
-        $this->acrobatics = $acrobatics;
+        $this->acrobatics = SkillProficiency::assertNullable($acrobatics);
 
         return $this;
     }
@@ -512,7 +512,7 @@ class CharacterSheet
 
     public function setAnimalHandling(?string $animal_handling): static
     {
-        $this->animal_handling = $animal_handling;
+        $this->animal_handling = SkillProficiency::assertNullable($animal_handling);
 
         return $this;
     }
@@ -536,7 +536,7 @@ class CharacterSheet
 
     public function setArcana(?string $arcana): static
     {
-        $this->arcana = $arcana;
+        $this->arcana = SkillProficiency::assertNullable($arcana);
 
         return $this;
     }
@@ -560,7 +560,7 @@ class CharacterSheet
 
     public function setAthletics(?string $athletics): static
     {
-        $this->athletics = $athletics;
+        $this->athletics = SkillProficiency::assertNullable($athletics);
 
         return $this;
     }
@@ -584,7 +584,7 @@ class CharacterSheet
 
     public function setDeception(?string $deception): static
     {
-        $this->deception = $deception;
+        $this->deception = SkillProficiency::assertNullable($deception);
 
         return $this;
     }
@@ -608,7 +608,7 @@ class CharacterSheet
 
     public function setHistory(?string $history): static
     {
-        $this->history = $history;
+        $this->history = SkillProficiency::assertNullable($history);
 
         return $this;
     }
@@ -632,7 +632,7 @@ class CharacterSheet
 
     public function setInsight(?string $insight): static
     {
-        $this->insight = $insight;
+        $this->insight = SkillProficiency::assertNullable($insight);
 
         return $this;
     }
@@ -656,7 +656,7 @@ class CharacterSheet
 
     public function setIntimidation(?string $intimidation): static
     {
-        $this->intimidation = $intimidation;
+        $this->intimidation = SkillProficiency::assertNullable($intimidation);
 
         return $this;
     }
@@ -680,7 +680,7 @@ class CharacterSheet
 
     public function setInvestigation(?string $investigation): static
     {
-        $this->investigation = $investigation;
+        $this->investigation = SkillProficiency::assertNullable($investigation);
 
         return $this;
     }
@@ -704,7 +704,7 @@ class CharacterSheet
 
     public function setMedicine(?string $medicine): static
     {
-        $this->medicine = $medicine;
+        $this->medicine = SkillProficiency::assertNullable($medicine);
 
         return $this;
     }
@@ -728,7 +728,7 @@ class CharacterSheet
 
     public function setNature(?string $nature): static
     {
-        $this->nature = $nature;
+        $this->nature = SkillProficiency::assertNullable($nature);
 
         return $this;
     }
@@ -752,7 +752,7 @@ class CharacterSheet
 
     public function setPerception(?string $perception): static
     {
-        $this->perception = $perception;
+        $this->perception = SkillProficiency::assertNullable($perception);
 
         return $this;
     }
@@ -776,7 +776,7 @@ class CharacterSheet
 
     public function setPerformance(?string $performance): static
     {
-        $this->performance = $performance;
+        $this->performance = SkillProficiency::assertNullable($performance);
 
         return $this;
     }
@@ -800,7 +800,7 @@ class CharacterSheet
 
     public function setPersuasion(?string $persuasion): static
     {
-        $this->persuasion = $persuasion;
+        $this->persuasion = SkillProficiency::assertNullable($persuasion);
 
         return $this;
     }
@@ -824,7 +824,7 @@ class CharacterSheet
 
     public function setReligion(?string $religion): static
     {
-        $this->religion = $religion;
+        $this->religion = SkillProficiency::assertNullable($religion);
 
         return $this;
     }
@@ -848,7 +848,7 @@ class CharacterSheet
 
     public function setSleightOfHand(?string $sleight_of_hand): static
     {
-        $this->sleight_of_hand = $sleight_of_hand;
+        $this->sleight_of_hand = SkillProficiency::assertNullable($sleight_of_hand);
 
         return $this;
     }
@@ -872,7 +872,7 @@ class CharacterSheet
 
     public function setStealth(?string $stealth): static
     {
-        $this->stealth = $stealth;
+        $this->stealth = SkillProficiency::assertNullable($stealth);
 
         return $this;
     }
@@ -896,7 +896,7 @@ class CharacterSheet
 
     public function setSurvival(?string $survival): static
     {
-        $this->survival = $survival;
+        $this->survival = SkillProficiency::assertNullable($survival);
 
         return $this;
     }

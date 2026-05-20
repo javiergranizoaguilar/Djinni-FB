@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 
-export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUpdated }) {
+const rollD20 = () => Math.floor(Math.random() * 20) + 1;
+
+export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUpdated, onSendMessage }) {
     const [formData, setFormData] = useState({
         name: '',
         source_book: '',
@@ -109,32 +112,45 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         }
     }, [monster, isOpen]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
+
     if (!isOpen || !monster) return null;
 
-    if (minimized) {
-        return (
-            <div style={{
-                position: 'fixed', top: 32, left: '50%', transform: 'translateX(-50%)',
-                zIndex: 9999,
-                background: 'linear-gradient(160deg,#0f172a 0%,#111827 100%)',
-                border: '1px solid #6366f1', borderRadius: 12,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px #334155 inset',
-                overflow: 'hidden', minWidth: 260, maxWidth: 340,
-                cursor: 'pointer', userSelect: 'none',
-            }}>
-                <div style={{ height: 3, background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#6366f1)', width: '100%' }} />
-                <div
-                    style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
-                    onDoubleClick={() => setMinimized(false)}
-                >
-                    <span style={{ color: '#6366f1', fontSize: 18 }}>⚔</span>
-                    <span style={{ color: '#f1f5f9', fontSize: 16, fontWeight: 700, fontFamily: "'Cinzel','Georgia',serif", letterSpacing: '0.04em' }}>
-                        {formData.name || 'Sin nombre'}
-                    </span>
-                </div>
-            </div>
-        );
-    }
+    const monsterProfBonus = (cr) => {
+        const n = Number(cr) || 0;
+        return Math.max(2, Math.floor((n - 1) / 4) + 2);
+    };
+
+    const rollMonsterAbility = (statKey, label) => {
+        if (typeof onSendMessage !== 'function') return;
+        const score = Number(formData[statKey] ?? 10);
+        const m = Math.floor((score - 10) / 2);
+        const d = rollD20();
+        onSendMessage(JSON.stringify({
+            type: 'dice_roll', expr: `${label.toUpperCase()} chequeo`,
+            rolls: [d], mod: m, total: d + m,
+        }));
+    };
+
+    const rollMonsterSave = (statKey, label) => {
+        if (typeof onSendMessage !== 'function') return;
+        const score = Number(formData[statKey] ?? 10);
+        const abilityMod = Math.floor((score - 10) / 2);
+        const sv = formData.saving_throws || {};
+        const hasSave = Object.prototype.hasOwnProperty.call(sv, statKey);
+        const profB = hasSave ? monsterProfBonus(formData.challenge_rating) : 0;
+        const m = abilityMod + profB;
+        const d = rollD20();
+        onSendMessage(JSON.stringify({
+            type: 'dice_roll', expr: `${label.toUpperCase()} salvación`,
+            rolls: [d], mod: m, total: d + m,
+        }));
+    };
 
     const handleInputChange = (e) => {
         const { name, value, type } = e.target;
@@ -247,7 +263,39 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         if (dir === 'sw') return { ...b, cursor: 'sw-resize', bottom: 0, left: 0,  width: C,  height: C };
     };
 
-    return (
+    if (minimized) {
+        return createPortal((
+            <div
+                style={{
+                    position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999,
+                    background: '#334155', border: '1px solid #475569', borderRadius: 8,
+                    color: '#e2e8f0', padding: '8px 14px',
+                    fontFamily: 'sans-serif', fontSize: 13, fontWeight: 600,
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.6)',
+                    cursor: 'move', userSelect: 'none',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    minWidth: 160, maxWidth: 320,
+                }}
+                onMouseDown={handleDragStart}
+                onDoubleClick={() => setMinimized(false)}
+                title="Doble clic: restaurar"
+            >
+                <span style={{ color: '#94a3b8', fontSize: 14 }}>🐉</span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formData.name || 'Sin nombre'}
+                </span>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    onMouseDown={e => e.stopPropagation()}
+                    onDoubleClick={e => e.stopPropagation()}
+                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 4px' }}
+                >✕</button>
+            </div>
+        ), document.body);
+    }
+
+    return createPortal((
         <div ref={modalRef} style={{
             position: 'fixed', zIndex: 9999, left: pos.x, top: pos.y,
             width: size.w, height: size.h,
@@ -264,8 +312,9 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                 onMouseDown={handleDragStart}
             >
                 <h2
-                    style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#d1fae5', flex: 1 }}
+                    style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#d1fae5', flex: 1, cursor: 'pointer' }}
                     onDoubleClick={e => { e.stopPropagation(); setMinimized(true); }}
+                    title="Doble clic: minimizar"
                 >
                     Editar Monstruo: {formData.name}
                 </h2>
@@ -386,18 +435,35 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                         <div>
                             <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-100">Estadísticas</h3>
                             <div className="grid grid-cols-3 gap-2">
-                                {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => (
-                                    <div key={stat}>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 capitalize">{stat.toUpperCase()}</label>
-                                        <input 
-                                            type="number" 
-                                            name={stat}
-                                            value={formData[stat]} 
-                                            onChange={handleInputChange}
-                                            className="w-full px-2 py-1 text-center border rounded-md dark:bg-[#112217] dark:border-[#23482f] dark:text-white"
-                                        />
-                                    </div>
-                                ))}
+                                {['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
+                                    const sv = formData.saving_throws || {};
+                                    const hasSave = Object.prototype.hasOwnProperty.call(sv, stat);
+                                    const clickable = typeof onSendMessage === 'function';
+                                    return (
+                                        <div key={stat}>
+                                            <label
+                                                className="block text-xs font-medium text-gray-500 dark:text-gray-400 capitalize"
+                                                onClick={() => rollMonsterAbility(stat, stat)}
+                                                style={{ cursor: clickable ? 'pointer' : 'default', textDecoration: clickable ? 'underline dotted' : 'none' }}
+                                                title={clickable ? 'Click: chequeo de característica' : ''}
+                                            >{stat.toUpperCase()}</label>
+                                            <input
+                                                type="number"
+                                                name={stat}
+                                                value={formData[stat]}
+                                                onChange={handleInputChange}
+                                                className="w-full px-2 py-1 text-center border rounded-md dark:bg-[#112217] dark:border-[#23482f] dark:text-white"
+                                            />
+                                            {hasSave && (
+                                                <span
+                                                    onClick={() => rollMonsterSave(stat, stat)}
+                                                    style={{ cursor: clickable ? 'pointer' : 'default', textDecoration: clickable ? 'underline dotted' : 'none', fontSize: 10, color: '#22c55e', display: 'block', textAlign: 'center', marginTop: 2 }}
+                                                    title={clickable ? 'Click: tirada de salvación' : ''}
+                                                >salv</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -476,5 +542,5 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                 </form>
             </div>
         </div>
-    );
+    ), document.body);
 }

@@ -2063,7 +2063,8 @@ const saveCounters = async (tokenId, counters) => {
                     <div style={{ display: sidebarTab === 'chat' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
                         <ChatTab gameId={gameId} isActive={sidebarTab === 'chat'} />
                     </div>
-                    {sidebarTab === 'tokens' ? (
+                    {/* TokenSpawner always mounted so its sheet modals survive tab changes */}
+                    <div style={{ display: sidebarTab === 'tokens' ? 'flex' : 'none', flex: 1, minHeight: 0, flexDirection: 'column' }}>
                         <TokenSpawner ref={spawnerRef} sceneItems={sceneItems} gameId={gameId}
                             onEntityUpdated={(kind, updatedEntity) => {
                                 entityCacheRef.current[kind === 'character' ? 'characters' : 'monsters'] = null;
@@ -2079,7 +2080,8 @@ const saveCounters = async (tokenId, counters) => {
                             }}
                             onChildModalChange={setChildModalOpen}
                         />
-                    ) : sidebarTab === 'ajustes' ? (
+                    </div>
+                    {sidebarTab === 'ajustes' && (
                         <div style={{ padding: '16px 12px' }}>
                             <button
                                 onClick={() => navigate('/Games')}
@@ -2094,7 +2096,7 @@ const saveCounters = async (tokenId, counters) => {
                                 Salir de la partida
                             </button>
                         </div>
-                    ) : null}
+                    )}
                 </div>
 
                 {/* Handle de resize — oculto cuando hay un modal de hoja abierto */}
@@ -2770,6 +2772,11 @@ const saveCounters = async (tokenId, counters) => {
                     onClose={() => setSheetModal(null)}
                     monster={sheetModal.entity}
                     onMonsterUpdated={(updated) => { entityCacheRef.current.monsters = null; if (updated) { syncLinkedCounters('monster', updated); syncLinkedVision('monster', updated); } }}
+                    onSendMessage={(content) => {
+                        if (vttWsRef.current?.readyState === WebSocket.OPEN) {
+                            vttWsRef.current.send(JSON.stringify({ type: 'message', content }));
+                        }
+                    }}
                 />
             )}
         </div>

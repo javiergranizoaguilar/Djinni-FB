@@ -205,9 +205,9 @@ export default function ChatTab({ gameId, isActive }) {
                                     borderLeft: '3px solid #818cf8',
                                     borderRadius: 6,
                                     padding: '6px 10px',
-                                    display: 'flex', alignItems: 'baseline', gap: 8,
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                                 }}>
-                                    <span style={{ color: '#818cf8', fontSize: 13 }}>🎲 {parsed.expr}:</span>
+                                    <span style={{ color: '#818cf8', fontSize: 13, whiteSpace: 'pre-line', textAlign: 'center' }}>🎲 {parsed.expr}</span>
                                     <RollTooltip
                                         raw={parsed.rolls} mod={parsed.mod || null}
                                         color="#e2e8f0" fontSize={18} fontWeight={700}

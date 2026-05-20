@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 
 const API = 'http://localhost:8000';
@@ -164,9 +165,10 @@ const S = {
   },
   profDot: (prof) => ({
     width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-    background: prof === 'expert' ? '#f59e0b' : prof === 'proficent' ? '#22c55e' : '#1e293b',
-    border: `1px solid ${prof === 'expert' ? '#f59e0b' : prof === 'proficent' ? '#22c55e' : '#475569'}`,
+    background: prof === 'expertise' ? '#f59e0b' : prof === 'proficiency' ? '#22c55e' : '#1e293b',
+    border: `1px solid ${prof === 'expertise' ? '#f59e0b' : prof === 'proficiency' ? '#22c55e' : '#475569'}`,
     cursor: 'pointer',
+    boxShadow: prof === 'expertise' ? '0 0 0 2px #1e293b, 0 0 0 3px #f59e0b' : 'none',
   }),
   listItem: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -267,6 +269,13 @@ const SAVE_KEYS = [
 ];
 const SKILLS_LIST = Object.keys(SKILL_STAT);
 
+const normSkill = (v) => {
+  if (v === 'proficiency' || v === 'expertise') return v;
+  if (v === 'proficent') return 'proficiency';
+  if (v === 'expert') return 'expertise';
+  return '';
+};
+
 const SCHOOL_OPTIONS = ['Abjuración','Conjuración','Adivinación','Encantamiento','Evocación','Ilusión','Nigromancia','Transmutación'];
 
 const ABILITY_OPTIONS = [
@@ -337,15 +346,15 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     hp: 0, max_hp: 0, vision: 0,
     sav_str: false, sav_str_mod: 0, sav_dex: false, sav_dex_mod: 0,
     sav_int: false, sav_int_mod: 0, sav_wis: false, sav_wis_mod: 0, sav_cha: false, sav_cha_mod: 0,
-    acrobatics: 'none', acrobatics_mod: 0, animal_handling: 'none', animal_handling_mod: 0,
-    arcana: 'none', arcana_mod: 0, athletics: 'none', athletics_mod: 0,
-    deception: 'none', deception_mod: 0, history: 'none', history_mod: 0,
-    insight: 'none', insight_mod: 0, intimidation: 'none', intimidation_mod: 0,
-    investigation: 'none', investigation_mod: 0, medicine: 'none', medicine_mod: 0,
-    nature: 'none', nature_mod: 0, perception: 'none', perception_mod: 0,
-    performance: 'none', performance_mod: 0, persuasion: 'none', persuasion_mod: 0,
-    religion: 'none', religion_mod: 0, sleight_of_hand: 'none', sleight_of_hand_mod: 0,
-    stealth: 'none', stealth_mod: 0, survival: 'none', survival_mod: 0,
+    acrobatics: '', acrobatics_mod: 0, animal_handling: '', animal_handling_mod: 0,
+    arcana: '', arcana_mod: 0, athletics: '', athletics_mod: 0,
+    deception: '', deception_mod: 0, history: '', history_mod: 0,
+    insight: '', insight_mod: 0, intimidation: '', intimidation_mod: 0,
+    investigation: '', investigation_mod: 0, medicine: '', medicine_mod: 0,
+    nature: '', nature_mod: 0, perception: '', perception_mod: 0,
+    performance: '', performance_mod: 0, persuasion: '', persuasion_mod: 0,
+    religion: '', religion_mod: 0, sleight_of_hand: '', sleight_of_hand_mod: 0,
+    stealth: '', stealth_mod: 0, survival: '', survival_mod: 0,
   });
 
   const [attacks, setAttacks]       = useState([]);
@@ -413,24 +422,24 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       sav_int: character.sav_int||false, sav_int_mod: character.sav_int_mod||0,
       sav_wis: character.sav_wis||false, sav_wis_mod: character.sav_wis_mod||0,
       sav_cha: character.sav_cha||false, sav_cha_mod: character.sav_cha_mod||0,
-      acrobatics: character.acrobatics||'none', acrobatics_mod: character.acrobatics_mod||0,
-      animal_handling: character.animal_handling||'none', animal_handling_mod: character.animal_handling_mod||0,
-      arcana: character.arcana||'none', arcana_mod: character.arcana_mod||0,
-      athletics: character.athletics||'none', athletics_mod: character.athletics_mod||0,
-      deception: character.deception||'none', deception_mod: character.deception_mod||0,
-      history: character.history||'none', history_mod: character.history_mod||0,
-      insight: character.insight||'none', insight_mod: character.insight_mod||0,
-      intimidation: character.intimidation||'none', intimidation_mod: character.intimidation_mod||0,
-      investigation: character.investigation||'none', investigation_mod: character.investigation_mod||0,
-      medicine: character.medicine||'none', medicine_mod: character.medicine_mod||0,
-      nature: character.nature||'none', nature_mod: character.nature_mod||0,
-      perception: character.perception||'none', perception_mod: character.perception_mod||0,
-      performance: character.performance||'none', performance_mod: character.performance_mod||0,
-      persuasion: character.persuasion||'none', persuasion_mod: character.persuasion_mod||0,
-      religion: character.religion||'none', religion_mod: character.religion_mod||0,
-      sleight_of_hand: character.sleight_of_hand||'none', sleight_of_hand_mod: character.sleight_of_hand_mod||0,
-      stealth: character.stealth||'none', stealth_mod: character.stealth_mod||0,
-      survival: character.survival||'none', survival_mod: character.survival_mod||0,
+      acrobatics: normSkill(character.acrobatics), acrobatics_mod: character.acrobatics_mod||0,
+      animal_handling: normSkill(character.animal_handling), animal_handling_mod: character.animal_handling_mod||0,
+      arcana: normSkill(character.arcana), arcana_mod: character.arcana_mod||0,
+      athletics: normSkill(character.athletics), athletics_mod: character.athletics_mod||0,
+      deception: normSkill(character.deception), deception_mod: character.deception_mod||0,
+      history: normSkill(character.history), history_mod: character.history_mod||0,
+      insight: normSkill(character.insight), insight_mod: character.insight_mod||0,
+      intimidation: normSkill(character.intimidation), intimidation_mod: character.intimidation_mod||0,
+      investigation: normSkill(character.investigation), investigation_mod: character.investigation_mod||0,
+      medicine: normSkill(character.medicine), medicine_mod: character.medicine_mod||0,
+      nature: normSkill(character.nature), nature_mod: character.nature_mod||0,
+      perception: normSkill(character.perception), perception_mod: character.perception_mod||0,
+      performance: normSkill(character.performance), performance_mod: character.performance_mod||0,
+      persuasion: normSkill(character.persuasion), persuasion_mod: character.persuasion_mod||0,
+      religion: normSkill(character.religion), religion_mod: character.religion_mod||0,
+      sleight_of_hand: normSkill(character.sleight_of_hand), sleight_of_hand_mod: character.sleight_of_hand_mod||0,
+      stealth: normSkill(character.stealth), stealth_mod: character.stealth_mod||0,
+      survival: normSkill(character.survival), survival_mod: character.survival_mod||0,
     });
     setAttacks(character.attacks || []);
     setAbilities(character.abilities || []);
@@ -494,6 +503,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     }
     onClose();
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') handleClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   if (!isOpen || !character) return null;
 
@@ -596,6 +613,54 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       damage2: dmg2Total, dmg2Raw, dmg2Mod,
       dmg2Crit,
       dmgType2: dmg2Type,
+    }));
+  };
+
+  const rollAbilityCheck = (statKey, label) => {
+    if (typeof onSendMessage !== 'function') return;
+    const score = Number(formData.stats?.[statKey] ?? 10);
+    const m = Math.floor((score - 10) / 2);
+    const d = rollDice('1d20').total;
+    onSendMessage(JSON.stringify({
+      type: 'dice_roll', expr: `${label}`,
+      rolls: [d], mod: m, total: d + m,
+    }));
+  };
+
+  const rollSkillCheck = (skill) => {
+    if (typeof onSendMessage !== 'function') return;
+    const statKey = SKILL_STAT[skill];
+    const score = Number(formData.stats?.[statKey] ?? 10);
+    const abilityMod = Math.floor((score - 10) / 2);
+    const totalLvl = Array.isArray(formData.level)
+      ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0) || 1
+      : 1;
+    const pb = Math.ceil(totalLvl / 4) + 1;
+    const prof = formData[skill];
+    const profB = prof === 'proficiency' ? pb : prof === 'expertise' ? pb * 2 : 0;
+    const extra = parseInt(formData[`${skill}_mod`], 10) || 0;
+    const mTotal = abilityMod + profB + extra;
+    const d = rollDice('1d20').total;
+    onSendMessage(JSON.stringify({
+      type: 'dice_roll', expr: `${SKILL_ES[skill]}`,
+      rolls: [d], mod: mTotal, total: d + mTotal,
+    }));
+  };
+
+  const rollSavingThrow = (sv) => {
+    if (typeof onSendMessage !== 'function') return;
+    const score = Number(formData.stats?.[sv.stat] ?? 10);
+    const abilityMod = Math.floor((score - 10) / 2);
+    const totalLvl = Array.isArray(formData.level)
+      ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0) || 1
+      : 1;
+    const profB = formData[sv.key] ? profBonus(totalLvl) : 0;
+    const extra = parseInt(formData[`${sv.key}_mod`], 10) || 0;
+    const mTotal = abilityMod + profB + extra;
+    const d = rollDice('1d20').total;
+    onSendMessage(JSON.stringify({
+      type: 'dice_roll', expr: `Salvación de\n${sv.label}`,
+      rolls: [d], mod: mTotal, total: d + mTotal,
     }));
   };
 
@@ -774,34 +839,39 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     if (dir === 'sw') return { ...b, cursor: 'sw-resize', bottom: 0, left: 0,  width: C,  height: C };
   };
 
-  if (!isOpen || !character) return null;
-
   if (minimized) {
-    return (
-      <div style={{
-        position: 'fixed', top: 32, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 9999,
-        background: 'linear-gradient(160deg,#0f172a 0%,#111827 100%)',
-        border: '1px solid #6366f1', borderRadius: 12,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px #334155 inset',
-        overflow: 'hidden', minWidth: 260, maxWidth: 340,
-        cursor: 'pointer', userSelect: 'none',
-      }}>
-        <div style={{ height: 3, background: 'linear-gradient(90deg,#6366f1,#8b5cf6,#6366f1)', width: '100%' }} />
-        <div
-          style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}
-          onDoubleClick={() => setMinimized(false)}
-        >
-          <span style={{ color: '#6366f1', fontSize: 18 }}>⚔</span>
-          <span style={{ color: '#f1f5f9', fontSize: 16, fontWeight: 700, fontFamily: "'Cinzel','Georgia',serif", letterSpacing: '0.04em' }}>
-            {formData.name || 'Sin nombre'}
-          </span>
-        </div>
+    return createPortal((
+      <div
+        style={{
+          position: 'fixed', left: pos.x, top: pos.y, zIndex: 9999,
+          background: '#334155', border: '1px solid #475569', borderRadius: 8,
+          color: '#e2e8f0', padding: '8px 14px',
+          fontFamily: 'sans-serif', fontSize: 13, fontWeight: 600,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.6)',
+          cursor: 'move', userSelect: 'none',
+          display: 'flex', alignItems: 'center', gap: 10,
+          minWidth: 160, maxWidth: 320,
+        }}
+        onMouseDown={handleDragStart}
+        onDoubleClick={() => setMinimized(false)}
+        title="Doble clic: restaurar"
+      >
+        <span style={{ color: '#94a3b8', fontSize: 14 }}>⚔</span>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {formData.name || 'Sin nombre'}
+        </span>
+        <button
+          type="button"
+          onClick={handleClose}
+          onMouseDown={e => e.stopPropagation()}
+          onDoubleClick={e => e.stopPropagation()}
+          style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 4px' }}
+        >✕</button>
       </div>
-    );
+    ), document.body);
   }
 
-  return (
+  return createPortal((
     <div ref={modalRef} style={{ ...S.modal, position: 'fixed', left: pos.x, top: pos.y, width: size.w, height: size.h, maxWidth: 'none', display: 'flex', flexDirection: 'column' }}>
       {['n','s','e','w','ne','nw','se','sw'].map(dir => (
         <div key={dir} style={rh(dir)} onMouseDown={e => handleResizeStart(e, dir)} />
@@ -818,7 +888,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
               : <span style={S.portraitPlaceholder}>⚔</span>}
           </div>
           <div style={S.headerInfo}>
-            <h2 style={S.charName} onDoubleClick={e => { e.stopPropagation(); setMinimized(true); }}>{formData.name || 'Nuevo Personaje'}</h2>
+            <h2 style={{ ...S.charName, cursor: 'pointer' }} onDoubleClick={e => { e.stopPropagation(); setMinimized(true); }} title="Doble clic: minimizar">{formData.name || 'Nuevo Personaje'}</h2>
             <div style={S.classBadges}>
               {formData.level.filter(l => l.class).map((l, i) => (
                 <span key={i} style={S.badge}>{l.class} {l.subclass ? `· ${l.subclass}` : ''}</span>
@@ -954,7 +1024,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:10 }}>
                     {Object.keys(STAT_LABELS).map(stat => (
                       <div key={stat} style={S.statBox}>
-                        <span style={S.statName}>{STAT_LABELS[stat]}</span>
+                        <span
+                          style={{ ...S.statName, cursor: typeof onSendMessage === 'function' ? 'pointer' : 'default', textDecoration: typeof onSendMessage === 'function' ? 'underline dotted' : 'none' }}
+                          onClick={() => rollAbilityCheck(stat, STAT_LABELS[stat])}
+                          title={typeof onSendMessage === 'function' ? 'Click para tirar al chat' : ''}
+                        >{STAT_LABELS[stat]}</span>
                         <input type="number" value={formData.stats[stat]}
                           onChange={e=>handleStatChange(stat, e.target.value)}
                           style={S.statInput} />
@@ -1006,7 +1080,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                       <div key={sv.key} style={S.savRow}>
                         <input type="checkbox" name={sv.key} checked={formData[sv.key]} onChange={handleInputChange}
                           style={{ accentColor:'#6366f1', width:14, height:14, cursor:'pointer' }} />
-                        <span style={{ color:'#cbd5e1', fontSize:12, fontFamily:'sans-serif', flex:1 }}>{sv.label}</span>
+                        <span
+                          style={{ color:'#cbd5e1', fontSize:12, fontFamily:'sans-serif', flex:1, cursor: typeof onSendMessage === 'function' ? 'pointer' : 'default', textDecoration: typeof onSendMessage === 'function' ? 'underline dotted' : 'none' }}
+                          onClick={() => rollSavingThrow(sv)}
+                          title={typeof onSendMessage === 'function' ? 'Click para tirar al chat' : ''}
+                        >{sv.label}</span>
                         <span style={{ color:'#64748b', fontSize:10, fontFamily:'sans-serif' }}>MOD</span>
                         <input type="number" name={`${sv.key}_mod`} value={formData[`${sv.key}_mod`]} onChange={handleInputChange}
                           style={{ ...smallInp, width:46, textAlign:'center', padding:'4px 4px' }} />
@@ -1021,13 +1099,22 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                       {SKILLS_LIST.map(skill => {
                         const prof = formData[skill];
                         const cycleProf = () => {
-                          const opts = ['none','proficent','expert'];
+                          const opts = ['','proficiency','expertise'];
                           set(skill, opts[(opts.indexOf(prof)+1)%3]);
                         };
+                        const clickable = typeof onSendMessage === 'function';
                         return (
                           <div key={skill} style={S.skillRow}>
-                            <div style={S.profDot(prof)} onClick={cycleProf} title={prof} />
-                            <span style={{ color:'#cbd5e1', fontSize:11, fontFamily:'sans-serif', flex:1 }}>
+                            <div style={S.profDot(prof)} onClick={cycleProf} title={prof || 'ninguno'} />
+                            <span
+                              onClick={() => clickable && rollSkillCheck(skill)}
+                              style={{
+                                color:'#cbd5e1', fontSize:11, fontFamily:'sans-serif', flex:1,
+                                cursor: clickable ? 'pointer' : 'default',
+                                textDecoration: clickable ? 'underline dotted' : 'none',
+                              }}
+                              title={clickable ? 'Click para tirar al chat' : ''}
+                            >
                               {SKILL_ES[skill]}
                             </span>
                             <span style={{ color:'#475569', fontSize:9, fontFamily:'sans-serif' }}>{STAT_LABELS[SKILL_STAT[skill]]}</span>
@@ -1038,7 +1125,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                       })}
                     </div>
                     <p style={{ color:'#475569', fontSize:10, fontFamily:'sans-serif', margin:'8px 0 0', textAlign:'center' }}>
-                      Clic en el punto para ciclar: ○ ninguno → ● competente → ◆ experto
+                      Clic en el punto para ciclar: ○ ninguno → ● competente → ◎ experto · clic en el nombre para tirar
                     </p>
                   </div>
                 </div>
@@ -1355,5 +1442,5 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
           </div>
         </form>
       </div>
-  );
+  ), document.body);
 }
