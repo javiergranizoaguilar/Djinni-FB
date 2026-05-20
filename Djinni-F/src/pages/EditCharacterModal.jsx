@@ -269,14 +269,72 @@ const SKILLS_LIST = Object.keys(SKILL_STAT);
 
 const SCHOOL_OPTIONS = ['Abjuración','Conjuración','Adivinación','Encantamiento','Evocación','Ilusión','Nigromancia','Transmutación'];
 
-export default function EditCharacterModal({ isOpen, onClose, character, onCharacterUpdated }) {
+const ABILITY_OPTIONS = [
+  { value: '',             label: '—' },
+  { value: 'nada',         label: 'Nada' },
+  { value: 'fuerza',       label: 'Fuerza' },
+  { value: 'destreza',     label: 'Destreza' },
+  { value: 'constitucion', label: 'Constitución' },
+  { value: 'inteligencia', label: 'Inteligencia' },
+  { value: 'sabiduria',    label: 'Sabiduría' },
+  { value: 'carisma',      label: 'Carisma' },
+];
+
+const ABILITY_TO_STAT = {
+  fuerza: 'strength',
+  destreza: 'dexterity',
+  constitucion: 'constitution',
+  inteligencia: 'intelligence',
+  sabiduria: 'wisdom',
+  carisma: 'charisma',
+};
+
+const ABILITY_LABEL = {
+  nada: 'nada',
+  fuerza: 'fuerza',
+  destreza: 'destreza',
+  constitucion: 'constitución',
+  inteligencia: 'inteligencia',
+  sabiduria: 'sabiduría',
+  carisma: 'carisma',
+};
+
+const abilityModFromStats = (ability, stats) => {
+  const statKey = ABILITY_TO_STAT[ability];
+  if (!statKey) return 0;
+  const score = Number(stats?.[statKey] ?? 10);
+  return Math.floor((score - 10) / 2);
+};
+
+const profBonus = (level) => Math.floor(((level || 1) - 1) / 4) + 2;
+
+const fmtSigned = (n) => (n >= 0 ? `+${n}` : `${n}`);
+
+const rollDice = (notation) => {
+  const m = String(notation || '').match(/^(\d+)d(\d+)$/i);
+  if (!m) return { total: 0, crit: null };
+  const count = Number(m[1]), sides = Number(m[2]);
+  let total = 0;
+  for (let i = 0; i < count; i++) total += Math.floor(Math.random() * sides) + 1;
+  const crit = total === count ? 'min' : total === count * sides ? 'max' : null;
+  return { total, crit };
+};
+
+const fmtDiceWithMod = (dice, modSum) => {
+  if (!dice) return '';
+  if (!modSum) return dice;
+  return modSum > 0 ? `${dice}+${modSum}` : `${dice}${modSum}`;
+};
+
+export default function EditCharacterModal({ isOpen, onClose, character, onCharacterUpdated, onSendMessage }) {
   const [formData, setFormData] = useState({
     name: '', spellcasting_abillity: '', caster_level: 0,
     stats: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 },
     apareance: '', backstory: '', personality_traits: '', ideals: '', bonds: '', flaws: '',
+    race: '', subrace: '', alignment: '',
     exaustion: 0, currency: { gp: 0, sp: 0, cp: 0 },
     level: [{ class: '', level: 1, subclass: '' }],
-    hp: 0, max_hp: 0,
+    hp: 0, max_hp: 0, vision: 0,
     sav_str: false, sav_str_mod: 0, sav_dex: false, sav_dex_mod: 0,
     sav_int: false, sav_int_mod: 0, sav_wis: false, sav_wis_mod: 0, sav_cha: false, sav_cha_mod: 0,
     acrobatics: 'none', acrobatics_mod: 0, animal_handling: 'none', animal_handling_mod: 0,
@@ -301,15 +359,24 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const [error, setError]   = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
-  const [newAttack, setNewAttack]   = useState({ name: '', damage_dice: '', damage_type: '', range: '5ft' });
   const [newAbility, setNewAbility] = useState({ name: '', description: '', source_tipe: 'Raza' });
   const [newItem, setNewItem]       = useState({ item_name: '', quantity: 1, is_equipped: false });
-  const [newSpell, setNewSpell]     = useState({ name: '', level: 0, school: 'Evocación', casting_time: '1 acción', range: '18m', duration: 'Instantáneo' });
+  const [editingAttackId, setEditingAttackId] = useState(null);
+  const [editAttack, setEditAttack]           = useState({});
+  const [editingSpellId, setEditingSpellId]   = useState(null);
+  const [editSpell, setEditSpell]             = useState({});
 
   const [pos, setPos]   = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 1020, h: 700 });
   const [minimized, setMinimized] = useState(false);
   const modalRef = useRef(null);
+
+  const [autosaveStatus, setAutosaveStatus] = useState('idle');
+  const autosaveTimerRef  = useRef(null);
+  const autosaveClearRef  = useRef(null);
+  const skipNextAutoSaveRef = useRef(true);
+  const dirtyAfterAutoSaveRef = useRef(false);
+  const latestFormDataRef = useRef(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -336,10 +403,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       apareance: character.apareance || '', backstory: character.backstory || '',
       personality_traits: character.personality_traits || '', ideals: character.ideals || '',
       bonds: character.bonds || '', flaws: character.flaws || '',
+      race: character.race || '', subrace: character.subrace || '', alignment: character.alignment || '',
       exaustion: character.exaustion || 0,
       currency: character.currency || { gp: 0, sp: 0, cp: 0 },
       level: normalizedLevel,
-      hp: character.hp ?? 0, max_hp: character.max_hp ?? 0,
+      hp: character.hp ?? 0, max_hp: character.max_hp ?? 0, vision: character.vision ?? 0,
       sav_str: character.sav_str||false, sav_str_mod: character.sav_str_mod||0,
       sav_dex: character.sav_dex||false, sav_dex_mod: character.sav_dex_mod||0,
       sav_int: character.sav_int||false, sav_int_mod: character.sav_int_mod||0,
@@ -372,7 +440,60 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     setPreviewToken(character.token_image ? mkUrl(character.token_image) : null);
     setPreviewPortrait(character.portrait_image ? mkUrl(character.portrait_image) : null);
     setTokenImage(null); setPortraitImage(null); setError(null);
+    skipNextAutoSaveRef.current = true;
+    setAutosaveStatus('idle');
   }, [character, isOpen]);
+
+  useEffect(() => {
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+    if (!character || saving) return;
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(async () => {
+      const token = localStorage.getItem('vtt_token');
+      const data = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (typeof formData[key] === 'object') data.append(key, JSON.stringify(formData[key]));
+        else if (typeof formData[key] === 'boolean') data.append(key, formData[key] ? '1' : '0');
+        else data.append(key, formData[key]);
+      });
+      setAutosaveStatus('saving');
+      try {
+        const response = await axios.post(`${API}/api/character/edit/${character.id}`, data, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        });
+        if (response.status === 200) {
+          dirtyAfterAutoSaveRef.current = true;
+          latestFormDataRef.current = formData;
+          setAutosaveStatus('saved');
+          if (autosaveClearRef.current) clearTimeout(autosaveClearRef.current);
+          autosaveClearRef.current = setTimeout(() => setAutosaveStatus('idle'), 2000);
+        } else {
+          setAutosaveStatus('idle');
+        }
+      } catch (err) {
+        console.error(err);
+        setAutosaveStatus('idle');
+      }
+    }, 1500);
+    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData]);
+
+  useEffect(() => () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    if (autosaveClearRef.current) clearTimeout(autosaveClearRef.current);
+  }, []);
+
+  const handleClose = () => {
+    if (dirtyAfterAutoSaveRef.current && character && latestFormDataRef.current) {
+      onCharacterUpdated({ ...character, ...latestFormDataRef.current });
+      dirtyAfterAutoSaveRef.current = false;
+    }
+    onClose();
+  };
 
   if (!isOpen || !character) return null;
 
@@ -414,20 +535,86 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       const response = await axios.post(`${API}/api/character/edit/${character.id}`, data, {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
-      if (response.status === 200) { onCharacterUpdated({ ...character, ...formData }); onClose(); }
+      if (response.status === 200) { dirtyAfterAutoSaveRef.current = false; onCharacterUpdated({ ...character, ...formData }); onClose(); }
     } catch (err) {
       console.error(err); setError('Error al actualizar el personaje.');
     } finally { setSaving(false); }
   };
 
+  const handleAttackRoll = (att) => {
+    if (typeof onSendMessage !== 'function') return;
+    const stats = formData.stats || {};
+    const totalLevel = Array.isArray(formData.level)
+      ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0) || 1
+      : 1;
+    const prof = att.is_proficient ? profBonus(totalLevel) : 0;
+    const atkBonus = parseInt(att.attack_bonus, 10) || 0;
+
+    const atkAbility = att.attack_modifier && att.attack_modifier !== 'nada' ? att.attack_modifier : null;
+    const atkAbilityMod = atkAbility ? abilityModFromStats(atkAbility, stats) : 0;
+    const N = atkAbilityMod + atkBonus + prof;
+    const atkRoll = rollDice('1d20');
+    const isCriticalHit = atkRoll.crit === 'max';
+    const attackTotal = atkRoll.total + N;
+
+    const doubleDice = (notation) => {
+      const m2 = String(notation || '').match(/^(\d+)d(\d+)$/i);
+      return m2 ? `${Number(m2[1]) * 2}d${m2[2]}` : notation;
+    };
+
+    const dmgAbility = att.damage_modifier && att.damage_modifier !== 'nada' ? att.damage_modifier : null;
+    const dmgAbilityMod = dmgAbility ? abilityModFromStats(dmgAbility, stats) : 0;
+    const M = dmgAbilityMod + prof;
+    const dmgDiceBase = Array.isArray(att.damage_dice) ? att.damage_dice[0] : att.damage_dice;
+    const dmgDice = isCriticalHit ? doubleDice(dmgDiceBase) : dmgDiceBase;
+    const dmgType = Array.isArray(att.damage_type) ? att.damage_type[0] : att.damage_type;
+    const dmgRoll = dmgDice ? rollDice(dmgDice) : null;
+    const dmgTotal = dmgRoll ? dmgRoll.total + M : null;
+    const dmgRaw = dmgRoll?.total ?? null;
+
+    let dmg2Total = null, dmg2Type = null, dmg2Crit = null, dmg2Raw = null, dmg2Mod = null;
+    if (att.damage_dice_2) {
+      const dmg2Ability = att.damage_modifier2 && att.damage_modifier2 !== 'nada' ? att.damage_modifier2 : null;
+      const dmg2AbilityMod = dmg2Ability ? abilityModFromStats(dmg2Ability, stats) : 0;
+      dmg2Mod = dmg2AbilityMod + prof;
+      const dmg2DiceBase = isCriticalHit ? doubleDice(att.damage_dice_2) : att.damage_dice_2;
+      const dmg2Roll = rollDice(dmg2DiceBase);
+      dmg2Raw = dmg2Roll.total;
+      dmg2Total = dmg2Raw + dmg2Mod;
+      dmg2Crit = dmg2Roll.crit;
+      dmg2Type = att.damage_type_2 || null;
+    }
+
+    onSendMessage(JSON.stringify({
+      type: 'attack_roll',
+      name: att.name,
+      attack: attackTotal, attackRaw: atkRoll.total, attackMod: N,
+      attackCrit: atkRoll.crit,
+      damage: dmgTotal, dmgRaw, dmgMod: M,
+      dmgCrit: dmgRoll?.crit ?? null,
+      dmgType: dmgType || null,
+      damage2: dmg2Total, dmg2Raw, dmg2Mod,
+      dmg2Crit,
+      dmgType2: dmg2Type,
+    }));
+  };
+
   const handleAddAttack = async () => {
     const token = localStorage.getItem('vtt_token');
+    const blank = {
+      name: 'New Attack',
+      damage_dice: [], damage_type: [],
+      damage_dice_2: null, damage_type_2: null,
+      range: '', description: '',
+      attack_modifier: null, attack_bonus: 0,
+      damage_modifier: null, damage_modifier2: null,
+      is_proficient: false, is_saving_throw: false,
+      saving_throw_tipe: null, saving_throw_type_dc: null,
+    };
     try {
-      const res = await axios.post(`${API}/api/character/${character.id}/attack/create`,
-        { ...newAttack, damage_dice: [newAttack.damage_dice], damage_type: [newAttack.damage_type] },
+      const res = await axios.post(`${API}/api/character/${character.id}/attack/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
-      setAttacks(p => [...p, res.data || { ...newAttack, id: Date.now() }]);
-      setNewAttack({ name:'', damage_dice:'', damage_type:'', range:'5ft' });
+      setAttacks(p => [...p, { ...blank, id: res.data.id }]);
     } catch(err) { console.error(err); }
   };
   const handleDeleteAttack = async (id) => {
@@ -435,6 +622,34 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     try {
       await axios.delete(`${API}/api/character/${character.id}/attack/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setAttacks(p => p.filter(a => a.id !== id));
+    } catch(err) { console.error(err); }
+  };
+  const handleSaveAttack = async (id) => {
+    const token = localStorage.getItem('vtt_token');
+    const payload = {
+      name: editAttack.name,
+      damage_dice: editAttack.damage_dice ? [editAttack.damage_dice] : [],
+      damage_type: editAttack.damage_type ? [editAttack.damage_type] : [],
+      damage_dice_2: editAttack.damage_dice_2 || null,
+      damage_type_2: editAttack.damage_type_2 || null,
+      range: editAttack.range,
+      description: editAttack.description,
+      attack_modifier: editAttack.attack_modifier || null,
+      attack_bonus: editAttack.attack_bonus === '' || editAttack.attack_bonus == null ? 0 : parseInt(editAttack.attack_bonus) || 0,
+      is_proficient: !!editAttack.is_proficient,
+      is_saving_throw: !!editAttack.is_saving_throw,
+      saving_throw_tipe: editAttack.saving_throw_tipe || null,
+      saving_throw_type_dc: editAttack.saving_throw_type_dc || null,
+      damage_modifier: editAttack.damage_modifier || null,
+      damage_modifier2: editAttack.damage_modifier2 || null,
+    };
+    try {
+      await axios.patch(`${API}/api/character/${character.id}/attack/update/${id}`, payload,
+        { headers: { Authorization: `Bearer ${token}` } });
+      setAttacks(p => p.map(a => a.id === id
+        ? { ...a, ...payload }
+        : a));
+      setEditingAttackId(null);
     } catch(err) { console.error(err); }
   };
   const handleAddAbility = async () => {
@@ -471,11 +686,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   };
   const handleAddSpell = async () => {
     const token = localStorage.getItem('vtt_token');
+    const blank = { name: 'New Spell', level: 0, school: 'Evocación', casting_time: '', range: '', duration: '', description: '' };
     try {
-      const res = await axios.post(`${API}/api/character/${character.id}/spell/create`, newSpell,
+      const res = await axios.post(`${API}/api/character/${character.id}/spell/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
-      setSpells(p => [...p, res.data || { ...newSpell, id: Date.now() }]);
-      setNewSpell({ name:'', level:0, school:'Evocación', casting_time:'1 acción', range:'18m', duration:'Instantáneo' });
+      setSpells(p => [...p, { ...blank, id: res.data.id }]);
     } catch(err) { console.error(err); }
   };
   const handleDeleteSpell = async (id) => {
@@ -483,6 +698,16 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     try {
       await axios.delete(`${API}/api/character/${character.id}/spell/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.filter(s => s.id !== id));
+    } catch(err) { console.error(err); }
+  };
+  const handleSaveSpell = async (id) => {
+    const token = localStorage.getItem('vtt_token');
+    try {
+      await axios.patch(`${API}/api/character/${character.id}/spell/update/${id}`,
+        editSpell,
+        { headers: { Authorization: `Bearer ${token}` } });
+      setSpells(p => p.map(s => s.id === id ? { ...s, ...editSpell } : s));
+      setEditingSpellId(null);
     } catch(err) { console.error(err); }
   };
 
@@ -613,7 +838,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
               )}
             </div>
           </div>
-          <button style={S.closeBtn} onClick={onClose}
+          <button style={S.closeBtn} onClick={handleClose}
             onMouseDown={e=>e.stopPropagation()}
             onMouseEnter={e=>e.currentTarget.style.color='#f1f5f9'}
             onMouseLeave={e=>e.currentTarget.style.color='#64748b'}>✕</button>
@@ -663,48 +888,28 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                   </div>
 
                   <div style={S.panel}>
-                    <p style={S.panelTitle}>Puntos de Vida</p>
+                    <p style={S.panelTitle}>Origen</p>
                     <div style={S.grid2}>
                       <div>
-                        <label style={S.label}>HP Actual</label>
-                        <input style={inp({textAlign:'center'})} type="number" name="hp" value={formData.hp} onChange={handleInputChange} />
+                        <label style={S.label}>Raza</label>
+                        <input style={inp()} name="race" value={formData.race} onChange={handleInputChange} placeholder="Elfo, Humano…" />
                       </div>
                       <div>
-                        <label style={S.label}>HP Máximo</label>
-                        <input style={inp({textAlign:'center'})} type="number" name="max_hp" value={formData.max_hp} onChange={handleInputChange} />
+                        <label style={S.label}>Subraza</label>
+                        <input style={inp()} name="subrace" value={formData.subrace} onChange={handleInputChange} placeholder="Alto, Oscuro…" />
                       </div>
+                    </div>
+                    <div style={{ marginTop:12 }}>
+                      <label style={S.label}>Alineamiento</label>
+                      <input style={inp()} name="alignment" value={formData.alignment} onChange={handleInputChange} placeholder="Legal Bueno, Caótico Neutral…" />
                     </div>
                   </div>
 
                   <div style={S.panel}>
-                    <p style={S.panelTitle}>Magia</p>
-                    <div style={S.grid2}>
-                      <div>
-                        <label style={S.label}>Habilidad Lanzadora</label>
-                        <input style={inp()} name="spellcasting_abillity" value={formData.spellcasting_abillity} onChange={handleInputChange} placeholder="INT, SAB, CAR…" />
-                      </div>
-                      <div>
-                        <label style={S.label}>Nivel Lanzador</label>
-                        <input style={inp({textAlign:'center'})} type="number" name="caster_level" value={formData.caster_level} onChange={handleInputChange} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={S.panel}>
-                    <p style={S.panelTitle}>Exhaustion</p>
-                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                      <input style={{ flex:1, accentColor:'#6366f1' }} type="range" name="exaustion" min={0} max={6} value={formData.exaustion} onChange={handleInputChange} />
-                      <span style={{ color:'#a5b4fc', fontWeight:700, fontSize:18, minWidth:20, textAlign:'center', fontFamily:'monospace' }}>{formData.exaustion}</span>
-                      <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif' }}>/6</span>
-                    </div>
-                    <div style={{ display:'flex', gap:4, marginTop:6 }}>
-                      {[0,1,2,3,4,5,6].map(n=>(
-                        <div key={n} onClick={()=>set('exaustion',n)} style={{
-                          width:22, height:22, borderRadius:4, cursor:'pointer',
-                          background: n <= formData.exaustion ? '#6366f1' : '#1e293b',
-                          border: '1px solid #334155', transition:'background 0.15s',
-                        }}/>
-                      ))}
+                    <p style={S.panelTitle}>Visión</p>
+                    <div>
+                      <label style={S.label}>Radio de visión (pies)</label>
+                      <input style={inp({textAlign:'center'})} type="number" min="0" step="5" name="vision" value={formData.vision} onChange={handleInputChange} placeholder="0 = sin visión" />
                     </div>
                   </div>
                 </div>
@@ -760,6 +965,40 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                 </div>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                  <div style={S.panel}>
+                    <p style={S.panelTitle}>Puntos de Vida</p>
+                    <div style={S.grid2}>
+                      <div>
+                        <label style={S.label}>HP Actual</label>
+                        <input style={inp({textAlign:'center'})} type="number" name="hp" value={formData.hp} onChange={handleInputChange} />
+                      </div>
+                      <div>
+                        <label style={S.label}>HP Máximo</label>
+                        <input style={inp({textAlign:'center'})} type="number" name="max_hp" value={formData.max_hp} onChange={handleInputChange} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={S.panel}>
+                    <p style={S.panelTitle}>Exhaustion</p>
+                    <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                      <input style={{ flex:1, accentColor:'#6366f1' }} type="range" name="exaustion" min={0} max={6} value={formData.exaustion} onChange={handleInputChange} />
+                      <span style={{ color:'#a5b4fc', fontWeight:700, fontSize:18, minWidth:20, textAlign:'center', fontFamily:'monospace' }}>{formData.exaustion}</span>
+                      <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif' }}>/6</span>
+                    </div>
+                    <div style={{ display:'flex', gap:4, marginTop:6 }}>
+                      {[0,1,2,3,4,5,6].map(n=>(
+                        <div key={n} onClick={()=>set('exaustion',n)} style={{
+                          width:22, height:22, borderRadius:4, cursor:'pointer',
+                          background: n <= formData.exaustion ? '#6366f1' : '#1e293b',
+                          border: '1px solid #334155', transition:'background 0.15s',
+                        }}/>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                   {/* Saving Throws */}
                   <div style={S.panel}>
                     <p style={S.panelTitle}>Tiradas de Salvación</p>
@@ -809,43 +1048,93 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
             {/* ── COMBATE ── */}
             {activeTab==='combat' && (
               <div style={S.sectionGap}>
-                {/* Currency */}
-                <div style={S.panel}>
-                  <p style={S.panelTitle}>Monedas</p>
-                  <div style={{ display:'flex', gap:12 }}>
-                    {[['gp','ORO'],['sp','PLATA'],['cp','COBRE']].map(([k,l]) => (
-                      <div key={k} style={S.currencyBox}>
-                        <span style={S.currLabel}>{l}</span>
-                        <input type="number" value={formData.currency[k]} onChange={e=>handleCurrencyChange(k,e.target.value)}
-                          style={S.currInput} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Attacks */}
                 <div style={S.panel}>
-                  <p style={S.panelTitle}>Ataques</p>
-                  <div style={S.addRow}>
-                    <input style={{ ...smallInp, flex:1 }} placeholder="Nombre del ataque" value={newAttack.name} onChange={e=>setNewAttack({...newAttack,name:e.target.value})} />
-                    <input style={{ ...smallInp, width:80 }} placeholder="Daño (1d8)" value={newAttack.damage_dice} onChange={e=>setNewAttack({...newAttack,damage_dice:e.target.value})} />
-                    <input style={{ ...smallInp, width:80 }} placeholder="Tipo" value={newAttack.damage_type} onChange={e=>setNewAttack({...newAttack,damage_type:e.target.value})} />
-                    <input style={{ ...smallInp, width:60 }} placeholder="Alcance" value={newAttack.range} onChange={e=>setNewAttack({...newAttack,range:e.target.value})} />
-                    <button type="button" onClick={handleAddAttack} style={S.addBtn}>+ Añadir</button>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <p style={{ ...S.panelTitle, margin:0, borderBottom:'none', paddingBottom:0 }}>Ataques</p>
+                    <button type="button" onClick={handleAddAttack} style={{ ...S.addBtn, padding:'3px 12px', fontSize:14 }}>+</button>
                   </div>
                   {attacks.length === 0
                     ? <p style={{ color:'#334155', fontSize:12, fontFamily:'sans-serif', textAlign:'center', padding:12 }}>Sin ataques registrados</p>
                     : attacks.map(att => (
                       <div key={att.id} style={S.listItem}>
-                        <div>
-                          <span style={{ color:'#f1f5f9', fontWeight:700, fontSize:13, fontFamily:'sans-serif' }}>{att.name}</span>
-                          <span style={{ color:'#64748b', fontSize:11, fontFamily:'sans-serif', marginLeft:10 }}>
-                            {att.damage_dice?.[0]} {att.damage_type?.[0]} · {att.range}
-                          </span>
-                        </div>
-                        <button type="button" onClick={()=>handleDeleteAttack(att.id)} style={S.delBtn}
-                          onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
-                          onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
+                        {editingAttackId === att.id ? (
+                          <div style={{ flex:1 }}>
+                            <input style={{ ...smallInp, width:'100%', marginBottom:6 }} value={editAttack.name} onChange={e=>setEditAttack({...editAttack,name:e.target.value})} placeholder="Nombre" />
+
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+                              <select style={smallInp} value={editAttack.attack_modifier ?? ''} onChange={e=>setEditAttack({...editAttack,attack_modifier:e.target.value})} title="Modificador de ataque">
+                                {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                              <input style={smallInp} type="number" value={editAttack.attack_bonus ?? 0} onChange={e=>setEditAttack({...editAttack,attack_bonus:e.target.value})} placeholder="Bono" />
+                              <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', cursor:'pointer', background:'#0f172a', border:'1px solid #334155', borderRadius:8, padding:'6px 8px' }}>
+                                <input type="checkbox" checked={!!editAttack.is_proficient} onChange={e=>setEditAttack({...editAttack,is_proficient:e.target.checked})} style={{ accentColor:'#6366f1' }} />
+                                Competente
+                              </label>
+                            </div>
+
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+                              <input style={smallInp} value={editAttack.damage_dice ?? ''} onChange={e=>setEditAttack({...editAttack,damage_dice:e.target.value})} placeholder="Daño (1d8)" />
+                              <input style={smallInp} value={editAttack.damage_type ?? ''} onChange={e=>setEditAttack({...editAttack,damage_type:e.target.value})} placeholder="Tipo" />
+                              <select style={smallInp} value={editAttack.damage_modifier ?? ''} onChange={e=>setEditAttack({...editAttack,damage_modifier:e.target.value})} title="Modificador de daño">
+                                {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                              <input style={smallInp} value={editAttack.range ?? ''} onChange={e=>setEditAttack({...editAttack,range:e.target.value})} placeholder="Alcance" />
+                            </div>
+
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+                              <input style={smallInp} value={editAttack.damage_dice_2 ?? ''} onChange={e=>setEditAttack({...editAttack,damage_dice_2:e.target.value})} placeholder="Daño 2 (1d6)" />
+                              <input style={smallInp} value={editAttack.damage_type_2 ?? ''} onChange={e=>setEditAttack({...editAttack,damage_type_2:e.target.value})} placeholder="Tipo 2" />
+                              <select style={smallInp} value={editAttack.damage_modifier2 ?? ''} onChange={e=>setEditAttack({...editAttack,damage_modifier2:e.target.value})} title="Modificador de daño 2">
+                                {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                            </div>
+
+                            <div style={{ display:'grid', gridTemplateColumns:'auto 1fr 1fr', gap:6, marginBottom:6, alignItems:'center' }}>
+                              <label style={{ display:'flex', alignItems:'center', gap:6, color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', cursor:'pointer', background:'#0f172a', border:'1px solid #334155', borderRadius:8, padding:'6px 10px' }}>
+                                <input type="checkbox" checked={!!editAttack.is_saving_throw} onChange={e=>setEditAttack({...editAttack,is_saving_throw:e.target.checked})} style={{ accentColor:'#6366f1' }} />
+                                Salvación
+                              </label>
+                              <select style={smallInp} value={editAttack.saving_throw_tipe ?? ''} onChange={e=>setEditAttack({...editAttack,saving_throw_tipe:e.target.value})} title="Tipo salvación">
+                                {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                              <select style={smallInp} value={editAttack.saving_throw_type_dc ?? ''} onChange={e=>setEditAttack({...editAttack,saving_throw_type_dc:e.target.value})} title="Atributo DC">
+                                {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                            </div>
+
+                            <textarea style={{ ...smallInp, width:'100%', marginTop:4, resize:'vertical', minHeight:50 }}
+                              value={editAttack.description ?? ''} onChange={e=>setEditAttack({...editAttack,description:e.target.value})} placeholder="Descripción" />
+                            <div style={{ display:'flex', gap:6, marginTop:6 }}>
+                              <button type="button" onClick={()=>handleSaveAttack(att.id)} style={S.addBtn}>Guardar</button>
+                              <button type="button" onClick={()=>setEditingAttackId(null)} style={S.delBtn}>Cancelar</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ flex:1 }}>
+                            <span
+                              onClick={()=>handleAttackRoll(att)}
+                              style={{ color:'#f1f5f9', fontWeight:700, fontSize:13, fontFamily:'sans-serif', cursor: typeof onSendMessage === 'function' ? 'pointer' : 'default', textDecoration: typeof onSendMessage === 'function' ? 'underline dotted' : 'none' }}
+                              title={typeof onSendMessage === 'function' ? 'Click para tirar al chat' : ''}
+                            >{att.name}</span>
+                            <span style={{ color:'#64748b', fontSize:11, fontFamily:'sans-serif', marginLeft:10 }}>
+                              {att.damage_dice?.[0]} {att.damage_type?.[0]} · {att.range}
+                            </span>
+                            {att.description && <p style={{ color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', margin:'4px 0 0', lineHeight:1.5 }}>{att.description}</p>}
+                          </div>
+                        )}
+                        {editingAttackId !== att.id && (
+                          <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                            <button type="button"
+                              onClick={()=>{ setEditingAttackId(att.id); setEditAttack({ name:att.name, damage_dice:att.damage_dice?.[0]??'', damage_type:att.damage_type?.[0]??'', damage_dice_2:att.damage_dice_2??'', damage_type_2:att.damage_type_2??'', range:att.range??'', description:att.description??'', attack_modifier:att.attack_modifier??'', attack_bonus:att.attack_bonus??0, is_proficient:!!att.is_proficient, is_saving_throw:!!att.is_saving_throw, saving_throw_tipe:att.saving_throw_tipe??'', saving_throw_type_dc:att.saving_throw_type_dc??'', damage_modifier:att.damage_modifier??'', damage_modifier2:att.damage_modifier2??'' }); }}
+                              style={S.delBtn} title="Editar"
+                              onMouseEnter={e=>e.currentTarget.style.color='#a5b4fc'}
+                              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>⚙</button>
+                            <button type="button" onClick={()=>handleDeleteAttack(att.id)} style={S.delBtn}
+                              onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>
@@ -881,17 +1170,25 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
             {activeTab==='spells' && (
               <div style={S.sectionGap}>
                 <div style={S.panel}>
-                  <p style={S.panelTitle}>Añadir Hechizo</p>
-                  <div style={S.addRow}>
-                    <input style={{ ...smallInp, flex:2 }} placeholder="Nombre" value={newSpell.name} onChange={e=>setNewSpell({...newSpell,name:e.target.value})} />
-                    <input style={{ ...smallInp, width:60, textAlign:'center' }} type="number" placeholder="Niv" value={newSpell.level} min={0} onChange={e=>setNewSpell({...newSpell,level:parseInt(e.target.value)||0})} />
-                    <select style={{ ...S.select, fontSize:12, padding:'6px 8px' }} value={newSpell.school} onChange={e=>setNewSpell({...newSpell,school:e.target.value})}>
-                      {SCHOOL_OPTIONS.map(s=><option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <input style={{ ...smallInp, width:90 }} placeholder="Tiempo" value={newSpell.casting_time} onChange={e=>setNewSpell({...newSpell,casting_time:e.target.value})} />
-                    <input style={{ ...smallInp, width:70 }} placeholder="Rango" value={newSpell.range} onChange={e=>setNewSpell({...newSpell,range:e.target.value})} />
-                    <input style={{ ...smallInp, width:90 }} placeholder="Duración" value={newSpell.duration} onChange={e=>setNewSpell({...newSpell,duration:e.target.value})} />
-                    <button type="button" onClick={handleAddSpell} style={S.addBtn}>+ Añadir</button>
+                  <p style={S.panelTitle}>Magia</p>
+                  <div style={S.grid2}>
+                    <div>
+                      <label style={S.label}>Habilidad Lanzadora</label>
+                      <select style={inp()} name="spellcasting_abillity" value={formData.spellcasting_abillity || ''} onChange={handleInputChange}>
+                        {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={S.label}>Nivel Lanzador</label>
+                      <input style={inp({textAlign:'center'})} type="number" name="caster_level" value={formData.caster_level} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                </div>
+
+                <div style={S.panel}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <p style={{ ...S.panelTitle, margin:0, borderBottom:'none', paddingBottom:0 }}>Hechizos</p>
+                    <button type="button" onClick={handleAddSpell} style={{ ...S.addBtn, padding:'3px 12px', fontSize:14 }}>+</button>
                   </div>
                 </div>
 
@@ -902,16 +1199,47 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                     </div>
                     {spellsByLevel[lvl].map(spell => (
                       <div key={spell.id} style={S.listItem}>
-                        <div>
-                          <span style={{ color:'#f1f5f9', fontWeight:700, fontSize:13, fontFamily:'sans-serif' }}>{spell.name}</span>
-                          <span style={{ color:'#8b5cf6', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>{spell.school}</span>
-                          <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>
-                            {spell.casting_time} · {spell.range} · {spell.duration}
-                          </span>
-                        </div>
-                        <button type="button" onClick={()=>handleDeleteSpell(spell.id)} style={S.delBtn}
-                          onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
-                          onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
+                        {editingSpellId === spell.id ? (
+                          <div style={{ flex:1 }}>
+                            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                              <input style={{ ...smallInp, flex:2 }} value={editSpell.name} onChange={e=>setEditSpell({...editSpell,name:e.target.value})} placeholder="Nombre" />
+                              <input style={{ ...smallInp, width:60, textAlign:'center' }} type="number" value={editSpell.level} onChange={e=>setEditSpell({...editSpell,level:parseInt(e.target.value)||0})} placeholder="Niv" />
+                              <select style={{ ...S.select, fontSize:12, padding:'6px 8px' }} value={editSpell.school} onChange={e=>setEditSpell({...editSpell,school:e.target.value})}>
+                                <option>Evocación</option><option>Abjuración</option><option>Conjuración</option><option>Adivinación</option><option>Encantamiento</option><option>Ilusión</option><option>Nigromancia</option><option>Transmutación</option>
+                              </select>
+                              <input style={{ ...smallInp, width:90 }} value={editSpell.casting_time} onChange={e=>setEditSpell({...editSpell,casting_time:e.target.value})} placeholder="Tiempo" />
+                              <input style={{ ...smallInp, width:70 }} value={editSpell.range} onChange={e=>setEditSpell({...editSpell,range:e.target.value})} placeholder="Rango" />
+                              <input style={{ ...smallInp, width:90 }} value={editSpell.duration} onChange={e=>setEditSpell({...editSpell,duration:e.target.value})} placeholder="Duración" />
+                            </div>
+                            <textarea style={{ ...smallInp, width:'100%', marginTop:4, resize:'vertical', minHeight:40 }}
+                              value={editSpell.description} onChange={e=>setEditSpell({...editSpell,description:e.target.value})} placeholder="Descripción" />
+                            <div style={{ display:'flex', gap:6, marginTop:4 }}>
+                              <button type="button" onClick={()=>handleSaveSpell(spell.id)} style={S.addBtn}>Guardar</button>
+                              <button type="button" onClick={()=>setEditingSpellId(null)} style={S.delBtn}>Cancelar</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ flex:1 }}>
+                            <span style={{ color:'#f1f5f9', fontWeight:700, fontSize:13, fontFamily:'sans-serif' }}>{spell.name}</span>
+                            <span style={{ color:'#8b5cf6', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>{spell.school}</span>
+                            <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>
+                              {spell.casting_time} · {spell.range} · {spell.duration}
+                            </span>
+                            {spell.description && <p style={{ color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', margin:'4px 0 0', lineHeight:1.5 }}>{spell.description}</p>}
+                          </div>
+                        )}
+                        {editingSpellId !== spell.id && (
+                          <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                            <button type="button"
+                              onClick={()=>{ setEditingSpellId(spell.id); setEditSpell({ name:spell.name, level:spell.level, school:spell.school, casting_time:spell.casting_time, range:spell.range, duration:spell.duration, description:spell.description??'' }); }}
+                              style={S.delBtn} title="Editar"
+                              onMouseEnter={e=>e.currentTarget.style.color='#a5b4fc'}
+                              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>⚙</button>
+                            <button type="button" onClick={()=>handleDeleteSpell(spell.id)} style={S.delBtn}
+                              onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -927,6 +1255,19 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
             {/* ── INVENTARIO ── */}
             {activeTab==='inventory' && (
               <div style={S.sectionGap}>
+                <div style={S.panel}>
+                  <p style={S.panelTitle}>Monedas</p>
+                  <div style={{ display:'flex', gap:12 }}>
+                    {[['gp','ORO'],['sp','PLATA'],['cp','COBRE']].map(([k,l]) => (
+                      <div key={k} style={S.currencyBox}>
+                        <span style={S.currLabel}>{l}</span>
+                        <input type="number" value={formData.currency[k]} onChange={e=>handleCurrencyChange(k,e.target.value)}
+                          style={S.currInput} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div style={S.panel}>
                   <p style={S.panelTitle}>Añadir Objeto</p>
                   <div style={S.addRow}>
@@ -996,7 +1337,17 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
 
             {/* FOOTER */}
             <div style={S.footer}>
-              <button type="button" onClick={onClose} style={S.cancelBtn} disabled={saving}>Cancelar</button>
+              <span style={{
+                marginRight: 'auto', alignSelf: 'center',
+                fontFamily: 'sans-serif', fontSize: 11, letterSpacing: '0.06em',
+                color: autosaveStatus === 'saved' ? '#22c55e' : '#475569',
+                transition: 'color 0.2s',
+                minHeight: 14,
+              }}>
+                {autosaveStatus === 'saving' && 'guardando…'}
+                {autosaveStatus === 'saved' && '✓ guardado'}
+              </span>
+              <button type="button" onClick={handleClose} style={S.cancelBtn} disabled={saving}>Cancelar</button>
               <button type="submit" style={S.saveBtn} disabled={saving}>
                 {saving ? 'Guardando…' : 'Guardar Cambios'}
               </button>

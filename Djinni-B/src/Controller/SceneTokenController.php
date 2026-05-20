@@ -2,6 +2,8 @@
 
 namespace App\Controller;
 
+use App\Entity\CharacterSheet;
+use App\Entity\Monster;
 use App\Entity\RosterItem;
 use App\Entity\Scene;
 use App\Entity\SceneToken;
@@ -26,6 +28,39 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/api/scene-token')]
 class SceneTokenController extends AbstractController
 {
+    private function syncTokenVisionSiblings(SceneToken $token, ?int $newVision, EntityManagerInterface $em): array
+    {
+        $kind = $token->getKind();
+        $entityId = $token->getEntityId();
+        if (!in_array($kind, ['character', 'monster'], true) || !$entityId) {
+            return [];
+        }
+
+        if ($kind === 'character') {
+            $src = $em->getRepository(CharacterSheet::class)->find($entityId);
+            if ($src) $src->setVision($newVision);
+        } else {
+            $src = $em->getRepository(Monster::class)->find($entityId);
+            if ($src) $src->setVision($newVision);
+        }
+
+        $siblings = $em->getRepository(SceneToken::class)->findBy([
+            'kind' => $kind,
+            'entity_id' => $entityId,
+        ]);
+        $affected = [];
+        foreach ($siblings as $s) {
+            if ($s->getId() === $token->getId()) continue;
+            $s->setVisionRadius($newVision);
+            $affected[] = [
+                'id' => $s->getId(),
+                'scene_id' => $s->getScene()?->getId(),
+                'vision_radius' => $s->getVisionRadius(),
+            ];
+        }
+        return $affected;
+    }
+
     #[Route('/scene/{sceneId}', name: 'api_scene_token_get', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
     public function getSceneTokens(int $sceneId, SceneRepository $sceneRepository, SceneTokenRepository $sceneTokenRepository, UserGameSessionRepository $userGameSessionRepository): JsonResponse
@@ -73,6 +108,7 @@ class SceneTokenController extends AbstractController
                 'entity_id'      => $st->getEntityId(),
                 'owner_id'       => $st->getOwner()?->getId(),
                 'controlled_by_id' => $st->getControlledBy()?->getId(),
+                'vision_radius'  => $st->getVisionRadius(),
             ];
 
             if ($st->getToken()) {
@@ -115,6 +151,19 @@ class SceneTokenController extends AbstractController
         $sceneToken->setKind($data['kind'] ?? null);
         $sceneToken->setEntityId(isset($data['entity_id']) ? (int)$data['entity_id'] : null);
         $sceneToken->setOwner($this->getUser());
+
+        // Vision: prefer explicit payload, otherwise inherit from source character/monster
+        if (array_key_exists('vision_radius', $data) && $data['vision_radius'] !== null && $data['vision_radius'] !== '') {
+            $sceneToken->setVisionRadius((int)$data['vision_radius']);
+        } elseif (in_array($sceneToken->getKind(), ['character', 'monster'], true) && $sceneToken->getEntityId()) {
+            if ($sceneToken->getKind() === 'character') {
+                $src = $charRepo->find($sceneToken->getEntityId());
+                if ($src && $src->getVision() !== null) $sceneToken->setVisionRadius($src->getVision());
+            } else {
+                $src = $monsterRepo->find($sceneToken->getEntityId());
+                if ($src && $src->getVision() !== null) $sceneToken->setVisionRadius($src->getVision());
+            }
+        }
 
         if (isset($data['token_id'])) {
             $token = $tokenRepository->find($data['token_id']);
@@ -170,6 +219,7 @@ class SceneTokenController extends AbstractController
             'entity_id'        => $sceneToken->getEntityId(),
             'owner_id'         => $sceneToken->getOwner()?->getId(),
             'controlled_by_id' => $sceneToken->getControlledBy()?->getId(),
+            'vision_radius'    => $sceneToken->getVisionRadius(),
         ], 201);
     }
 
@@ -267,6 +317,16 @@ class SceneTokenController extends AbstractController
         if (isset($data['height']))   $sceneToken->setHeight((float)$data['height']);
         if (array_key_exists('counters', $data)) $sceneToken->setCounters($data['counters']);
         if (array_key_exists('auras', $data))    $sceneToken->setAuras($data['auras']);
+        $visionChanged = false;
+        if (array_key_exists('vision_radius', $data)) {
+            $v = $data['vision_radius'];
+            $sceneToken->setVisionRadius($v === null || $v === '' ? null : (int)$v);
+            $visionChanged = true;
+        }
+
+        $affectedTokens = $visionChanged
+            ? $this->syncTokenVisionSiblings($sceneToken, $sceneToken->getVisionRadius(), $em)
+            : [];
 
         $em->flush();
 
@@ -282,6 +342,43 @@ class SceneTokenController extends AbstractController
             'height'    => $sceneToken->getHeight(),
             'counters'  => $sceneToken->getCounters(),
             'auras'     => $sceneToken->getAuras() ?? [],
+            'vision_radius' => $sceneToken->getVisionRadius(),
+            'affected_tokens' => $affectedTokens,
+        ]);
+    }
+
+    #[Route('/{id}/vision', name: 'api_scene_token_set_vision', methods: ['PUT'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function setVision(int $id, Request $request, SceneTokenRepository $sceneTokenRepository, UserGameSessionRepository $userGameSessionRepository, EntityManagerInterface $em): JsonResponse
+    {
+        $sceneToken = $sceneTokenRepository->find($id);
+        if (!$sceneToken) {
+            return $this->json(['error' => 'Scene token not found'], 404);
+        }
+
+        $currentUser = $this->getUser();
+        $isDm = false;
+        $gameSession = $sceneToken->getScene()?->getSessionId();
+        if ($gameSession) {
+            $ugs = $userGameSessionRepository->findOneBy(['user' => $currentUser, 'gameSession' => $gameSession]);
+            if ($ugs) $isDm = $ugs->isDm();
+        }
+
+        $isOwner = $sceneToken->getOwner()?->getId() === $currentUser?->getId();
+        if (!$isDm && !$isOwner) {
+            return $this->json(['error' => 'Forbidden'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $v = $data['vision_radius'] ?? null;
+        $sceneToken->setVisionRadius($v === null || $v === '' ? null : (int)$v);
+        $affectedTokens = $this->syncTokenVisionSiblings($sceneToken, $sceneToken->getVisionRadius(), $em);
+        $em->flush();
+
+        return $this->json([
+            'id'            => $sceneToken->getId(),
+            'vision_radius' => $sceneToken->getVisionRadius(),
+            'affected_tokens' => $affectedTokens,
         ]);
     }
 

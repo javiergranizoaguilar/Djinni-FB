@@ -33,6 +33,12 @@ class Scene
     #[ORM\OneToMany(mappedBy: 'scene', targetEntity: SceneImage::class, cascade: ['remove'], orphanRemoval: true)]
     private Collection $sceneImages;
 
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $fogData = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $wallsData = null;
+
     public function __construct()
     {
         $this->sceneTokens  = new ArrayCollection();
@@ -121,4 +127,10 @@ class Scene
 
         return $this;
     }
+
+    public function getFogData(): ?array { return $this->fogData; }
+    public function setFogData(?array $fogData): static { $this->fogData = $fogData; return $this; }
+
+    public function getWallsData(): ?array { return $this->wallsData; }
+    public function setWallsData(?array $wallsData): static { $this->wallsData = $wallsData; return $this; }
 }

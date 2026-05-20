@@ -9,6 +9,7 @@ use App\Entity\CharacterSheetUser;
 use App\Entity\Inventory;
 use App\Entity\Item;
 use App\Entity\Proficency;
+use App\Entity\SceneToken;
 use App\Entity\Spell;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
@@ -130,6 +131,7 @@ class ApiCharacterController extends AbstractController
                     'name' => $sheet->getName(),
                     'hp' => $sheet->getHp(),
                     'max_hp' => $sheet->getMaxHp(),
+                    'vision' => $sheet->getVision(),
                     'caster_level' => $sheet->getCasterLevel(),
                     'level' => $levelData, // Devolvemos la estructura normalizada (array)
                     'display_level' => $totalLevel,
@@ -147,6 +149,9 @@ class ApiCharacterController extends AbstractController
                     'ideals' => $sheet->getIdeals(),
                     'bonds' => $sheet->getBonds(),
                     'flaws' => $sheet->getFlaws(),
+                    'race' => $sheet->getRace(),
+                    'subrace' => $sheet->getSubrace(),
+                    'alignment' => $sheet->getAlignment(),
                     'exaustion' => $sheet->getExaustion(),
                     // Saving Throws
                     'sav_str' => $sheet->isSavStr(), 'sav_str_mod' => $sheet->getSavStrMod(),
@@ -180,11 +185,18 @@ class ApiCharacterController extends AbstractController
                         'name' => $a->getName(),
                         'damage_dice' => $a->getDamageDice(),
                         'damage_type' => $a->getDamageType(),
+                        'damage_dice_2' => $a->getDamageDice2(),
+                        'damage_type_2' => $a->getDamageType2(),
                         'range' => $a->getRange(),
                         'description' => $a->getDescription(),
                         'attack_modifier' => $a->getAttackModifier(),
+                        'attack_bonus' => $a->getAttackBonus(),
+                        'is_proficient' => $a->isProficient(),
                         'is_saving_throw' => $a->isSavingThrow(),
-                        'saving_throw_tipe' => $a->getSavingThrowTipe()
+                        'saving_throw_tipe' => $a->getSavingThrowTipe(),
+                        'saving_throw_type_dc' => $a->getSavingThrowTypeDc(),
+                        'damage_modifier' => $a->getDamageModifier(),
+                        'damage_modifier2' => $a->getDamageModifier2(),
                     ]),
                     'abilities' => $formatCollection($sheet->getAbilities(), fn(Ability $a) => [
                         'id' => $a->getId(),
@@ -246,6 +258,7 @@ class ApiCharacterController extends AbstractController
         return $this->json([
             'id' => $sheet->getId(), 'name' => $sheet->getName(),
             'hp' => $sheet->getHp(), 'max_hp' => $sheet->getMaxHp(),
+            'vision' => $sheet->getVision(),
             'caster_level' => $sheet->getCasterLevel(),
             'level' => $levelData, 'display_level' => $totalLevel,
             'token_image' => $sheet->getTokenImage(), 'default_auras' => $sheet->getDefaultAuras() ?? [],
@@ -255,7 +268,9 @@ class ApiCharacterController extends AbstractController
             'spellcasting_abillity' => $sheet->getSpellcastingAbillity(),
             'apareance' => $sheet->getApareance(), 'backstory' => $sheet->getBackstory(),
             'personality_traits' => $sheet->getPersonalityTraits(), 'ideals' => $sheet->getIdeals(),
-            'bonds' => $sheet->getBonds(), 'flaws' => $sheet->getFlaws(), 'exaustion' => $sheet->getExaustion(),
+            'bonds' => $sheet->getBonds(), 'flaws' => $sheet->getFlaws(),
+            'race' => $sheet->getRace(), 'subrace' => $sheet->getSubrace(), 'alignment' => $sheet->getAlignment(),
+            'exaustion' => $sheet->getExaustion(),
             'sav_str' => $sheet->isSavStr(), 'sav_str_mod' => $sheet->getSavStrMod(),
             'sav_dex' => $sheet->isSavDex(), 'sav_dex_mod' => $sheet->getSavDexMod(),
             'sav_int' => $sheet->isSavInt(), 'sav_int_mod' => $sheet->getSavIntMod(),
@@ -279,7 +294,7 @@ class ApiCharacterController extends AbstractController
             'sleight_of_hand' => $sheet->getSleightOfHand(), 'sleight_of_hand_mod' => $sheet->getSleightOfHandMod(),
             'stealth' => $sheet->getStealth(), 'stealth_mod' => $sheet->getStealthMod(),
             'survival' => $sheet->getSurvival(), 'survival_mod' => $sheet->getSurvivalMod(),
-            'attacks' => $fc($sheet->getAttacks(), fn(Attack $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'damage_dice' => $a->getDamageDice(), 'damage_type' => $a->getDamageType(), 'range' => $a->getRange(), 'description' => $a->getDescription(), 'attack_modifier' => $a->getAttackModifier(), 'is_saving_throw' => $a->isSavingThrow(), 'saving_throw_tipe' => $a->getSavingThrowTipe()]),
+            'attacks' => $fc($sheet->getAttacks(), fn(Attack $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'damage_dice' => $a->getDamageDice(), 'damage_type' => $a->getDamageType(), 'damage_dice_2' => $a->getDamageDice2(), 'damage_type_2' => $a->getDamageType2(), 'range' => $a->getRange(), 'description' => $a->getDescription(), 'attack_modifier' => $a->getAttackModifier(), 'attack_bonus' => $a->getAttackBonus(), 'is_proficient' => $a->isProficient(), 'is_saving_throw' => $a->isSavingThrow(), 'saving_throw_tipe' => $a->getSavingThrowTipe(), 'saving_throw_type_dc' => $a->getSavingThrowTypeDc(), 'damage_modifier' => $a->getDamageModifier(), 'damage_modifier2' => $a->getDamageModifier2()]),
             'abilities' => $fc($sheet->getAbilities(), fn(Ability $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'description' => $a->getDescription(), 'source_tipe' => $a->getSourceTipe(), 'is_active' => $a->isActive(), 'has_limited_uses' => $a->hasLimitedUses(), 'max_uses' => $a->getMaxUses(), 'current_uses' => $a->getCurrentUses(), 'recharge_type' => $a->getRechargeType()]),
             'spells' => $fc($sheet->getSpells(), fn(Spell $s) => ['id' => $s->getId(), 'name' => $s->getName(), 'level' => $s->getLevel(), 'school' => $s->getSchool(), 'description' => $s->getDescription(), 'is_prepared' => $s->isPrepared(), 'casting_time' => $s->getCastingTime(), 'range' => $s->getSpellRange(), 'components' => $s->getComponents(), 'duration' => $s->getDuration()]),
             'inventory' => $fc($sheet->getInventories(), fn(Inventory $i) => ['id' => $i->getId(), 'item_name' => $i->getItems()?->getName() ?? 'Unknown', 'item_description' => $i->getItems()?->getDescription() ?? '', 'quantity' => $i->getQuantity(), 'is_equipped' => $i->isEquipped()]),
@@ -315,7 +330,7 @@ class ApiCharacterController extends AbstractController
         }
 
         // Procesar campos simples
-        $fields = ['name', 'spellcasting_abillity', 'apareance', 'backstory', 'personality_traits', 'ideals', 'bonds', 'flaws'];
+        $fields = ['name', 'spellcasting_abillity', 'apareance', 'backstory', 'personality_traits', 'ideals', 'bonds', 'flaws', 'race', 'subrace', 'alignment'];
         foreach ($fields as $field) {
             if ($request->request->has($field)) {
                 $setter = 'set' . str_replace('_', '', ucwords($field, '_'));
@@ -337,6 +352,11 @@ class ApiCharacterController extends AbstractController
 
         if ($request->request->has('max_hp')) {
             $characterSheet->setMaxHp((int)$request->request->get('max_hp'));
+        }
+
+        if ($request->request->has('vision')) {
+            $v = $request->request->get('vision');
+            $characterSheet->setVision($v === '' ? null : (int)$v);
         }
 
         // Procesar JSON fields
@@ -427,6 +447,18 @@ class ApiCharacterController extends AbstractController
         }
 
         $entityManager->flush();
+
+        if ($request->request->has('vision')) {
+            $newVision = $characterSheet->getVision();
+            $tokens = $entityManager->getRepository(SceneToken::class)
+                ->findBy(['kind' => 'character', 'entity_id' => $characterSheet->getId()]);
+            foreach ($tokens as $t) {
+                $t->setVisionRadius($newVision);
+            }
+            if (!empty($tokens)) {
+                $entityManager->flush();
+            }
+        }
 
         return $this->json(['message' => 'Character updated successfully']);
     }
@@ -576,11 +608,18 @@ class ApiCharacterController extends AbstractController
         $attack->setName($data['name'] ?? 'New Attack');
         $attack->setDamageDice($data['damage_dice'] ?? []); // e.g. ["1d8", "2d6"]
         $attack->setDamageType($data['damage_type'] ?? []); // e.g. ["slashing", "fire"]
+        $attack->setDamageDice2($data['damage_dice_2'] ?? null);
+        $attack->setDamageType2($data['damage_type_2'] ?? null);
         $attack->setRange($data['range'] ?? '5ft');
         $attack->setIsSavingThrow($data['is_saving_throw'] ?? false);
         $attack->setDescription($data['description'] ?? '');
-        $attack->setAttackModifier($data['attack_modifier'] ?? '+0');
+        $attack->setAttackModifier($data['attack_modifier'] ?? null);
+        $attack->setAttackBonus(isset($data['attack_bonus']) ? (int)$data['attack_bonus'] : 0);
+        $attack->setIsProficient($data['is_proficient'] ?? false);
         $attack->setSavingThrowTipe($data['saving_throw_tipe'] ?? null);
+        $attack->setSavingThrowTypeDc($data['saving_throw_type_dc'] ?? null);
+        $attack->setDamageModifier($data['damage_modifier'] ?? null);
+        $attack->setDamageModifier2($data['damage_modifier2'] ?? null);
         $attack->setCharacterAttack($characterSheet);
 
         $entityManager->persist($attack);
@@ -609,6 +648,43 @@ class ApiCharacterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['message' => 'Attack deleted']);
+    }
+
+    #[Route('/{id}/attack/update/{attackId}', name: 'api_character_attack_update', methods: ['PATCH'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateAttack(int $id, int $attackId, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $user = $this->getUser();
+        $characterSheet = $entityManager->getRepository(CharacterSheet::class)->find($id);
+        if (!$characterSheet) return $this->json(['error' => 'Character not found'], 404);
+
+        $csu = $entityManager->getRepository(CharacterSheetUser::class)->findOneBy(['user_id' => $user, 'charactersheet_id' => $characterSheet]);
+        if (!$csu || !$csu->isEdit()) return $this->json(['error' => 'Permission denied'], 403);
+
+        $attack = $entityManager->getRepository(Attack::class)->find($attackId);
+        if (!$attack || $attack->getCharacterAttack() !== $characterSheet) {
+            return $this->json(['error' => 'Attack not found or does not belong to character'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true) ?? [];
+        if (isset($data['name'])) $attack->setName($data['name']);
+        if (isset($data['damage_dice'])) $attack->setDamageDice(is_array($data['damage_dice']) ? $data['damage_dice'] : [$data['damage_dice']]);
+        if (isset($data['damage_type'])) $attack->setDamageType(is_array($data['damage_type']) ? $data['damage_type'] : [$data['damage_type']]);
+        if (array_key_exists('damage_dice_2', $data)) $attack->setDamageDice2($data['damage_dice_2']);
+        if (array_key_exists('damage_type_2', $data)) $attack->setDamageType2($data['damage_type_2']);
+        if (isset($data['range'])) $attack->setRange($data['range']);
+        if (isset($data['description'])) $attack->setDescription($data['description']);
+        if (isset($data['attack_modifier'])) $attack->setAttackModifier($data['attack_modifier']);
+        if (array_key_exists('attack_bonus', $data)) $attack->setAttackBonus($data['attack_bonus'] === null ? null : (int)$data['attack_bonus']);
+        if (isset($data['is_proficient'])) $attack->setIsProficient((bool)$data['is_proficient']);
+        if (isset($data['is_saving_throw'])) $attack->setIsSavingThrow((bool)$data['is_saving_throw']);
+        if (array_key_exists('saving_throw_tipe', $data)) $attack->setSavingThrowTipe($data['saving_throw_tipe']);
+        if (array_key_exists('saving_throw_type_dc', $data)) $attack->setSavingThrowTypeDc($data['saving_throw_type_dc']);
+        if (array_key_exists('damage_modifier', $data)) $attack->setDamageModifier($data['damage_modifier']);
+        if (array_key_exists('damage_modifier2', $data)) $attack->setDamageModifier2($data['damage_modifier2']);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Attack updated']);
     }
 
     #[Route('/{id}/ability/create', name: 'api_character_ability_create', methods: ['POST'])]
@@ -788,5 +864,36 @@ class ApiCharacterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['message' => 'Spell deleted']);
+    }
+
+    #[Route('/{id}/spell/update/{spellId}', name: 'api_character_spell_update', methods: ['PATCH'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateSpell(int $id, int $spellId, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $user = $this->getUser();
+        $characterSheet = $entityManager->getRepository(CharacterSheet::class)->find($id);
+        if (!$characterSheet) return $this->json(['error' => 'Character not found'], 404);
+
+        $csu = $entityManager->getRepository(CharacterSheetUser::class)->findOneBy(['user_id' => $user, 'charactersheet_id' => $characterSheet]);
+        if (!$csu || !$csu->isEdit()) return $this->json(['error' => 'Permission denied'], 403);
+
+        $spell = $entityManager->getRepository(Spell::class)->find($spellId);
+        if (!$spell || !$spell->getCharacterId()->contains($characterSheet)) {
+            return $this->json(['error' => 'Spell not found or does not belong to character'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true) ?? [];
+        if (isset($data['name'])) $spell->setName($data['name']);
+        if (isset($data['level'])) $spell->setLevel((int)$data['level']);
+        if (isset($data['school'])) $spell->setSchool($data['school']);
+        if (isset($data['description'])) $spell->setDescription($data['description']);
+        if (isset($data['casting_time'])) $spell->setCastingTime($data['casting_time']);
+        if (isset($data['range'])) $spell->setSpellRange($data['range']);
+        if (isset($data['components'])) $spell->setComponents($data['components']);
+        if (isset($data['duration'])) $spell->setDuration($data['duration']);
+        if (isset($data['is_prepared'])) $spell->setIsPrepared((bool)$data['is_prepared']);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Spell updated']);
     }
 }

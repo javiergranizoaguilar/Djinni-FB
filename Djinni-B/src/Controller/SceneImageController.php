@@ -57,11 +57,16 @@ class SceneImageController extends AbstractController
 
     #[Route('/scene/{sceneId}/upload', name: 'api_scene_image_upload', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function upload(int $sceneId, Request $request, SceneRepository $sceneRepository, EntityManagerInterface $em): JsonResponse
+    public function upload(int $sceneId, Request $request, SceneRepository $sceneRepository, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em): JsonResponse
     {
         $scene = $sceneRepository->find($sceneId);
         if (!$scene) {
             return $this->json(['error' => 'Scene not found'], 404);
+        }
+
+        $ugs = $ugsRepo->findOneBy(['user' => $this->getUser(), 'gameSession' => $scene->getSessionId()]);
+        if (!$ugs || !$ugs->isDm()) {
+            return $this->json(['error' => 'Only the DM can manage scene images'], 403);
         }
 
         $file = $request->files->get('image');
@@ -94,11 +99,16 @@ class SceneImageController extends AbstractController
 
     #[Route('/{id}', name: 'api_scene_image_update', methods: ['PUT'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function update(int $id, Request $request, SceneImageRepository $repo, EntityManagerInterface $em): JsonResponse
+    public function update(int $id, Request $request, SceneImageRepository $repo, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em): JsonResponse
     {
         $img = $repo->find($id);
         if (!$img) {
             return $this->json(['error' => 'Image not found'], 404);
+        }
+
+        $ugs = $ugsRepo->findOneBy(['user' => $this->getUser(), 'gameSession' => $img->getScene()->getSessionId()]);
+        if (!$ugs || !$ugs->isDm()) {
+            return $this->json(['error' => 'Only the DM can manage scene images'], 403);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -116,11 +126,16 @@ class SceneImageController extends AbstractController
 
     #[Route('/{id}', name: 'api_scene_image_delete', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function delete(int $id, SceneImageRepository $repo, EntityManagerInterface $em): JsonResponse
+    public function delete(int $id, SceneImageRepository $repo, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em): JsonResponse
     {
         $img = $repo->find($id);
         if (!$img) {
             return $this->json(['error' => 'Image not found'], 404);
+        }
+
+        $ugs = $ugsRepo->findOneBy(['user' => $this->getUser(), 'gameSession' => $img->getScene()->getSessionId()]);
+        if (!$ugs || !$ugs->isDm()) {
+            return $this->json(['error' => 'Only the DM can manage scene images'], 403);
         }
 
         $imageUrl = $img->getImageUrl();

@@ -13,6 +13,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         ac_description: '',
         hit_points_average: 10,
         hp_formula: '',
+        vision: 0,
         speed: { walk: 30 },
         str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10,
         saving_throws: {},
@@ -75,6 +76,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                 ac_description: monster.ac_description || '',
                 hit_points_average: monster.hp || 10,
                 hp_formula: monster.hp_formula || '',
+                vision: monster.vision ?? 0,
                 speed: monster.speed || { walk: 30 },
                 str: monster.str || 10,
                 dex: monster.dex || 10,
@@ -366,6 +368,11 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">HP Formula</label>
                             <input type="text" name="hp_formula" value={formData.hp_formula} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md dark:bg-[#112217] dark:border-[#23482f] dark:text-white" placeholder="e.g. 2d8 + 2" />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Radio de visión (pies)</label>
+                            <input type="number" min="0" step="5" name="vision" value={formData.vision} onChange={handleInputChange} className="w-full px-3 py-2 border rounded-md dark:bg-[#112217] dark:border-[#23482f] dark:text-white" placeholder="0 = sin visión" />
                         </div>
 
                         <div>

@@ -126,6 +126,40 @@ class ChatServerCommand extends Command
                 return;
             }
 
+            // ── TOKEN PATH SHOWN (broadcast to peers, no echo to sender) ───
+            if ($payload['type'] === 'token_path_shown') {
+                if (!isset($this->meta[$tcpConn])) {
+                    return;
+                }
+                $m       = $this->meta[$tcpConn];
+                $tokenId = isset($payload['tokenId']) ? (int) $payload['tokenId'] : 0;
+                $sceneId = isset($payload['sceneId']) ? (int) $payload['sceneId'] : 0;
+                if (!$tokenId || !$sceneId) {
+                    return;
+                }
+                $broadcast = json_encode([
+                    'type'       => 'token_path_shown',
+                    'tokenId'    => $tokenId,
+                    'sceneId'    => $sceneId,
+                    'actorId'    => $m['userId'],
+                    'origin'     => $payload['origin']     ?? null,
+                    'waypoints'  => $payload['waypoints']  ?? [],
+                    'dest'       => $payload['dest']       ?? null,
+                    'feet'       => isset($payload['feet'])        ? (int)   $payload['feet']        : 0,
+                    'durationMs' => isset($payload['durationMs'])  ? (float) $payload['durationMs']  : 5000.0,
+                ]);
+                $room = $this->rooms[$m['gameId']] ?? null;
+                if ($room) {
+                    foreach ($room as $peer) {
+                        if ($peer === $tcpConn) {
+                            continue;
+                        }
+                        $peer->send($broadcast);
+                    }
+                }
+                return;
+            }
+
             // ── SCENE TOKEN events (Option B) ───────────────────────────────
             if (in_array($payload['type'], ['scene_token_created', 'scene_token_updated'], true)) {
                 if (!isset($this->meta[$tcpConn])) {
@@ -280,6 +314,38 @@ class ChatServerCommand extends Command
                     'sceneId' => $sceneId,
                     'actorId' => $m['userId'],
                 ]);
+                $room = $this->rooms[$m['gameId']] ?? null;
+                if ($room) {
+                    foreach ($room as $peer) {
+                        $peer->send($broadcast);
+                    }
+                }
+                return;
+            }
+
+            // ── FOG / WALLS broadcast (all in room) ─────────────────────────
+            if (in_array($payload['type'], ['scene_fog_updated', 'scene_walls_updated'], true)) {
+                if (!isset($this->meta[$tcpConn])) {
+                    return;
+                }
+                $m       = $this->meta[$tcpConn];
+                $sceneId = isset($payload['sceneId']) ? (int) $payload['sceneId'] : 0;
+                if (!$sceneId) {
+                    return;
+                }
+                if ($payload['type'] === 'scene_fog_updated') {
+                    $broadcast = json_encode([
+                        'type'    => 'scene_fog_updated',
+                        'sceneId' => $sceneId,
+                        'fogData' => $payload['fogData'] ?? null,
+                    ]);
+                } else {
+                    $broadcast = json_encode([
+                        'type'      => 'scene_walls_updated',
+                        'sceneId'   => $sceneId,
+                        'wallsData' => $payload['wallsData'] ?? null,
+                    ]);
+                }
                 $room = $this->rooms[$m['gameId']] ?? null;
                 if ($room) {
                     foreach ($room as $peer) {

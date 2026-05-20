@@ -1,0 +1,204 @@
+2026-05-05 07:19:01 pid:186822 Workerman[console] start in DEBUG mode
+2026-05-05 08:35:03 pid:186822 Workerman[console] received signal SIGINT
+2026-05-05 08:35:03 pid:186822 Workerman[console] stopping
+2026-05-05 08:35:03 pid:186822 Workerman[console] has been stopped
+2026-05-05 08:35:05 pid:207586 Workerman[console] start in DEBUG mode
+2026-05-06 07:49:58 pid:207586 Workerman[console] received signal SIGINT
+2026-05-06 07:49:58 pid:207586 Workerman[console] stopping
+2026-05-06 07:49:58 pid:207586 Workerman[console] has been stopped
+2026-05-06 07:50:04 pid:300226 Workerman[console] start in DEBUG mode
+2026-05-07 07:01:55 pid:300228 PDOException: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away in /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Statement.php:55
+Stack trace:
+#0 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Statement.php(55): PDOStatement->execute()
+#1 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Driver\PDO\Statement->execute()
+#2 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Logging/Statement.php(46): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#3 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Logging\Statement->execute()
+#4 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/doctrine-bridge/Middleware/Debug/Statement.php(58): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#5 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(802): Symfony\Bridge\Doctrine\Middleware\Debug\Statement->execute()
+#6 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(300): Doctrine\DBAL\Connection->executeQuery()
+#7 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(75): Doctrine\DBAL\Connection->fetchAssociative()
+#8 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Connection/TcpConnection.php(792): App\Command\ChatServerCommand->{closure:App\Command\ChatServerCommand::execute():52}()
+#9 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Events/Select.php(406): Workerman\Connection\TcpConnection->baseRead()
+#10 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1758): Workerman\Events\Select->run()
+#11 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1554): Workerman\Worker::forkOneWorkerForLinux()
+#12 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1534): Workerman\Worker::forkWorkersForLinux()
+#13 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(603): Workerman\Worker::forkWorkers()
+#14 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(303): Workerman\Worker::runAll()
+#15 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Command/Command.php(291): App\Command\ChatServerCommand->execute()
+#16 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(1107): Symfony\Component\Console\Command\Command->run()
+#17 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(123): Symfony\Component\Console\Application->doRunCommand()
+#18 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(356): Symfony\Bundle\FrameworkBundle\Console\Application->doRunCommand()
+#19 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(77): Symfony\Component\Console\Application->doRun()
+#20 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(195): Symfony\Bundle\FrameworkBundle\Console\Application->doRun()
+#21 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/runtime/Runner/Symfony/ConsoleApplicationRunner.php(49): Symfony\Component\Console\Application->run()
+#22 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/autoload_runtime.php(32): Symfony\Component\Runtime\Runner\Symfony\ConsoleApplicationRunner->run()
+#23 /home/javier/Escritorio/Djinni-FB/Djinni-B/bin/console(15): require_once('...')
+#24 {main}
+
+Next Doctrine\DBAL\Driver\PDO\Exception: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away in /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Exception.php:24
+Stack trace:
+#0 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Statement.php(57): Doctrine\DBAL\Driver\PDO\Exception::new()
+#1 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Driver\PDO\Statement->execute()
+#2 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Logging/Statement.php(46): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#3 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Logging\Statement->execute()
+#4 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/doctrine-bridge/Middleware/Debug/Statement.php(58): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#5 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(802): Symfony\Bridge\Doctrine\Middleware\Debug\Statement->execute()
+#6 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(300): Doctrine\DBAL\Connection->executeQuery()
+#7 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(75): Doctrine\DBAL\Connection->fetchAssociative()
+#8 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Connection/TcpConnection.php(792): App\Command\ChatServerCommand->{closure:App\Command\ChatServerCommand::execute():52}()
+#9 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Events/Select.php(406): Workerman\Connection\TcpConnection->baseRead()
+#10 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1758): Workerman\Events\Select->run()
+#11 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1554): Workerman\Worker::forkOneWorkerForLinux()
+#12 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1534): Workerman\Worker::forkWorkersForLinux()
+#13 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(603): Workerman\Worker::forkWorkers()
+#14 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(303): Workerman\Worker::runAll()
+#15 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Command/Command.php(291): App\Command\ChatServerCommand->execute()
+#16 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(1107): Symfony\Component\Console\Command\Command->run()
+#17 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(123): Symfony\Component\Console\Application->doRunCommand()
+#18 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(356): Symfony\Bundle\FrameworkBundle\Console\Application->doRunCommand()
+#19 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(77): Symfony\Component\Console\Application->doRun()
+#20 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(195): Symfony\Bundle\FrameworkBundle\Console\Application->doRun()
+#21 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/runtime/Runner/Symfony/ConsoleApplicationRunner.php(49): Symfony\Component\Console\Application->run()
+#22 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/autoload_runtime.php(32): Symfony\Component\Runtime\Runner\Symfony\ConsoleApplicationRunner->run()
+#23 /home/javier/Escritorio/Djinni-FB/Djinni-B/bin/console(15): require_once('...')
+#24 {main}
+
+Next Doctrine\DBAL\Exception\ConnectionLost: An exception occurred while executing a query: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away in /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/API/MySQL/ExceptionConverter.php:93
+Stack trace:
+#0 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(1460): Doctrine\DBAL\Driver\API\MySQL\ExceptionConverter->convert()
+#1 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(1396): Doctrine\DBAL\Connection->handleDriverException()
+#2 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(809): Doctrine\DBAL\Connection->convertExceptionDuringQuery()
+#3 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(300): Doctrine\DBAL\Connection->executeQuery()
+#4 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(75): Doctrine\DBAL\Connection->fetchAssociative()
+#5 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Connection/TcpConnection.php(792): App\Command\ChatServerCommand->{closure:App\Command\ChatServerCommand::execute():52}()
+#6 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Events/Select.php(406): Workerman\Connection\TcpConnection->baseRead()
+#7 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1758): Workerman\Events\Select->run()
+#8 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1554): Workerman\Worker::forkOneWorkerForLinux()
+#9 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1534): Workerman\Worker::forkWorkersForLinux()
+#10 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(603): Workerman\Worker::forkWorkers()
+#11 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(303): Workerman\Worker::runAll()
+#12 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Command/Command.php(291): App\Command\ChatServerCommand->execute()
+#13 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(1107): Symfony\Component\Console\Command\Command->run()
+#14 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(123): Symfony\Component\Console\Application->doRunCommand()
+#15 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(356): Symfony\Bundle\FrameworkBundle\Console\Application->doRunCommand()
+#16 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(77): Symfony\Component\Console\Application->doRun()
+#17 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(195): Symfony\Bundle\FrameworkBundle\Console\Application->doRun()
+#18 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/runtime/Runner/Symfony/ConsoleApplicationRunner.php(49): Symfony\Component\Console\Application->run()
+#19 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/autoload_runtime.php(32): Symfony\Component\Runtime\Runner\Symfony\ConsoleApplicationRunner->run()
+#20 /home/javier/Escritorio/Djinni-FB/Djinni-B/bin/console(15): require_once('...')
+#21 {main}
+2026-05-07 07:01:56 pid:300226 worker[djinni-chat:300228] exit with status 64000
+2026-05-07 09:23:39 pid:300226 Workerman[console] received signal SIGINT
+2026-05-07 09:23:39 pid:300226 Workerman[console] stopping
+2026-05-07 09:23:39 pid:300226 Workerman[console] has been stopped
+2026-05-07 09:23:43 pid:478211 Workerman[console] start in DEBUG mode
+2026-05-13 07:09:31 pid:478213 PDOException: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away in /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Statement.php:55
+Stack trace:
+#0 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Statement.php(55): PDOStatement->execute()
+#1 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Driver\PDO\Statement->execute()
+#2 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Logging/Statement.php(46): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#3 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Logging\Statement->execute()
+#4 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/doctrine-bridge/Middleware/Debug/Statement.php(58): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#5 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(802): Symfony\Bridge\Doctrine\Middleware\Debug\Statement->execute()
+#6 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(300): Doctrine\DBAL\Connection->executeQuery()
+#7 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(75): Doctrine\DBAL\Connection->fetchAssociative()
+#8 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Connection/TcpConnection.php(792): App\Command\ChatServerCommand->{closure:App\Command\ChatServerCommand::execute():52}()
+#9 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Events/Select.php(406): Workerman\Connection\TcpConnection->baseRead()
+#10 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1758): Workerman\Events\Select->run()
+#11 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1554): Workerman\Worker::forkOneWorkerForLinux()
+#12 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1534): Workerman\Worker::forkWorkersForLinux()
+#13 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(603): Workerman\Worker::forkWorkers()
+#14 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(354): Workerman\Worker::runAll()
+#15 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Command/Command.php(291): App\Command\ChatServerCommand->execute()
+#16 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(1107): Symfony\Component\Console\Command\Command->run()
+#17 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(123): Symfony\Component\Console\Application->doRunCommand()
+#18 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(356): Symfony\Bundle\FrameworkBundle\Console\Application->doRunCommand()
+#19 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(77): Symfony\Component\Console\Application->doRun()
+#20 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(195): Symfony\Bundle\FrameworkBundle\Console\Application->doRun()
+#21 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/runtime/Runner/Symfony/ConsoleApplicationRunner.php(49): Symfony\Component\Console\Application->run()
+#22 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/autoload_runtime.php(32): Symfony\Component\Runtime\Runner\Symfony\ConsoleApplicationRunner->run()
+#23 /home/javier/Escritorio/Djinni-FB/Djinni-B/bin/console(15): require_once('...')
+#24 {main}
+
+Next Doctrine\DBAL\Driver\PDO\Exception: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away in /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Exception.php:24
+Stack trace:
+#0 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/PDO/Statement.php(57): Doctrine\DBAL\Driver\PDO\Exception::new()
+#1 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Driver\PDO\Statement->execute()
+#2 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Logging/Statement.php(46): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#3 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/Middleware/AbstractStatementMiddleware.php(24): Doctrine\DBAL\Logging\Statement->execute()
+#4 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/doctrine-bridge/Middleware/Debug/Statement.php(58): Doctrine\DBAL\Driver\Middleware\AbstractStatementMiddleware->execute()
+#5 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(802): Symfony\Bridge\Doctrine\Middleware\Debug\Statement->execute()
+#6 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(300): Doctrine\DBAL\Connection->executeQuery()
+#7 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(75): Doctrine\DBAL\Connection->fetchAssociative()
+#8 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Connection/TcpConnection.php(792): App\Command\ChatServerCommand->{closure:App\Command\ChatServerCommand::execute():52}()
+#9 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Events/Select.php(406): Workerman\Connection\TcpConnection->baseRead()
+#10 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1758): Workerman\Events\Select->run()
+#11 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1554): Workerman\Worker::forkOneWorkerForLinux()
+#12 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1534): Workerman\Worker::forkWorkersForLinux()
+#13 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(603): Workerman\Worker::forkWorkers()
+#14 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(354): Workerman\Worker::runAll()
+#15 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Command/Command.php(291): App\Command\ChatServerCommand->execute()
+#16 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(1107): Symfony\Component\Console\Command\Command->run()
+#17 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(123): Symfony\Component\Console\Application->doRunCommand()
+#18 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(356): Symfony\Bundle\FrameworkBundle\Console\Application->doRunCommand()
+#19 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(77): Symfony\Component\Console\Application->doRun()
+#20 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(195): Symfony\Bundle\FrameworkBundle\Console\Application->doRun()
+#21 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/runtime/Runner/Symfony/ConsoleApplicationRunner.php(49): Symfony\Component\Console\Application->run()
+#22 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/autoload_runtime.php(32): Symfony\Component\Runtime\Runner\Symfony\ConsoleApplicationRunner->run()
+#23 /home/javier/Escritorio/Djinni-FB/Djinni-B/bin/console(15): require_once('...')
+#24 {main}
+
+Next Doctrine\DBAL\Exception\ConnectionLost: An exception occurred while executing a query: SQLSTATE[HY000]: General error: 2006 MySQL server has gone away in /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Driver/API/MySQL/ExceptionConverter.php:93
+Stack trace:
+#0 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(1460): Doctrine\DBAL\Driver\API\MySQL\ExceptionConverter->convert()
+#1 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(1396): Doctrine\DBAL\Connection->handleDriverException()
+#2 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(809): Doctrine\DBAL\Connection->convertExceptionDuringQuery()
+#3 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/doctrine/dbal/src/Connection.php(300): Doctrine\DBAL\Connection->executeQuery()
+#4 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(75): Doctrine\DBAL\Connection->fetchAssociative()
+#5 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Connection/TcpConnection.php(792): App\Command\ChatServerCommand->{closure:App\Command\ChatServerCommand::execute():52}()
+#6 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Events/Select.php(406): Workerman\Connection\TcpConnection->baseRead()
+#7 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1758): Workerman\Events\Select->run()
+#8 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1554): Workerman\Worker::forkOneWorkerForLinux()
+#9 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(1534): Workerman\Worker::forkWorkersForLinux()
+#10 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/workerman/workerman/src/Worker.php(603): Workerman\Worker::forkWorkers()
+#11 /home/javier/Escritorio/Djinni-FB/Djinni-B/src/Command/ChatServerCommand.php(354): Workerman\Worker::runAll()
+#12 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Command/Command.php(291): App\Command\ChatServerCommand->execute()
+#13 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(1107): Symfony\Component\Console\Command\Command->run()
+#14 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(123): Symfony\Component\Console\Application->doRunCommand()
+#15 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(356): Symfony\Bundle\FrameworkBundle\Console\Application->doRunCommand()
+#16 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/framework-bundle/Console/Application.php(77): Symfony\Component\Console\Application->doRun()
+#17 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/console/Application.php(195): Symfony\Bundle\FrameworkBundle\Console\Application->doRun()
+#18 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/symfony/runtime/Runner/Symfony/ConsoleApplicationRunner.php(49): Symfony\Component\Console\Application->run()
+#19 /home/javier/Escritorio/Djinni-FB/Djinni-B/vendor/autoload_runtime.php(32): Symfony\Component\Runtime\Runner\Symfony\ConsoleApplicationRunner->run()
+#20 /home/javier/Escritorio/Djinni-FB/Djinni-B/bin/console(15): require_once('...')
+#21 {main}
+2026-05-13 07:09:32 pid:478211 worker[djinni-chat:478213] exit with status 64000
+2026-05-13 07:49:40 pid:478211 Workerman[console] received signal SIGINT
+2026-05-13 07:49:40 pid:478211 Workerman[console] stopping
+2026-05-13 07:49:40 pid:478211 Workerman[console] has been stopped
+2026-05-13 07:49:42 pid:700910 Workerman[console] start in DEBUG mode
+2026-05-15 07:40:28 pid:700910 Workerman[console] received signal SIGINT
+2026-05-15 07:40:28 pid:700910 Workerman[console] stopping
+2026-05-15 07:40:29 pid:700910 Workerman[console] has been stopped
+2026-05-15 07:40:32 pid:782623 Workerman[console] start in DEBUG mode
+2026-05-18 14:52:31 pid:782623 Workerman[console] received signal SIGINT
+2026-05-18 14:52:31 pid:782623 Workerman[console] stopping
+2026-05-18 14:52:31 pid:782623 Workerman[console] has been stopped
+2026-05-18 14:52:36 pid:815513 Workerman[console] start in DEBUG mode
+2026-05-18 16:14:57 pid:815513 Workerman[console] received signal SIGINT
+2026-05-18 16:14:57 pid:815513 Workerman[console] stopping
+2026-05-18 16:14:57 pid:815513 Workerman[console] has been stopped
+2026-05-18 16:14:58 pid:835792 Workerman[console] start in DEBUG mode
+2026-05-19 16:09:35 pid:835792 Workerman[console] received signal SIGHUP
+2026-05-19 16:09:35 pid:835792 Workerman[console] stopping
+2026-05-19 16:09:35 pid:835792 Workerman[console] received signal SIGHUP
+2026-05-19 16:09:35 pid:835792 Workerman[console] stopping
+2026-05-19 16:09:36 pid:835792 Workerman[console] has been stopped
+
+                                                                     
+  No arguments expected for "app:chat-server" command, got "start".  
+                                                                     
+
+app:chat-server
+
+2026-05-19 16:52:31 pid:935832 Workerman[console] start in DEBUG mode

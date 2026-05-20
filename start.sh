@@ -24,6 +24,7 @@ cleanup() {
   echo "All services stopped."
 }
 
+
 trap cleanup SIGINT SIGTERM
 
 # 1. Start Docker MariaDB if not already running

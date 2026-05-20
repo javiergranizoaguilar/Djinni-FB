@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Monster;
 use App\Entity\MonsterUser;
+use App\Entity\SceneToken;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -134,6 +135,7 @@ class ApiMonsterController extends AbstractController
                     'is_editable'        => $mu->isEditable(),
                     'default_auras'      => $monster->getDefaultAuras() ?? [],
                     'default_token_data' => $monster->getDefaultTokenData(),
+                    'vision'             => $monster->getVision(),
                 ];
             }
         }
@@ -172,6 +174,7 @@ class ApiMonsterController extends AbstractController
             'image_url' => $monster->getImageUrl(), 'portrait_url' => $monster->getPortraitUrl(),
             'is_editable' => false, 'default_auras' => $monster->getDefaultAuras() ?? [],
             'default_token_data' => $monster->getDefaultTokenData(),
+            'vision' => $monster->getVision(),
         ]);
     }
 
@@ -253,6 +256,7 @@ class ApiMonsterController extends AbstractController
         if (isset($data['hit_points_average'])) $monster->setHitPointsAverage((int)$data['hit_points_average']);
         if (isset($data['hp'])) $monster->setHp((int)$data['hp']);
         if (isset($data['max_hp'])) $monster->setMaxHp((int)$data['max_hp']);
+        if (array_key_exists('vision', $data)) $monster->setVision($data['vision'] === null || $data['vision'] === '' ? null : (int)$data['vision']);
         if (isset($data['hp_formula'])) $monster->setHpFormula($data['hp_formula']);
         if (isset($data['speed']) && is_array($data['speed'])) $monster->setSpeed($data['speed']);
         if (isset($data['challenge_rating'])) $monster->setChallengeRating((int)$data['challenge_rating']);
@@ -292,6 +296,18 @@ class ApiMonsterController extends AbstractController
         if (isset($data['vtt_metadata']) && is_array($data['vtt_metadata'])) $monster->setVttMetadata($data['vtt_metadata']);
 
         $entityManager->flush();
+
+        if (array_key_exists('vision', $data)) {
+            $newVision = $monster->getVision();
+            $tokens = $entityManager->getRepository(SceneToken::class)
+                ->findBy(['kind' => 'monster', 'entity_id' => $monster->getId()]);
+            foreach ($tokens as $t) {
+                $t->setVisionRadius($newVision);
+            }
+            if (!empty($tokens)) {
+                $entityManager->flush();
+            }
+        }
 
         return $this->json(['message' => 'Monster updated successfully']);
     }

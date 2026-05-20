@@ -65,7 +65,7 @@ function loadPersonal() {
     catch { return []; }
 }
 
-const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated }, ref) {
+const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated, onSendMessage, onChildModalChange }, ref) {
     const [characters,       setCharacters]       = useState([]);
     const [monsters,         setMonsters]         = useState([]);
 
@@ -89,6 +89,11 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
     const [tab,              setTab]              = useState('characters');
     const [editCharacter,    setEditCharacter]    = useState(null);
     const [editMonster,      setEditMonster]      = useState(null);
+    const [rosterModalOpen,  setRosterModalOpen]  = useState(false);
+
+    useEffect(() => {
+        onChildModalChange?.(!!editCharacter || !!editMonster || rosterModalOpen);
+    }, [editCharacter, editMonster, rosterModalOpen, onChildModalChange]);
 
     // Quick-create
     const [createMenu,   setCreateMenu]   = useState(null); // null | 'choice' | 'character' | 'monster'
@@ -375,7 +380,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
 
             {/* ── RECUENTO ── */}
             {tab === 'roster' && (
-                <RosterTab gameId={gameId} characters={characters} />
+                <RosterTab gameId={gameId} characters={characters} onEntityUpdated={onEntityUpdated} onSendMessage={onSendMessage} onChildModalChange={setRosterModalOpen} />
             )}
 
             {/* ── MODALES DE EDICIÓN ── */}
@@ -388,6 +393,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
                     setEditCharacter(null);
                     onEntityUpdated?.('character', updated);
                 }}
+                onSendMessage={onSendMessage}
             />
             <EditMonsterModal
                 isOpen={!!editMonster}

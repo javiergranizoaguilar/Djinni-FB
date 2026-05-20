@@ -196,6 +196,15 @@ class CharacterSheet
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $flaws = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $race = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $subrace = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $alignment = null;
+
     #[ORM\Column(nullable: true)]
     private ?int $exaustion = null;
 
@@ -231,6 +240,9 @@ class CharacterSheet
 
     #[ORM\Column(nullable: true)]
     private ?int $max_hp = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $vision = null;
 
     #[ORM\Column(nullable: true)]
     private ?array $modifiers = null;
@@ -290,7 +302,7 @@ class CharacterSheet
 
     public function setSpellcastingAbillity(?string $spellcasting_abillity): static
     {
-        $this->spellcasting_abillity = $spellcasting_abillity;
+        $this->spellcasting_abillity = AbilityName::assertNullable($spellcasting_abillity);
 
         return $this;
     }
@@ -1241,6 +1253,50 @@ class CharacterSheet
     public function setMaxHp(?int $max_hp): static
     {
         $this->max_hp = $max_hp;
+        return $this;
+    }
+
+    public function getVision(): ?int
+    {
+        return $this->vision;
+    }
+
+    public function setVision(?int $vision): static
+    {
+        $this->vision = $vision;
+        return $this;
+    }
+
+    public function getRace(): ?string
+    {
+        return $this->race;
+    }
+
+    public function setRace(?string $race): static
+    {
+        $this->race = $race;
+        return $this;
+    }
+
+    public function getSubrace(): ?string
+    {
+        return $this->subrace;
+    }
+
+    public function setSubrace(?string $subrace): static
+    {
+        $this->subrace = $subrace;
+        return $this;
+    }
+
+    public function getAlignment(): ?string
+    {
+        return $this->alignment;
+    }
+
+    public function setAlignment(?string $alignment): static
+    {
+        $this->alignment = $alignment;
         return $this;
     }
 }

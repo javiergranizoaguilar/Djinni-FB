@@ -143,6 +143,9 @@ class Monster
     private ?int $max_hp = null;
 
     #[ORM\Column(nullable: true)]
+    private ?int $vision = null;
+
+    #[ORM\Column(nullable: true)]
     private ?array $default_auras = null;
 
     #[ORM\Column(nullable: true)]
@@ -764,6 +767,17 @@ class Monster
     public function setMaxHp(?int $max_hp): static
     {
         $this->max_hp = $max_hp;
+        return $this;
+    }
+
+    public function getVision(): ?int
+    {
+        return $this->vision;
+    }
+
+    public function setVision(?int $vision): static
+    {
+        $this->vision = $vision;
         return $this;
     }
 }

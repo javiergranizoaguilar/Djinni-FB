@@ -15,12 +15,14 @@ class GameMessageRepository extends ServiceEntityRepository
 
     public function findLast50ByGame(int $gameId): array
     {
-        return $this->createQueryBuilder('m')
+        $rows = $this->createQueryBuilder('m')
             ->andWhere('m.gameSesion = :gameId')
             ->setParameter('gameId', $gameId)
-            ->orderBy('m.createdAt', 'ASC')
+            ->orderBy('m.createdAt', 'DESC')
             ->setMaxResults(50)
             ->getQuery()
             ->getResult();
+
+        return array_reverse($rows);
     }
 }

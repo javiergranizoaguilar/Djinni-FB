@@ -160,6 +160,9 @@ class SceneToken
     #[ORM\Column(nullable: true)]
     private ?int $entity_id = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $visionRadius = null;
+
     public function getCounters(): ?array { return $this->counters; }
     public function setCounters(?array $counters): static { $this->counters = $counters; return $this; }
 
@@ -192,4 +195,7 @@ class SceneToken
 
     public function getControlledBy(): ?User { return $this->controlledBy; }
     public function setControlledBy(?User $controlledBy): static { $this->controlledBy = $controlledBy; return $this; }
+
+    public function getVisionRadius(): ?int { return $this->visionRadius; }
+    public function setVisionRadius(?int $visionRadius): static { $this->visionRadius = $visionRadius; return $this; }
 }

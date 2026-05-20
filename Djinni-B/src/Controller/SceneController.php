@@ -43,6 +43,8 @@ final class SceneController extends AbstractController
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
+            'fog_data' => $scene->getFogData(),
+            'walls_data' => $scene->getWallsData(),
         ]);
     }
 
@@ -78,6 +80,8 @@ final class SceneController extends AbstractController
             'grid_height' => $scene->getGridHeight(),
             'is_dm' => $isDm,
             'current_user_id' => $user?->getId(),
+            'fog_data' => $scene->getFogData(),
+            'walls_data' => $scene->getWallsData(),
         ]);
     }
 
@@ -115,6 +119,8 @@ final class SceneController extends AbstractController
                 'name' => $scene->getName(),
                 'grid_width' => $scene->getGridWidth(),
                 'grid_height' => $scene->getGridHeight(),
+                'fog_data' => $scene->getFogData(),
+                'walls_data' => $scene->getWallsData(),
             ];
         }, $scenes);
 
@@ -153,6 +159,64 @@ final class SceneController extends AbstractController
             'name' => $scene->getName(),
             'grid_width' => $scene->getGridWidth(),
             'grid_height' => $scene->getGridHeight(),
+        ]);
+    }
+
+    #[Route('/api/scenes/{id}/fog', name: 'api_update_scene_fog', methods: ['PUT'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateSceneFog(int $id, Request $request, SceneRepository $sceneRepository, EntityManagerInterface $entityManager, UserGameSessionRepository $userGameSessionRepository): JsonResponse
+    {
+        $scene = $sceneRepository->find($id);
+        if (!$scene) {
+            return $this->json(['error' => 'Scene not found.'], 404);
+        }
+
+        $session = $scene->getSessionId();
+        if (!$session) {
+            return $this->json(['error' => 'Scene has no session.'], 400);
+        }
+
+        $ugs = $userGameSessionRepository->findOneBy(['user' => $this->getUser(), 'gameSession' => $session->getId()]);
+        if (!$ugs || !$ugs->isDm()) {
+            return $this->json(['error' => 'Forbidden.'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $scene->setFogData($data['fog_data'] ?? null);
+        $entityManager->flush();
+
+        return $this->json([
+            'id' => $scene->getId(),
+            'fog_data' => $scene->getFogData(),
+        ]);
+    }
+
+    #[Route('/api/scenes/{id}/walls', name: 'api_update_scene_walls', methods: ['PUT'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateSceneWalls(int $id, Request $request, SceneRepository $sceneRepository, EntityManagerInterface $entityManager, UserGameSessionRepository $userGameSessionRepository): JsonResponse
+    {
+        $scene = $sceneRepository->find($id);
+        if (!$scene) {
+            return $this->json(['error' => 'Scene not found.'], 404);
+        }
+
+        $session = $scene->getSessionId();
+        if (!$session) {
+            return $this->json(['error' => 'Scene has no session.'], 400);
+        }
+
+        $ugs = $userGameSessionRepository->findOneBy(['user' => $this->getUser(), 'gameSession' => $session->getId()]);
+        if (!$ugs || !$ugs->isDm()) {
+            return $this->json(['error' => 'Forbidden.'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $scene->setWallsData($data['walls_data'] ?? null);
+        $entityManager->flush();
+
+        return $this->json([
+            'id' => $scene->getId(),
+            'walls_data' => $scene->getWallsData(),
         ]);
     }
 

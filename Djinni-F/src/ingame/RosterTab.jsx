@@ -353,13 +353,17 @@ function FolderNode({ folder, isDm, gameId, members, onMoved, onFolderRenamed, o
     );
 }
 
-export default function RosterTab({ gameId, characters }) {
+export default function RosterTab({ gameId, characters, onEntityUpdated, onSendMessage, onChildModalChange }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [newFolderName, setNewFolderName] = useState('');
     const [showAddPJ, setShowAddPJ] = useState(false);
     const [rootDragOver, setRootDragOver] = useState(false);
     const [sheetModal, setSheetModal] = useState(null); // {kind, entity}
+
+    useEffect(() => {
+        onChildModalChange?.(!!sheetModal);
+    }, [sheetModal, onChildModalChange]);
 
     const openSheet = async (item) => {
         if (!item.entity_id || !['character', 'monster'].includes(item.kind)) return;
@@ -561,7 +565,8 @@ export default function RosterTab({ gameId, characters }) {
                     isOpen={true}
                     onClose={() => setSheetModal(null)}
                     character={sheetModal.entity}
-                    onCharacterUpdated={() => setSheetModal(null)}
+                    onCharacterUpdated={(updated) => { if (updated) onEntityUpdated?.('character', updated); setSheetModal(null); }}
+                    onSendMessage={onSendMessage}
                 />
             )}
             {sheetModal?.kind === 'monster' && (
@@ -569,7 +574,7 @@ export default function RosterTab({ gameId, characters }) {
                     isOpen={true}
                     onClose={() => setSheetModal(null)}
                     monster={sheetModal.entity}
-                    onMonsterUpdated={() => setSheetModal(null)}
+                    onMonsterUpdated={(updated) => { if (updated) onEntityUpdated?.('monster', updated); setSheetModal(null); }}
                 />
             )}
         </div>
