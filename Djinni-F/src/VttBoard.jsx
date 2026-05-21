@@ -82,6 +82,7 @@ const DEFAULT_COUNTERS = [
 // Campos de personaje: { label, key, getVals(entity) → {current, max} }
 const CHARACTER_COUNTER_FIELDS = [
     { label: 'HP', key: 'hp', maxKey: 'max_hp', getVals: c => ({ current: c.hp ?? 0, max: c.max_hp ?? c.hp ?? 0 }) },
+    { label: 'CA', key: 'armor_class', getVals: c => ({ current: c.armor_class ?? 0, max: c.armor_class ?? 0 }) },
 ];
 
 // Campos de monstruo: { label, key, maxKey?, getVals(entity) → {current, max} }
@@ -882,6 +883,10 @@ export default function VttBoard() {
             ? tokenData.default_counters.map(c => {
                 if (c.linked_field === 'hp' && tokenData.max_hp > 0) {
                     return { ...c, current: tokenData.hp ?? tokenData.max_hp, max: tokenData.max_hp };
+                }
+                if (c.linked_field === 'armor_class') {
+                    const ac = tokenData.armor_class ?? 0;
+                    return { ...c, current: ac, max: ac };
                 }
                 return c;
             })
@@ -2078,6 +2083,11 @@ const saveCounters = async (tokenId, counters) => {
                                     vttWsRef.current.send(JSON.stringify({ type: 'message', content }));
                                 }
                             }}
+                            onSendMessageGm={(content) => {
+                                if (vttWsRef.current?.readyState === WebSocket.OPEN) {
+                                    vttWsRef.current.send(JSON.stringify({ type: 'message_gm', content }));
+                                }
+                            }}
                             onChildModalChange={setChildModalOpen}
                         />
                     </div>
@@ -2762,6 +2772,11 @@ const saveCounters = async (tokenId, counters) => {
                     onSendMessage={(content) => {
                         if (vttWsRef.current?.readyState === WebSocket.OPEN) {
                             vttWsRef.current.send(JSON.stringify({ type: 'message', content }));
+                        }
+                    }}
+                    onSendMessageGm={(content) => {
+                        if (vttWsRef.current?.readyState === WebSocket.OPEN) {
+                            vttWsRef.current.send(JSON.stringify({ type: 'message_gm', content }));
                         }
                     }}
                 />

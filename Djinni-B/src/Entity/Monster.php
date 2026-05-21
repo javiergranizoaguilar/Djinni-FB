@@ -89,9 +89,6 @@ class Monster
     private ?array $traits = null;
 
     #[ORM\Column(nullable: true)]
-    private ?array $spellcasting = null;
-
-    #[ORM\Column(nullable: true)]
     private ?array $actions = null;
 
     #[ORM\Column(nullable: true)]
@@ -126,9 +123,6 @@ class Monster
 
     #[ORM\Column(nullable: true)]
     private ?array $tags = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?array $vtt_metadata = null;
 
     #[ORM\Column(length: 500, nullable: true)]
     private ?string $image_url = null;
@@ -469,18 +463,6 @@ class Monster
         return $this;
     }
 
-    public function getSpellcasting(): ?array
-    {
-        return $this->spellcasting;
-    }
-
-    public function setSpellcasting(?array $spellcasting): static
-    {
-        $this->spellcasting = $spellcasting;
-
-        return $this;
-    }
-
     public function getActions(): ?array
     {
         return $this->actions;
@@ -621,18 +603,6 @@ class Monster
     public function setTags(?array $tags): static
     {
         $this->tags = $tags;
-
-        return $this;
-    }
-
-    public function getVttMetadata(): ?array
-    {
-        return $this->vtt_metadata;
-    }
-
-    public function setVttMetadata(?array $vtt_metadata): static
-    {
-        $this->vtt_metadata = $vtt_metadata;
 
         return $this;
     }

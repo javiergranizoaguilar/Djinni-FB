@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Monster;
 use App\Entity\MonsterUser;
 use App\Entity\SceneToken;
+use App\Entity\Spell;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -116,7 +117,6 @@ class ApiMonsterController extends AbstractController
                     'senses' => $monster->getSenses(),
                     'languages' => $monster->getLanguages(),
                     'traits' => $monster->getTraits(),
-                    'spellcasting' => $monster->getSpellcasting(),
                     'actions' => $monster->getActions(),
                     'bonus_actions' => $monster->getBonusActions(),
                     'reactions' => $monster->getReactions(),
@@ -129,7 +129,6 @@ class ApiMonsterController extends AbstractController
                     'enviroment' => $monster->getEnviroment(),
                     'treasure' => $monster->getTreasure(),
                     'tags' => $monster->getTags(),
-                    'vtt_metadata' => $monster->getVttMetadata(),
                     'image_url'     => $monster->getImageUrl(),
                     'portrait_url'  => $monster->getPortraitUrl(),
                     'is_editable'        => $mu->isEditable(),
@@ -150,6 +149,27 @@ class ApiMonsterController extends AbstractController
         $monster = $em->getRepository(Monster::class)->find($id);
         if (!$monster) return $this->json(['error' => 'Not found'], 404);
 
+        $spells = [];
+        foreach ($monster->getSpells() as $s) {
+            $spells[] = [
+                'id' => $s->getId(),
+                'name' => $s->getName(),
+                'level' => $s->getLevel(),
+                'school' => $s->getSchool(),
+                'description' => $s->getDescription(),
+                'is_prepared' => $s->isPrepared(),
+                'has_limited_uses' => $s->hasLimitedUses(),
+                'max_charges' => $s->getMaxCharges(),
+                'current_charges' => $s->getCurrentCharges(),
+                'casting_time' => $s->getCastingTime(),
+                'range' => $s->getSpellRange(),
+                'components' => $s->getComponents(),
+                'duration' => $s->getDuration(),
+                'higer_level_description' => $s->getHigerLevelDescription(),
+                'recharge_type' => $s->getRechargeType(),
+            ];
+        }
+
         return $this->json([
             'id' => $monster->getId(), 'name' => $monster->getName(),
             'max_hp' => $monster->getMaxHp(), 'source_book' => $monster->getSourceBook(),
@@ -163,18 +183,19 @@ class ApiMonsterController extends AbstractController
             'skills' => $monster->getSkills(), 'passive_perception' => $monster->getPassivePerception(),
             'cr' => $monster->getChallengeRating(), 'senses' => $monster->getSenses(),
             'languages' => $monster->getLanguages(), 'traits' => $monster->getTraits(),
-            'spellcasting' => $monster->getSpellcasting(), 'actions' => $monster->getActions(),
+            'actions' => $monster->getActions(),
             'bonus_actions' => $monster->getBonusActions(), 'reactions' => $monster->getReactions(),
             'legendary_resistances_count' => $monster->getLegendaryResistancesCount(),
             'legendary_actions_count' => $monster->getLegendaryActionsCount(),
             'legendary_actions' => $monster->getLegendaryActions(), 'mythic_actions' => $monster->getMythicActions(),
             'lair_actions' => $monster->getLairActions(), 'regional_effects' => $monster->getRegionalEffects(),
             'enviroment' => $monster->getEnviroment(), 'treasure' => $monster->getTreasure(),
-            'tags' => $monster->getTags(), 'vtt_metadata' => $monster->getVttMetadata(),
+            'tags' => $monster->getTags(),
             'image_url' => $monster->getImageUrl(), 'portrait_url' => $monster->getPortraitUrl(),
             'is_editable' => false, 'default_auras' => $monster->getDefaultAuras() ?? [],
             'default_token_data' => $monster->getDefaultTokenData(),
             'vision' => $monster->getVision(),
+            'spells' => $spells,
         ]);
     }
 
@@ -281,7 +302,6 @@ class ApiMonsterController extends AbstractController
         if (isset($data['actions']) && is_array($data['actions'])) $monster->setActions($data['actions']);
         if (isset($data['bonus_actions']) && is_array($data['bonus_actions'])) $monster->setBonusActions($data['bonus_actions']);
         if (isset($data['reactions']) && is_array($data['reactions'])) $monster->setReactions($data['reactions']);
-        if (isset($data['spellcasting']) && is_array($data['spellcasting'])) $monster->setSpellcasting($data['spellcasting']);
 
         // Legendary & Mythic
         if (isset($data['legendary_resistances_count'])) $monster->setLegendaryResistancesCount((int)$data['legendary_resistances_count']);
@@ -293,7 +313,6 @@ class ApiMonsterController extends AbstractController
 
         // Misc
         if (isset($data['treasure']) && is_array($data['treasure'])) $monster->setTreasure($data['treasure']);
-        if (isset($data['vtt_metadata']) && is_array($data['vtt_metadata'])) $monster->setVttMetadata($data['vtt_metadata']);
 
         $entityManager->flush();
 
@@ -454,5 +473,104 @@ class ApiMonsterController extends AbstractController
         $entityManager->flush();
 
         return $this->json(['image_url' => $monster->getImageUrl(), 'portrait_url' => $monster->getPortraitUrl()]);
+    }
+
+    #[Route('/{id}/spell/create', name: 'api_monster_spell_create', methods: ['POST'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function createSpell(int $id, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+        if (!$monster) return $this->json(['error' => 'Monster not found'], 404);
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy(['user' => $user, 'monster' => $monster]);
+        if (!$mu || $mu->isEditable() === false) return $this->json(['error' => 'Permission denied'], 403);
+
+        $data = json_decode($request->getContent(), true) ?? [];
+
+        $spell = new Spell();
+        $spell->setName($data['name'] ?? 'Nuevo Hechizo');
+        $spell->setLevel((int)($data['level'] ?? 0));
+        $spell->setSchool($data['school'] ?? 'Evocación');
+        $spell->setDescription($data['description'] ?? '');
+        $spell->setIsPrepared((bool)($data['is_prepared'] ?? false));
+        $spell->setHasLimitedUses((bool)($data['has_limited_uses'] ?? false));
+        $spell->setMaxCharges((int)($data['max_charges'] ?? 0));
+        $spell->setCurrentCharges((int)($data['current_charges'] ?? 0));
+        $spell->setCastingTime($data['casting_time'] ?? '');
+        $spell->setSpellRange($data['range'] ?? '');
+        $spell->setComponents($data['components'] ?? '');
+        $spell->setDuration($data['duration'] ?? '');
+
+        $spell->addMonsterSpell($monster);
+
+        $entityManager->persist($spell);
+        $entityManager->flush();
+
+        return $this->json(['id' => $spell->getId()]);
+    }
+
+    #[Route('/{id}/spell/delete/{spellId}', name: 'api_monster_spell_delete', methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function deleteSpell(int $id, int $spellId, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+        if (!$monster) return $this->json(['error' => 'Monster not found'], 404);
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy(['user' => $user, 'monster' => $monster]);
+        if (!$mu || $mu->isEditable() === false) return $this->json(['error' => 'Permission denied'], 403);
+
+        $spell = $entityManager->getRepository(Spell::class)->find($spellId);
+        if (!$spell) return $this->json(['error' => 'Spell not found'], 404);
+
+        if (!$spell->getMonsterSpell()->contains($monster)) {
+            return $this->json(['error' => 'Spell does not belong to monster'], 404);
+        }
+
+        $spell->removeMonsterSpell($monster);
+
+        if ($spell->getCharacterId()->isEmpty() && $spell->getMonsterSpell()->isEmpty()) {
+            $entityManager->remove($spell);
+        }
+
+        $entityManager->flush();
+
+        return $this->json(['ok' => true]);
+    }
+
+    #[Route('/{id}/spell/update/{spellId}', name: 'api_monster_spell_update', methods: ['PATCH'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function updateSpell(int $id, int $spellId, Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        /** @var User $user */
+        $user = $this->getUser();
+        $monster = $entityManager->getRepository(Monster::class)->find($id);
+        if (!$monster) return $this->json(['error' => 'Monster not found'], 404);
+
+        $mu = $entityManager->getRepository(MonsterUser::class)->findOneBy(['user' => $user, 'monster' => $monster]);
+        if (!$mu || $mu->isEditable() === false) return $this->json(['error' => 'Permission denied'], 403);
+
+        $spell = $entityManager->getRepository(Spell::class)->find($spellId);
+        if (!$spell || !$spell->getMonsterSpell()->contains($monster)) {
+            return $this->json(['error' => 'Spell not found or does not belong to monster'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true) ?? [];
+        if (isset($data['name'])) $spell->setName($data['name']);
+        if (isset($data['level'])) $spell->setLevel((int)$data['level']);
+        if (isset($data['school'])) $spell->setSchool($data['school']);
+        if (isset($data['description'])) $spell->setDescription($data['description']);
+        if (isset($data['casting_time'])) $spell->setCastingTime($data['casting_time']);
+        if (isset($data['range'])) $spell->setSpellRange($data['range']);
+        if (isset($data['components'])) $spell->setComponents($data['components']);
+        if (isset($data['duration'])) $spell->setDuration($data['duration']);
+        if (isset($data['is_prepared'])) $spell->setIsPrepared((bool)$data['is_prepared']);
+
+        $entityManager->flush();
+
+        return $this->json(['ok' => true]);
     }
 }

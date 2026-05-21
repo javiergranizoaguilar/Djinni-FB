@@ -65,7 +65,7 @@ function loadPersonal() {
     catch { return []; }
 }
 
-const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated, onSendMessage, onChildModalChange }, ref) {
+const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated, onSendMessage, onSendMessageGm, onChildModalChange }, ref) {
     const [characters,       setCharacters]       = useState([]);
     const [monsters,         setMonsters]         = useState([]);
 
@@ -277,6 +277,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
                                         color:            c.default_token_data?.color     || 'blue',
                                         image_url:        c.default_token_data?.image_url ?? c.token_image ?? null,
                                         hp: c.hp ?? 0, max_hp: c.max_hp ?? c.hp ?? 0,
+                                        armor_class: c.armor_class ?? 0,
                                         default_auras:    c.default_token_data?.auras    || c.default_auras || [],
                                         default_counters: c.default_token_data?.counters || null,
                                         default_width:    c.default_token_data?.width    || null,
@@ -380,7 +381,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
 
             {/* ── RECUENTO ── */}
             {tab === 'roster' && (
-                <RosterTab gameId={gameId} characters={characters} onEntityUpdated={onEntityUpdated} onSendMessage={onSendMessage} onChildModalChange={setRosterModalOpen} />
+                <RosterTab gameId={gameId} characters={characters} onEntityUpdated={onEntityUpdated} onSendMessage={onSendMessage} onSendMessageGm={onSendMessageGm} onChildModalChange={setRosterModalOpen} />
             )}
 
             {/* ── MODALES DE EDICIÓN ── */}
@@ -394,6 +395,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
                     onEntityUpdated?.('character', updated);
                 }}
                 onSendMessage={onSendMessage}
+                onSendMessageGm={onSendMessageGm}
             />
             <EditMonsterModal
                 isOpen={!!editMonster}

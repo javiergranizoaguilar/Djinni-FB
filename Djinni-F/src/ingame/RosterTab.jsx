@@ -353,7 +353,7 @@ function FolderNode({ folder, isDm, gameId, members, onMoved, onFolderRenamed, o
     );
 }
 
-export default function RosterTab({ gameId, characters, onEntityUpdated, onSendMessage, onChildModalChange }) {
+export default function RosterTab({ gameId, characters, onEntityUpdated, onSendMessage, onSendMessageGm, onChildModalChange }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [newFolderName, setNewFolderName] = useState('');
@@ -567,6 +567,7 @@ export default function RosterTab({ gameId, characters, onEntityUpdated, onSendM
                     character={sheetModal.entity}
                     onCharacterUpdated={(updated) => { if (updated) onEntityUpdated?.('character', updated); setSheetModal(null); }}
                     onSendMessage={onSendMessage}
+                    onSendMessageGm={onSendMessageGm}
                 />
             )}
             {sheetModal?.kind === 'monster' && (

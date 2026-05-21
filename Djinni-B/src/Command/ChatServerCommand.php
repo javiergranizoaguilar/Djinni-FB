@@ -23,7 +23,7 @@ class ChatServerCommand extends Command
     /** @var array<int, \SplObjectStorage<TcpConnection, array>> rooms[gameId] → connections */
     private array $rooms = [];
 
-    /** @var \WeakMap<TcpConnection, array{userId: int, userName: string, gameId: int}> */
+    /** @var \WeakMap<TcpConnection, array{userId: int, userName: string, gameId: int, isDm: bool}> */
     private \WeakMap $meta;
 
     public function __construct(
@@ -83,7 +83,14 @@ class ChatServerCommand extends Command
                 }
 
                 $userName = $row['username'] ?? $row['email'];
-                $this->meta[$tcpConn] = ['userId' => (int) $row['id'], 'userName' => $userName, 'gameId' => $gameId];
+
+                $dmRow = $conn->fetchAssociative(
+                    'SELECT is_dm FROM user_game_session WHERE user_id = ? AND game_session_id = ?',
+                    [(int) $row['id'], $gameId]
+                );
+                $isDm = $dmRow ? (bool) $dmRow['is_dm'] : false;
+
+                $this->meta[$tcpConn] = ['userId' => (int) $row['id'], 'userName' => $userName, 'gameId' => $gameId, 'isDm' => $isDm];
 
                 if (!isset($this->rooms[$gameId])) {
                     $this->rooms[$gameId] = new \SplObjectStorage();
@@ -352,6 +359,47 @@ class ChatServerCommand extends Command
                         $peer->send($broadcast);
                     }
                 }
+                return;
+            }
+
+            // ── CHAT message_gm (ephemeral, DM + sender only, not persisted) ─
+            if ($payload['type'] === 'message_gm') {
+                $output->writeln('[chat] message_gm received');
+                if (!isset($this->meta[$tcpConn])) {
+                    $output->writeln('[chat] message_gm rejected: no meta for conn');
+                    return;
+                }
+
+                $m       = $this->meta[$tcpConn];
+                $content = trim($payload['content'] ?? '');
+                if ($content === '') {
+                    return;
+                }
+
+                $broadcast = json_encode([
+                    'type'       => 'message',
+                    'senderId'   => $m['userId'],
+                    'senderName' => $m['userName'],
+                    'content'    => $content,
+                    'createdAt'  => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                ]);
+
+                $senderUserId = $m['userId'];
+                $room = $this->rooms[$m['gameId']] ?? null;
+                $delivered = 0;
+                if ($room) {
+                    foreach ($room as $peer) {
+                        $peerMeta  = isset($this->meta[$peer]) ? $this->meta[$peer] : null;
+                        $isSameUser = $peerMeta && $peerMeta['userId'] === $senderUserId;
+                        $peerIsDm   = $peerMeta && !empty($peerMeta['isDm']);
+                        if (!$isSameUser && !$peerIsDm) {
+                            continue;
+                        }
+                        $peer->send($broadcast);
+                        $delivered++;
+                    }
+                }
+                $output->writeln(sprintf('[chat] message_gm from user=%d (isDm=%d) game=%d delivered=%d', $m['userId'], $m['isDm'] ? 1 : 0, $m['gameId'], $delivered));
                 return;
             }
 

@@ -64,6 +64,18 @@ class ApiCharacterController extends AbstractController
             ['class' => 'Commoner', 'level' => 1, 'subclass' => '']
         ]);
 
+        $characterSheet->setAcMode('auto');
+        $characterSheet->setAcConfig([
+            'base' => 10,
+            'stat' => 'destreza',
+            'stat_cap' => null,
+            'armor_bonus' => 0,
+            'shield_bonus' => 0,
+        ]);
+        $characterSheet->setArmorClass(10);
+        $characterSheet->setHitDice([]);
+        $characterSheet->setSpellSlots(array_map(fn($l) => ['level' => $l, 'max' => 0, 'current' => 0], range(1, 9)));
+
         $entityManager->persist($characterSheet);
 
         // 2. Asociar al usuario mediante la tabla intermedia CharacterSheetUser
@@ -156,9 +168,16 @@ class ApiCharacterController extends AbstractController
                     // Saving Throws
                     'sav_str' => $sheet->isSavStr(), 'sav_str_mod' => $sheet->getSavStrMod(),
                     'sav_dex' => $sheet->isSavDex(), 'sav_dex_mod' => $sheet->getSavDexMod(),
+                    'sav_con' => $sheet->isSavCon(), 'sav_con_mod' => $sheet->getSavConMod(),
                     'sav_int' => $sheet->isSavInt(), 'sav_int_mod' => $sheet->getSavIntMod(),
                     'sav_wis' => $sheet->isSavWis(), 'sav_wis_mod' => $sheet->getSavWisMod(),
                     'sav_cha' => $sheet->isSavCha(), 'sav_cha_mod' => $sheet->getSavChaMod(),
+                    // Combat extras
+                    'armor_class' => $sheet->getArmorClass(),
+                    'ac_mode' => $sheet->getAcMode(),
+                    'ac_config' => $sheet->getAcConfig(),
+                    'hit_dice' => $sheet->getHitDice() ?? [],
+                    'spell_slots' => $sheet->getSpellSlots() ?? array_map(fn($l) => ['level' => $l, 'max' => 0, 'current' => 0], range(1, 9)),
                     // Skills
                     'acrobatics' => $sheet->getAcrobatics(), 'acrobatics_mod' => $sheet->getAcrobaticsMod(),
                     'animal_handling' => $sheet->getAnimalHandling(), 'animal_handling_mod' => $sheet->getAnimalHandlingMod(),
@@ -273,9 +292,15 @@ class ApiCharacterController extends AbstractController
             'exaustion' => $sheet->getExaustion(),
             'sav_str' => $sheet->isSavStr(), 'sav_str_mod' => $sheet->getSavStrMod(),
             'sav_dex' => $sheet->isSavDex(), 'sav_dex_mod' => $sheet->getSavDexMod(),
+            'sav_con' => $sheet->isSavCon(), 'sav_con_mod' => $sheet->getSavConMod(),
             'sav_int' => $sheet->isSavInt(), 'sav_int_mod' => $sheet->getSavIntMod(),
             'sav_wis' => $sheet->isSavWis(), 'sav_wis_mod' => $sheet->getSavWisMod(),
             'sav_cha' => $sheet->isSavCha(), 'sav_cha_mod' => $sheet->getSavChaMod(),
+            'armor_class' => $sheet->getArmorClass(),
+            'ac_mode' => $sheet->getAcMode(),
+            'ac_config' => $sheet->getAcConfig(),
+            'hit_dice' => $sheet->getHitDice() ?? [],
+            'spell_slots' => $sheet->getSpellSlots() ?? array_map(fn($l) => ['level' => $l, 'max' => 0, 'current' => 0], range(1, 9)),
             'acrobatics' => $sheet->getAcrobatics(), 'acrobatics_mod' => $sheet->getAcrobaticsMod(),
             'animal_handling' => $sheet->getAnimalHandling(), 'animal_handling_mod' => $sheet->getAnimalHandlingMod(),
             'arcana' => $sheet->getArcana(), 'arcana_mod' => $sheet->getArcanaMod(),
@@ -383,7 +408,7 @@ class ApiCharacterController extends AbstractController
         }
 
         // Saving Throws
-        $savingThrows = ['sav_str', 'sav_dex', 'sav_int', 'sav_wis', 'sav_cha'];
+        $savingThrows = ['sav_str', 'sav_dex', 'sav_con', 'sav_int', 'sav_wis', 'sav_cha'];
         foreach ($savingThrows as $st) {
             if ($request->request->has($st)) {
                 $val = $request->request->get($st);
@@ -412,6 +437,38 @@ class ApiCharacterController extends AbstractController
             if ($request->request->has($skill . '_mod')) {
                 $setterMod = 'set' . str_replace('_', '', ucwords($skill . '_mod', '_'));
                 $characterSheet->$setterMod((int)$request->request->get($skill . '_mod'));
+            }
+        }
+
+        // Armor Class
+        if ($request->request->has('armor_class')) {
+            $v = $request->request->get('armor_class');
+            $characterSheet->setArmorClass($v === '' ? null : (int)$v);
+        }
+        if ($request->request->has('ac_mode')) {
+            $m = $request->request->get('ac_mode');
+            $characterSheet->setAcMode(in_array($m, ['auto', 'custom'], true) ? $m : 'auto');
+        }
+        if ($request->request->has('ac_config')) {
+            $cfg = json_decode($request->request->get('ac_config'), true);
+            if (is_array($cfg)) {
+                $characterSheet->setAcConfig($cfg);
+            }
+        }
+
+        // Hit Dice
+        if ($request->request->has('hit_dice')) {
+            $hd = json_decode($request->request->get('hit_dice'), true);
+            if (is_array($hd)) {
+                $characterSheet->setHitDice($hd);
+            }
+        }
+
+        // Spell Slots
+        if ($request->request->has('spell_slots')) {
+            $ss = json_decode($request->request->get('spell_slots'), true);
+            if (is_array($ss)) {
+                $characterSheet->setSpellSlots($ss);
             }
         }
 

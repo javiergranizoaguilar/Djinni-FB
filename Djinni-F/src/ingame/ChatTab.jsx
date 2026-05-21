@@ -171,6 +171,9 @@ export default function ChatTab({ gameId, isActive }) {
                                             textShadow={parsed.attackCrit ? `0 0 8px ${parsed.attackCrit === 'max' ? '#4ade80' : '#f87171'}` : 'none'}
                                             fontSize={22} fontWeight={800}
                                         >{parsed.attack}</RollTooltip>
+                                        {parsed.attackDiscarded != null && (
+                                            <span style={{ color: '#475569', fontSize: 22, fontWeight: 800, fontFamily: 'inherit' }}>{parsed.attackDiscarded}</span>
+                                        )}
                                     </div>
                                     {parsed.damage !== null && (
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -181,6 +184,9 @@ export default function ChatTab({ gameId, isActive }) {
                                                 textShadow={parsed.dmgCrit ? `0 0 8px ${parsed.dmgCrit === 'max' ? '#4ade80' : '#ef4444'}` : 'none'}
                                                 fontSize={18} fontWeight={700}
                                             >{parsed.damage}</RollTooltip>
+                                            {parsed.dmgDiscarded != null && (
+                                                <span style={{ color: '#475569', fontSize: 18, fontWeight: 700, fontFamily: 'inherit' }}>{parsed.dmgDiscarded}</span>
+                                            )}
                                             {parsed.dmgType && <span style={{ color: '#6b7280', fontSize: 11 }}>{parsed.dmgType}</span>}
                                         </div>
                                     )}
@@ -193,6 +199,9 @@ export default function ChatTab({ gameId, isActive }) {
                                                 textShadow={parsed.dmg2Crit ? `0 0 8px ${parsed.dmg2Crit === 'max' ? '#4ade80' : '#ef4444'}` : 'none'}
                                                 fontSize={18} fontWeight={700}
                                             >{parsed.damage2}</RollTooltip>
+                                            {parsed.dmg2Discarded != null && (
+                                                <span style={{ color: '#475569', fontSize: 18, fontWeight: 700, fontFamily: 'inherit' }}>{parsed.dmg2Discarded}</span>
+                                            )}
                                             {parsed.dmgType2 && <span style={{ color: '#6b7280', fontSize: 11 }}>{parsed.dmgType2}</span>}
                                         </div>
                                     )}
@@ -208,10 +217,15 @@ export default function ChatTab({ gameId, isActive }) {
                                     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                                 }}>
                                     <span style={{ color: '#818cf8', fontSize: 13, whiteSpace: 'pre-line', textAlign: 'center' }}>🎲 {parsed.expr}</span>
-                                    <RollTooltip
-                                        raw={parsed.rolls} mod={parsed.mod || null}
-                                        color="#e2e8f0" fontSize={18} fontWeight={700}
-                                    >{parsed.total}</RollTooltip>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                                        <RollTooltip
+                                            raw={parsed.rolls} mod={parsed.mod || null}
+                                            color="#e2e8f0" fontSize={18} fontWeight={700}
+                                        >{parsed.total}</RollTooltip>
+                                        {parsed.discarded != null && (
+                                            <span style={{ color: '#475569', fontSize: 18, fontWeight: 700, fontFamily: 'inherit' }}>{parsed.discarded}</span>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <div style={{ color: '#e2e8f0', fontSize: 13, marginTop: 2, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>

@@ -70,6 +70,27 @@ class CharacterSheet
     #[ORM\Column(nullable: true)]
     private ?int $sav_cha_mod = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?bool $sav_con = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_con_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $armor_class = null;
+
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $ac_mode = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $ac_config = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $hit_dice = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $spell_slots = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $acrobatics = null;
 
@@ -1297,6 +1318,83 @@ class CharacterSheet
     public function setAlignment(?string $alignment): static
     {
         $this->alignment = $alignment;
+        return $this;
+    }
+
+    public function isSavCon(): ?bool
+    {
+        return $this->sav_con;
+    }
+
+    public function setSavCon(?bool $sav_con): static
+    {
+        $this->sav_con = $sav_con;
+        return $this;
+    }
+
+    public function getSavConMod(): ?int
+    {
+        return $this->sav_con_mod;
+    }
+
+    public function setSavConMod(?int $sav_con_mod): static
+    {
+        $this->sav_con_mod = $sav_con_mod;
+        return $this;
+    }
+
+    public function getArmorClass(): ?int
+    {
+        return $this->armor_class;
+    }
+
+    public function setArmorClass(?int $armor_class): static
+    {
+        $this->armor_class = $armor_class;
+        return $this;
+    }
+
+    public function getAcMode(): ?string
+    {
+        return $this->ac_mode;
+    }
+
+    public function setAcMode(?string $ac_mode): static
+    {
+        $this->ac_mode = $ac_mode;
+        return $this;
+    }
+
+    public function getAcConfig(): ?array
+    {
+        return $this->ac_config;
+    }
+
+    public function setAcConfig(?array $ac_config): static
+    {
+        $this->ac_config = $ac_config;
+        return $this;
+    }
+
+    public function getHitDice(): ?array
+    {
+        return $this->hit_dice;
+    }
+
+    public function setHitDice(?array $hit_dice): static
+    {
+        $this->hit_dice = $hit_dice;
+        return $this;
+    }
+
+    public function getSpellSlots(): ?array
+    {
+        return $this->spell_slots;
+    }
+
+    public function setSpellSlots(?array $spell_slots): static
+    {
+        $this->spell_slots = $spell_slots;
         return $this;
     }
 }

@@ -64,7 +64,20 @@ const S = {
     color: '#c4b5fd', borderRadius: 20, padding: '2px 10px',
     fontSize: 11, fontFamily: 'sans-serif', fontWeight: 700, letterSpacing: '0.06em',
   },
-  hpRow: { display: 'flex', gap: 12, marginTop: 8, alignItems: 'center' },
+  hpRow: { display: 'flex', gap: 12, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' },
+  togGroup: {
+    display: 'flex', gap: 0, background: '#0f172a', border: '1px solid #334155',
+    borderRadius: 20, padding: 2, overflow: 'hidden',
+  },
+  togBtn: (active, accent) => ({
+    background: active ? accent : 'transparent',
+    color: active ? '#0f172a' : '#94a3b8',
+    border: 'none', borderRadius: 18,
+    padding: '3px 10px', fontSize: 10, fontWeight: 700,
+    cursor: 'pointer', fontFamily: 'sans-serif',
+    letterSpacing: '0.06em', textTransform: 'uppercase',
+    transition: 'all 0.15s',
+  }),
   hpPill: {
     background: '#0f172a', border: '1px solid #22c55e', borderRadius: 20,
     padding: '2px 12px', display: 'flex', alignItems: 'center', gap: 6,
@@ -263,11 +276,59 @@ const SKILL_ES = {
 const SAVE_KEYS = [
   { key: 'sav_str', label: 'Fuerza',        stat: 'strength' },
   { key: 'sav_dex', label: 'Destreza',      stat: 'dexterity' },
+  { key: 'sav_con', label: 'Constitución',  stat: 'constitution' },
   { key: 'sav_int', label: 'Inteligencia',  stat: 'intelligence' },
   { key: 'sav_wis', label: 'Sabiduría',     stat: 'wisdom' },
   { key: 'sav_cha', label: 'Carisma',       stat: 'charisma' },
 ];
 const SKILLS_LIST = Object.keys(SKILL_STAT);
+
+const HIT_DIE_OPTIONS = ['d6', 'd8', 'd10', 'd12'];
+
+const AC_DEFAULT_CONFIG = {
+  base: 10,
+  stat: 'destreza',
+  stat_cap: null,
+  armor_bonus: 0,
+  shield_bonus: 0,
+};
+
+const computeArmorClass = (mode, cfg, stats) => {
+  const c = { ...AC_DEFAULT_CONFIG, ...(cfg || {}) };
+  if (mode === 'auto') {
+    const dexScore = Number(stats?.dexterity ?? 10);
+    const dexMod = Math.floor((dexScore - 10) / 2);
+    return 10 + dexMod + (parseInt(c.armor_bonus, 10) || 0);
+  }
+  const base = parseInt(c.base, 10) || 0;
+  const armorBonus = parseInt(c.armor_bonus, 10) || 0;
+  const shieldBonus = parseInt(c.shield_bonus, 10) || 0;
+  let statMod = 0;
+  if (c.stat && c.stat !== 'nada') {
+    const sk = ABILITY_TO_STAT[c.stat];
+    if (sk) {
+      const sc = Number(stats?.[sk] ?? 10);
+      statMod = Math.floor((sc - 10) / 2);
+    }
+  }
+  const cap = c.stat_cap === null || c.stat_cap === '' || c.stat_cap === undefined
+    ? null
+    : parseInt(c.stat_cap, 10);
+  if (cap !== null && !Number.isNaN(cap)) statMod = Math.min(statMod, cap);
+  return base + statMod + armorBonus + shieldBonus;
+};
+
+const formatHitDiceSummary = (hd) => {
+  if (!Array.isArray(hd) || hd.length === 0) return '—';
+  return hd
+    .filter(r => r && r.die)
+    .map(r => {
+      const total = parseInt(r.total, 10) || 0;
+      const cur = parseInt(r.current, 10) || 0;
+      return `${total}${r.die} (${cur}/${total})`;
+    })
+    .join(', ');
+};
 
 const normSkill = (v) => {
   if (v === 'proficiency' || v === 'expertise') return v;
@@ -335,7 +396,29 @@ const fmtDiceWithMod = (dice, modSum) => {
   return modSum > 0 ? `${dice}+${modSum}` : `${dice}${modSum}`;
 };
 
-export default function EditCharacterModal({ isOpen, onClose, character, onCharacterUpdated, onSendMessage }) {
+const modeLabelEs = (m) => m === 'advantage' ? 'Ventaja' : m === 'disadvantage' ? 'Desventaja' : null;
+const rollD20Mode = (mode) => {
+  const a = Math.floor(Math.random() * 20) + 1;
+  if (mode === 'normal') return { kept: a, discarded: null, keptCrit: a === 1 ? 'min' : a === 20 ? 'max' : null };
+  const b = Math.floor(Math.random() * 20) + 1;
+  const useFirst = mode === 'advantage' ? a >= b : a <= b;
+  const kept = useFirst ? a : b;
+  const discarded = useFirst ? b : a;
+  return { kept, discarded, keptCrit: kept === 1 ? 'min' : kept === 20 ? 'max' : null };
+};
+const rollDmgMode = (dice, mode) => {
+  if (!dice) return null;
+  const a = rollDice(dice);
+  if (mode === 'normal') return { kept: a.total, discarded: null, keptCrit: a.crit };
+  const b = rollDice(dice);
+  const useFirst = mode === 'advantage' ? a.total >= b.total : a.total <= b.total;
+  const kept = useFirst ? a : b;
+  const disc = useFirst ? b : a;
+  return { kept: kept.total, discarded: disc.total, keptCrit: kept.crit };
+};
+const signedModStr = (n) => n === 0 ? '' : (n > 0 ? ` + ${n}` : ` - ${Math.abs(n)}`);
+
+export default function EditCharacterModal({ isOpen, onClose, character, onCharacterUpdated, onSendMessage, onSendMessageGm }) {
   const [formData, setFormData] = useState({
     name: '', spellcasting_abillity: '', caster_level: 0,
     stats: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10 },
@@ -345,7 +428,10 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     level: [{ class: '', level: 1, subclass: '' }],
     hp: 0, max_hp: 0, vision: 0,
     sav_str: false, sav_str_mod: 0, sav_dex: false, sav_dex_mod: 0,
+    sav_con: false, sav_con_mod: 0,
     sav_int: false, sav_int_mod: 0, sav_wis: false, sav_wis_mod: 0, sav_cha: false, sav_cha_mod: 0,
+    armor_class: 10, ac_mode: 'auto', ac_config: { ...AC_DEFAULT_CONFIG }, hit_dice: [],
+    spell_slots: Array.from({length: 9}, (_, i) => ({ level: i+1, max: 0, current: 0 })),
     acrobatics: '', acrobatics_mod: 0, animal_handling: '', animal_handling_mod: 0,
     arcana: '', arcana_mod: 0, athletics: '', athletics_mod: 0,
     deception: '', deception_mod: 0, history: '', history_mod: 0,
@@ -379,6 +465,28 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const [size, setSize] = useState({ w: 1020, h: 700 });
   const [minimized, setMinimized] = useState(false);
   const modalRef = useRef(null);
+
+  const [rollMode, setRollMode] = useState('normal');
+  const [sendMode, setSendMode] = useState('all');
+  const [zoom, setZoom] = useState(1.0);
+
+  const ZOOM_MIN = 0.7;
+  const ZOOM_MAX = 1.5;
+  const ZOOM_STEP = 0.1;
+  const adjustZoom = (delta) => setZoom(z => {
+    const next = Math.round((z + delta) * 10) / 10;
+    return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, next));
+  });
+
+  const dispatchMessage = (content) => {
+    console.log('[modal] dispatchMessage sendMode=', sendMode, 'hasGm=', typeof onSendMessageGm === 'function');
+    if (sendMode === 'gm' && typeof onSendMessageGm === 'function') {
+      onSendMessageGm(content);
+      return;
+    }
+    if (typeof onSendMessage === 'function') onSendMessage(content);
+  };
+  const canSend = () => (sendMode === 'gm' ? typeof onSendMessageGm === 'function' : typeof onSendMessage === 'function');
 
   const [autosaveStatus, setAutosaveStatus] = useState('idle');
   const autosaveTimerRef  = useRef(null);
@@ -419,9 +527,17 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       hp: character.hp ?? 0, max_hp: character.max_hp ?? 0, vision: character.vision ?? 0,
       sav_str: character.sav_str||false, sav_str_mod: character.sav_str_mod||0,
       sav_dex: character.sav_dex||false, sav_dex_mod: character.sav_dex_mod||0,
+      sav_con: character.sav_con||false, sav_con_mod: character.sav_con_mod||0,
       sav_int: character.sav_int||false, sav_int_mod: character.sav_int_mod||0,
       sav_wis: character.sav_wis||false, sav_wis_mod: character.sav_wis_mod||0,
       sav_cha: character.sav_cha||false, sav_cha_mod: character.sav_cha_mod||0,
+      armor_class: character.armor_class ?? 10,
+      ac_mode: character.ac_mode === 'custom' ? 'custom' : 'auto',
+      ac_config: { ...AC_DEFAULT_CONFIG, ...(character.ac_config || {}) },
+      hit_dice: Array.isArray(character.hit_dice) ? character.hit_dice : [],
+      spell_slots: Array.isArray(character.spell_slots) && character.spell_slots.length > 0
+        ? character.spell_slots
+        : Array.from({length: 9}, (_, i) => ({ level: i+1, max: 0, current: 0 })),
       acrobatics: normSkill(character.acrobatics), acrobatics_mod: character.acrobatics_mod||0,
       animal_handling: normSkill(character.animal_handling), animal_handling_mod: character.animal_handling_mod||0,
       arcana: normSkill(character.arcana), arcana_mod: character.arcana_mod||0,
@@ -496,6 +612,46 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     if (autosaveClearRef.current) clearTimeout(autosaveClearRef.current);
   }, []);
 
+  useEffect(() => {
+    const calc = computeArmorClass(formData.ac_mode, formData.ac_config, formData.stats);
+    if (calc !== formData.armor_class) {
+      setFormData(p => ({ ...p, armor_class: calc }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.ac_mode, formData.ac_config, formData.stats]);
+
+  useEffect(() => {
+    const totalLvl = Array.isArray(formData.level)
+      ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0)
+      : 0;
+    const hd = Array.isArray(formData.hit_dice) ? formData.hit_dice : [];
+    const sumTotal = hd.reduce((s, r) => s + (parseInt(r?.total, 10) || 0), 0);
+    if (sumTotal === totalLvl) return;
+
+    let next;
+    if (hd.length === 0) {
+      if (totalLvl <= 0) return;
+      next = [{ die: 'd8', total: totalLvl, current: totalLvl }];
+    } else if (hd.length === 1) {
+      const t = Math.max(0, totalLvl);
+      const c = Math.min(parseInt(hd[0].current, 10) || 0, t);
+      next = [{ ...hd[0], total: t, current: c }];
+    } else {
+      const diff = totalLvl - sumTotal;
+      next = [...hd];
+      const lastIdx = next.length - 1;
+      const newTotal = Math.max(0, (parseInt(next[lastIdx].total, 10) || 0) + diff);
+      const newCur = Math.min(parseInt(next[lastIdx].current, 10) || 0, newTotal);
+      next[lastIdx] = { ...next[lastIdx], total: newTotal, current: newCur };
+    }
+    setFormData(p => ({ ...p, hit_dice: next }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.level]);
+
+  useEffect(() => {
+    if (!isOpen) { setRollMode('normal'); setSendMode('all'); setZoom(1.0); }
+  }, [isOpen]);
+
   const handleClose = () => {
     if (dirtyAfterAutoSaveRef.current && character && latestFormDataRef.current) {
       onCharacterUpdated({ ...character, ...latestFormDataRef.current });
@@ -559,7 +715,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   };
 
   const handleAttackRoll = (att) => {
-    if (typeof onSendMessage !== 'function') return;
+    if (!canSend()) return;
     const stats = formData.stats || {};
     const totalLevel = Array.isArray(formData.level)
       ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0) || 1
@@ -570,9 +726,9 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     const atkAbility = att.attack_modifier && att.attack_modifier !== 'nada' ? att.attack_modifier : null;
     const atkAbilityMod = atkAbility ? abilityModFromStats(atkAbility, stats) : 0;
     const N = atkAbilityMod + atkBonus + prof;
-    const atkRoll = rollDice('1d20');
-    const isCriticalHit = atkRoll.crit === 'max';
-    const attackTotal = atkRoll.total + N;
+    const atkD = rollD20Mode(rollMode);
+    const isCriticalHit = atkD.keptCrit === 'max';
+    const attackTotal = atkD.kept + N;
 
     const doubleDice = (notation) => {
       const m2 = String(notation || '').match(/^(\d+)d(\d+)$/i);
@@ -585,50 +741,63 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     const dmgDiceBase = Array.isArray(att.damage_dice) ? att.damage_dice[0] : att.damage_dice;
     const dmgDice = isCriticalHit ? doubleDice(dmgDiceBase) : dmgDiceBase;
     const dmgType = Array.isArray(att.damage_type) ? att.damage_type[0] : att.damage_type;
-    const dmgRoll = dmgDice ? rollDice(dmgDice) : null;
-    const dmgTotal = dmgRoll ? dmgRoll.total + M : null;
-    const dmgRaw = dmgRoll?.total ?? null;
+    // Damage NEVER rolls with advantage/disadvantage — only the d20 attack does.
+    const dmgD = dmgDice ? rollDmgMode(dmgDice, 'normal') : null;
+    const dmgTotal = dmgD ? dmgD.kept + M : null;
 
-    let dmg2Total = null, dmg2Type = null, dmg2Crit = null, dmg2Raw = null, dmg2Mod = null;
+    let dmg2Total = null, dmg2Type = null, dmg2Mod = null, dmg2D = null;
     if (att.damage_dice_2) {
       const dmg2Ability = att.damage_modifier2 && att.damage_modifier2 !== 'nada' ? att.damage_modifier2 : null;
       const dmg2AbilityMod = dmg2Ability ? abilityModFromStats(dmg2Ability, stats) : 0;
       dmg2Mod = dmg2AbilityMod + prof;
       const dmg2DiceBase = isCriticalHit ? doubleDice(att.damage_dice_2) : att.damage_dice_2;
-      const dmg2Roll = rollDice(dmg2DiceBase);
-      dmg2Raw = dmg2Roll.total;
-      dmg2Total = dmg2Raw + dmg2Mod;
-      dmg2Crit = dmg2Roll.crit;
+      dmg2D = rollDmgMode(dmg2DiceBase, 'normal');
+      dmg2Total = dmg2D.kept + dmg2Mod;
       dmg2Type = att.damage_type_2 || null;
     }
 
-    onSendMessage(JSON.stringify({
+    const modeLabel = rollMode !== 'normal' ? modeLabelEs(rollMode) : null;
+    const finalName = modeLabel ? `${att.name} [${modeLabel}]` : att.name;
+
+    dispatchMessage(JSON.stringify({
       type: 'attack_roll',
-      name: att.name,
-      attack: attackTotal, attackRaw: atkRoll.total, attackMod: N,
-      attackCrit: atkRoll.crit,
-      damage: dmgTotal, dmgRaw, dmgMod: M,
-      dmgCrit: dmgRoll?.crit ?? null,
+      name: finalName,
+      attack: attackTotal, attackRaw: atkD.kept, attackMod: N,
+      attackCrit: atkD.keptCrit,
+      attackDiscarded: atkD.discarded != null ? atkD.discarded + N : null,
+      damage: dmgTotal, dmgRaw: dmgD?.kept ?? null, dmgMod: M,
+      dmgCrit: dmgD?.keptCrit ?? null,
+      dmgDiscarded: null,
       dmgType: dmgType || null,
-      damage2: dmg2Total, dmg2Raw, dmg2Mod,
-      dmg2Crit,
-      dmgType2: dmg2Type,
+      damage2: dmg2Total, dmg2Raw: dmg2D?.kept ?? null, dmg2Mod,
+      dmg2Crit: dmg2D?.keptCrit ?? null,
+      dmg2Discarded: null,
+      dmgType2: dmg2Type || null,
+    }));
+  };
+
+  const sendD20Check = (expr, modSum) => {
+    const d = rollD20Mode(rollMode);
+    const cleanExpr = String(expr).replace(/\n/g, ' ');
+    const lbl = rollMode !== 'normal' ? modeLabelEs(rollMode) : null;
+    const finalExpr = lbl ? `${cleanExpr} [${lbl}]` : cleanExpr;
+    dispatchMessage(JSON.stringify({
+      type: 'dice_roll', expr: finalExpr,
+      rolls: [d.kept], mod: modSum, total: d.kept + modSum,
+      discarded: d.discarded != null ? d.discarded + modSum : null,
+      keptCrit: d.keptCrit ?? null,
     }));
   };
 
   const rollAbilityCheck = (statKey, label) => {
-    if (typeof onSendMessage !== 'function') return;
+    if (!canSend()) return;
     const score = Number(formData.stats?.[statKey] ?? 10);
     const m = Math.floor((score - 10) / 2);
-    const d = rollDice('1d20').total;
-    onSendMessage(JSON.stringify({
-      type: 'dice_roll', expr: `${label}`,
-      rolls: [d], mod: m, total: d + m,
-    }));
+    sendD20Check(label, m);
   };
 
   const rollSkillCheck = (skill) => {
-    if (typeof onSendMessage !== 'function') return;
+    if (!canSend()) return;
     const statKey = SKILL_STAT[skill];
     const score = Number(formData.stats?.[statKey] ?? 10);
     const abilityMod = Math.floor((score - 10) / 2);
@@ -640,15 +809,36 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     const profB = prof === 'proficiency' ? pb : prof === 'expertise' ? pb * 2 : 0;
     const extra = parseInt(formData[`${skill}_mod`], 10) || 0;
     const mTotal = abilityMod + profB + extra;
-    const d = rollDice('1d20').total;
-    onSendMessage(JSON.stringify({
-      type: 'dice_roll', expr: `${SKILL_ES[skill]}`,
-      rolls: [d], mod: mTotal, total: d + mTotal,
+    sendD20Check(SKILL_ES[skill], mTotal);
+  };
+
+  const rollHitDie = (idx) => {
+    if (!canSend()) return;
+    const hd = Array.isArray(formData.hit_dice) ? formData.hit_dice : [];
+    const row = hd[idx];
+    if (!row) return;
+    const cur = parseInt(row.current, 10) || 0;
+    if (cur <= 0) return;
+    const m = String(row.die || '').match(/^d(\d+)$/i);
+    if (!m) return;
+    const sides = parseInt(m[1], 10);
+    const rolled = Math.floor(Math.random() * sides) + 1;
+
+    dispatchMessage(JSON.stringify({
+      type: 'dice_roll',
+      expr: `Dado de golpe ${row.die}`,
+      rolls: [rolled],
+      mod: 0,
+      total: rolled,
     }));
+
+    const next = [...hd];
+    next[idx] = { ...row, current: cur - 1 };
+    set('hit_dice', next);
   };
 
   const rollSavingThrow = (sv) => {
-    if (typeof onSendMessage !== 'function') return;
+    if (!canSend()) return;
     const score = Number(formData.stats?.[sv.stat] ?? 10);
     const abilityMod = Math.floor((score - 10) / 2);
     const totalLvl = Array.isArray(formData.level)
@@ -657,11 +847,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     const profB = formData[sv.key] ? profBonus(totalLvl) : 0;
     const extra = parseInt(formData[`${sv.key}_mod`], 10) || 0;
     const mTotal = abilityMod + profB + extra;
-    const d = rollDice('1d20').total;
-    onSendMessage(JSON.stringify({
-      type: 'dice_roll', expr: `Salvación de\n${sv.label}`,
-      rolls: [d], mod: mTotal, total: d + mTotal,
-    }));
+    sendD20Check(`Salvación de ${sv.label}`, mTotal);
   };
 
   const handleAddAttack = async () => {
@@ -749,14 +935,22 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       setInventory(p => p.filter(i => i.id !== id));
     } catch(err) { console.error(err); }
   };
-  const handleAddSpell = async () => {
+  const handleAddSpell = async (level = 0) => {
     const token = localStorage.getItem('vtt_token');
-    const blank = { name: 'New Spell', level: 0, school: 'Evocación', casting_time: '', range: '', duration: '', description: '' };
+    const blank = { name: 'Nuevo Hechizo', level, school: 'Evocación', casting_time: '', range: '', duration: '', description: '' };
     try {
       const res = await axios.post(`${API}/api/character/${character.id}/spell/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => [...p, { ...blank, id: res.data.id }]);
     } catch(err) { console.error(err); }
+  };
+
+  const updateSpellSlot = (lvl, field, rawVal) => {
+    const val = Math.max(0, parseInt(rawVal) || 0);
+    setFormData(prev => ({
+      ...prev,
+      spell_slots: prev.spell_slots.map(s => s.level === lvl ? { ...s, [field]: val } : s),
+    }));
   };
   const handleDeleteSpell = async (id) => {
     const token = localStorage.getItem('vtt_token');
@@ -778,17 +972,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
 
   const totalLevel = formData.level.reduce((s, l) => s + (parseInt(l.level)||0), 0);
 
-  const spellsByLevel = spells.reduce((acc, s) => {
-    const lvl = s.level ?? 0;
-    if (!acc[lvl]) acc[lvl] = [];
-    acc[lvl].push(s);
-    return acc;
-  }, {});
-
   const TABS = [
     { id:'general', label:'General' }, { id:'stats', label:'Stats' },
     { id:'combat', label:'Combate' }, { id:'spells', label:'Hechizos' },
-    { id:'inventory', label:'Inventario' }, { id:'bio', label:'Bio' },
+    { id:'inventory', label:'Inventario' }, { id:'ajustes', label:'Ajustes' },
+    { id:'bio', label:'Bio' },
   ];
 
   const inp = (overrides={}) => ({ ...S.input, ...overrides });
@@ -900,13 +1088,57 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                 <span style={S.hpLabel}>HP</span>
                 <span style={S.hpVal}>{formData.hp} / {formData.max_hp}</span>
               </div>
+              <div style={{ ...S.hpPill, borderColor:'#3b82f6' }}>
+                <span style={{ ...S.hpLabel, color:'#3b82f6' }}>CA</span>
+                <span style={{ ...S.hpVal, color:'#93c5fd', fontSize:16 }}>{formData.armor_class ?? '—'}</span>
+              </div>
+              {Array.isArray(formData.hit_dice) && formData.hit_dice.length > 0 && (
+                <div style={{ ...S.hpPill, borderColor:'#a78bfa' }}>
+                  <span style={{ ...S.hpLabel, color:'#a78bfa' }}>HD</span>
+                  <span style={{ ...S.hpVal, color:'#ddd6fe', fontSize:12 }}>{formatHitDiceSummary(formData.hit_dice)}</span>
+                </div>
+              )}
               {formData.exaustion > 0 && (
                 <div style={{ ...S.hpPill, borderColor:'#f59e0b' }}>
                   <span style={{ ...S.hpLabel, color:'#f59e0b' }}>EXHAUSTION</span>
                   <span style={{ ...S.hpVal, color:'#fde68a' }}>{formData.exaustion}/6</span>
                 </div>
               )}
+              <div style={S.togGroup} onMouseDown={e=>e.stopPropagation()}>
+                <button type="button" style={S.togBtn(rollMode==='disadvantage', '#f87171')} onClick={()=>setRollMode('disadvantage')} title="Tirar con desventaja">Desventaja</button>
+                <button type="button" style={S.togBtn(rollMode==='normal', '#a5b4fc')} onClick={()=>setRollMode('normal')} title="Tirada normal">Normal</button>
+                <button type="button" style={S.togBtn(rollMode==='advantage', '#4ade80')} onClick={()=>setRollMode('advantage')} title="Tirar con ventaja">Ventaja</button>
+              </div>
+              <div style={S.togGroup} onMouseDown={e=>e.stopPropagation()}>
+                <button type="button" style={S.togBtn(sendMode==='all', '#a5b4fc')} onClick={()=>setSendMode('all')} title="Enviar a todos">Todos</button>
+                <button type="button" style={S.togBtn(sendMode==='gm', '#fbbf24')} onClick={()=>setSendMode('gm')} title="Enviar solo al DM">Solo DM</button>
+              </div>
             </div>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:4, marginRight:6 }} onMouseDown={e=>e.stopPropagation()}>
+            <button type="button" onClick={() => adjustZoom(-ZOOM_STEP)}
+              disabled={zoom <= ZOOM_MIN}
+              title="Reducir tamaño"
+              style={{
+                background:'#1e293b', border:'1px solid #334155',
+                color: zoom <= ZOOM_MIN ? '#334155' : '#94a3b8',
+                borderRadius:4, width:26, height:24,
+                cursor: zoom <= ZOOM_MIN ? 'default' : 'pointer',
+                fontFamily:'sans-serif', fontSize:11, fontWeight:700,
+                display:'flex', alignItems:'center', justifyContent:'center', padding:0,
+              }}>A−</button>
+            <span style={{ color:'#475569', fontSize:10, fontFamily:'sans-serif', minWidth:30, textAlign:'center' }}>{Math.round(zoom * 100)}%</span>
+            <button type="button" onClick={() => adjustZoom(ZOOM_STEP)}
+              disabled={zoom >= ZOOM_MAX}
+              title="Aumentar tamaño"
+              style={{
+                background:'#1e293b', border:'1px solid #334155',
+                color: zoom >= ZOOM_MAX ? '#334155' : '#94a3b8',
+                borderRadius:4, width:26, height:24,
+                cursor: zoom >= ZOOM_MAX ? 'default' : 'pointer',
+                fontFamily:'sans-serif', fontSize:11, fontWeight:700,
+                display:'flex', alignItems:'center', justifyContent:'center', padding:0,
+              }}>A+</button>
           </div>
           <button style={S.closeBtn} onClick={handleClose}
             onMouseDown={e=>e.stopPropagation()}
@@ -927,7 +1159,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
 
         {/* BODY */}
         <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ ...S.body, flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          <div style={{ ...S.body, flex: 1, overflowY: 'auto', minHeight: 0, zoom: zoom }}>
             {error && <div style={S.errorBox}>{error}</div>}
 
             {/* ── GENERAL ── */}
@@ -1051,6 +1283,80 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                         <input style={inp({textAlign:'center'})} type="number" name="max_hp" value={formData.max_hp} onChange={handleInputChange} />
                       </div>
                     </div>
+
+                    <div style={{ borderTop:'1px solid #1e293b', marginTop:14, paddingTop:12 }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                        <label style={{ ...S.label, marginBottom:0 }}>Dados de Golpe</label>
+                        {Array.isArray(formData.hit_dice) && formData.hit_dice.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = formData.hit_dice.map(r => ({
+                                ...r,
+                                current: parseInt(r.total, 10) || 0,
+                              }));
+                              set('hit_dice', next);
+                            }}
+                            title="Restaurar todos los dados de golpe a su total"
+                            style={{
+                              background: 'rgba(34,197,94,0.15)',
+                              border: '1px solid rgba(34,197,94,0.4)',
+                              color: '#86efac',
+                              borderRadius: 6,
+                              padding: '3px 10px',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              fontFamily: 'sans-serif',
+                              letterSpacing: '0.06em',
+                              textTransform: 'uppercase',
+                              cursor: 'pointer',
+                            }}
+                          >↻ Recuperar todos</button>
+                        )}
+                      </div>
+                      {(!formData.hit_dice || formData.hit_dice.length === 0) ? (
+                        <p style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif', margin:0, textAlign:'center', padding:'8px 0' }}>
+                          Sin dados configurados — añade en pestaña <b style={{ color:'#a5b4fc' }}>Ajustes</b>
+                        </p>
+                      ) : (
+                        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                          {formData.hit_dice.map((row, i) => {
+                            const total = parseInt(row.total, 10) || 0;
+                            const cur = parseInt(row.current, 10) || 0;
+                            const pct = total > 0 ? Math.max(0, Math.min(100, (cur / total) * 100)) : 0;
+                            const canRoll = cur > 0 && canSend();
+                            return (
+                              <div key={i} style={{ display:'flex', alignItems:'center', gap:8, background:'#0f172a', border:'1px solid #1e293b', borderRadius:8, padding:'6px 10px' }}>
+                                <span style={{ color:'#a78bfa', fontSize:13, fontWeight:700, fontFamily:'monospace', minWidth:48 }}>{total}{row.die}</span>
+                                <div style={{ flex:1, height:6, background:'#1e293b', borderRadius:3, overflow:'hidden' }}>
+                                  <div style={{ height:'100%', width:`${pct}%`, background:'linear-gradient(90deg,#8b5cf6,#a78bfa)', transition:'width 0.2s' }} />
+                                </div>
+                                <span style={{ color:'#ddd6fe', fontSize:12, fontFamily:'monospace', fontWeight:700, minWidth:46, textAlign:'right' }}>{cur} / {total}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => rollHitDie(i)}
+                                  disabled={!canRoll}
+                                  title={cur <= 0 ? 'Sin dados disponibles' : `Lanzar ${row.die}`}
+                                  style={{
+                                    background: canRoll ? 'linear-gradient(135deg,#8b5cf6,#a78bfa)' : '#1e293b',
+                                    border: 'none',
+                                    color: canRoll ? '#0f172a' : '#475569',
+                                    borderRadius: 6,
+                                    padding: '4px 10px',
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    fontFamily: 'sans-serif',
+                                    letterSpacing: '0.04em',
+                                    cursor: canRoll ? 'pointer' : 'not-allowed',
+                                    transition: 'all 0.15s',
+                                  }}
+                                >Lanzar</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div style={S.panel}>
@@ -1076,20 +1382,28 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                   {/* Saving Throws */}
                   <div style={S.panel}>
                     <p style={S.panelTitle}>Tiradas de Salvación</p>
-                    {SAVE_KEYS.map(sv => (
-                      <div key={sv.key} style={S.savRow}>
-                        <input type="checkbox" name={sv.key} checked={formData[sv.key]} onChange={handleInputChange}
-                          style={{ accentColor:'#6366f1', width:14, height:14, cursor:'pointer' }} />
-                        <span
-                          style={{ color:'#cbd5e1', fontSize:12, fontFamily:'sans-serif', flex:1, cursor: typeof onSendMessage === 'function' ? 'pointer' : 'default', textDecoration: typeof onSendMessage === 'function' ? 'underline dotted' : 'none' }}
-                          onClick={() => rollSavingThrow(sv)}
-                          title={typeof onSendMessage === 'function' ? 'Click para tirar al chat' : ''}
-                        >{sv.label}</span>
-                        <span style={{ color:'#64748b', fontSize:10, fontFamily:'sans-serif' }}>MOD</span>
-                        <input type="number" name={`${sv.key}_mod`} value={formData[`${sv.key}_mod`]} onChange={handleInputChange}
-                          style={{ ...smallInp, width:46, textAlign:'center', padding:'4px 4px' }} />
-                      </div>
-                    ))}
+                    {SAVE_KEYS.map(sv => {
+                      const score = Number(formData.stats?.[sv.stat] ?? 10);
+                      const abilityMod = Math.floor((score - 10) / 2);
+                      const totalLvl = Array.isArray(formData.level)
+                        ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0) || 1
+                        : 1;
+                      const profB = formData[sv.key] ? profBonus(totalLvl) : 0;
+                      const extra = parseInt(formData[`${sv.key}_mod`], 10) || 0;
+                      const total = abilityMod + profB + extra;
+                      return (
+                        <div key={sv.key} style={S.savRow}>
+                          <input type="checkbox" name={sv.key} checked={formData[sv.key]} onChange={handleInputChange}
+                            style={{ accentColor:'#6366f1', width:14, height:14, cursor:'pointer' }} />
+                          <span
+                            style={{ color:'#cbd5e1', fontSize:12, fontFamily:'sans-serif', flex:1, cursor: typeof onSendMessage === 'function' ? 'pointer' : 'default', textDecoration: typeof onSendMessage === 'function' ? 'underline dotted' : 'none' }}
+                            onClick={() => rollSavingThrow(sv)}
+                            title={typeof onSendMessage === 'function' ? 'Click para tirar al chat' : ''}
+                          >{sv.label}</span>
+                          <span style={{ ...S.modBadge, fontSize:11, padding:'1px 8px', minWidth:32, textAlign:'center' }}>{fmtSigned(total)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Skills */}
@@ -1103,6 +1417,16 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                           set(skill, opts[(opts.indexOf(prof)+1)%3]);
                         };
                         const clickable = typeof onSendMessage === 'function';
+                        const statKey = SKILL_STAT[skill];
+                        const score = Number(formData.stats?.[statKey] ?? 10);
+                        const abilityMod = Math.floor((score - 10) / 2);
+                        const totalLvl = Array.isArray(formData.level)
+                          ? formData.level.reduce((s, l) => s + (parseInt(l?.level, 10) || 0), 0) || 1
+                          : 1;
+                        const pb = profBonus(totalLvl);
+                        const profB = prof === 'proficiency' ? pb : prof === 'expertise' ? pb * 2 : 0;
+                        const extra = parseInt(formData[`${skill}_mod`], 10) || 0;
+                        const total = abilityMod + profB + extra;
                         return (
                           <div key={skill} style={S.skillRow}>
                             <div style={S.profDot(prof)} onClick={cycleProf} title={prof || 'ninguno'} />
@@ -1118,8 +1442,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                               {SKILL_ES[skill]}
                             </span>
                             <span style={{ color:'#475569', fontSize:9, fontFamily:'sans-serif' }}>{STAT_LABELS[SKILL_STAT[skill]]}</span>
-                            <input type="number" name={`${skill}_mod`} value={formData[`${skill}_mod`]} onChange={handleInputChange}
-                              style={{ ...smallInp, width:40, textAlign:'center', padding:'3px 4px' }} />
+                            <span style={{ ...S.modBadge, fontSize:10, padding:'1px 6px', minWidth:28, textAlign:'center' }}>{fmtSigned(total)}</span>
                           </div>
                         );
                       })}
@@ -1127,6 +1450,188 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                     <p style={{ color:'#475569', fontSize:10, fontFamily:'sans-serif', margin:'8px 0 0', textAlign:'center' }}>
                       Clic en el punto para ciclar: ○ ninguno → ● competente → ◎ experto · clic en el nombre para tirar
                     </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── AJUSTES ── */}
+            {activeTab==='ajustes' && (
+              <div style={S.sectionGap}>
+                {/* Clase de Armadura */}
+                <div style={S.panel}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                    <p style={{ ...S.panelTitle, margin:0, borderBottom:'none', paddingBottom:0 }}>Clase de Armadura</p>
+                    <div style={{ background:'#0f172a', border:'1px solid #3b82f6', borderRadius:10, padding:'6px 14px', display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ color:'#3b82f6', fontSize:10, fontWeight:700, fontFamily:'sans-serif', letterSpacing:'0.1em' }}>CA</span>
+                      <span style={{ color:'#93c5fd', fontSize:22, fontWeight:700, fontFamily:"'Cinzel','Georgia',serif" }}>{formData.armor_class ?? '—'}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+                    <label style={{ display:'flex', alignItems:'center', gap:6, color: formData.ac_mode==='auto' ? '#a5b4fc' : '#64748b', fontSize:12, fontFamily:'sans-serif', cursor:'pointer', background:'#0f172a', border:`1px solid ${formData.ac_mode==='auto' ? '#6366f1' : '#334155'}`, borderRadius:8, padding:'6px 12px', flex:1 }}>
+                      <input type="radio" name="ac_mode" checked={formData.ac_mode==='auto'} onChange={()=>set('ac_mode','auto')} style={{ accentColor:'#6366f1' }} />
+                      Automática
+                    </label>
+                    <label style={{ display:'flex', alignItems:'center', gap:6, color: formData.ac_mode==='custom' ? '#a5b4fc' : '#64748b', fontSize:12, fontFamily:'sans-serif', cursor:'pointer', background:'#0f172a', border:`1px solid ${formData.ac_mode==='custom' ? '#6366f1' : '#334155'}`, borderRadius:8, padding:'6px 12px', flex:1 }}>
+                      <input type="radio" name="ac_mode" checked={formData.ac_mode==='custom'} onChange={()=>set('ac_mode','custom')} style={{ accentColor:'#6366f1' }} />
+                      Personalizada
+                    </label>
+                  </div>
+
+                  {formData.ac_mode==='auto' ? (
+                    <div>
+                      <p style={{ color:'#94a3b8', fontSize:12, fontFamily:'sans-serif', margin:'0 0 8px' }}>
+                        Fórmula: <span style={{ color:'#a5b4fc', fontFamily:'monospace' }}>10 + mod DES + bonificador armadura</span>
+                      </p>
+                      <div style={S.grid3}>
+                        <div>
+                          <label style={S.label}>10 (base)</label>
+                          <input style={inp({textAlign:'center', opacity:0.6})} type="number" value={10} disabled />
+                        </div>
+                        <div>
+                          <label style={S.label}>Mod DES</label>
+                          <input style={inp({textAlign:'center', opacity:0.6})} type="text" value={fmtMod(formData.stats.dexterity)} disabled />
+                        </div>
+                        <div>
+                          <label style={S.label}>Bonif. armadura</label>
+                          <input style={inp({textAlign:'center'})} type="number"
+                            value={formData.ac_config?.armor_bonus ?? 0}
+                            onChange={e=>set('ac_config', { ...formData.ac_config, armor_bonus: parseInt(e.target.value)||0 })} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={S.grid3}>
+                        <div>
+                          <label style={S.label}>Base</label>
+                          <input style={inp({textAlign:'center'})} type="number"
+                            value={formData.ac_config?.base ?? 10}
+                            onChange={e=>set('ac_config', { ...formData.ac_config, base: parseInt(e.target.value)||0 })} />
+                        </div>
+                        <div>
+                          <label style={S.label}>Atributo</label>
+                          <select style={inp()}
+                            value={formData.ac_config?.stat ?? 'destreza'}
+                            onChange={e=>set('ac_config', { ...formData.ac_config, stat: e.target.value })}>
+                            {ABILITY_OPTIONS.filter(o => o.value !== '').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={S.label}>Cap atributo</label>
+                          <input style={inp({textAlign:'center'})} type="number"
+                            placeholder="(sin cap)"
+                            value={formData.ac_config?.stat_cap ?? ''}
+                            onChange={e=>{
+                              const v = e.target.value;
+                              set('ac_config', { ...formData.ac_config, stat_cap: v === '' ? null : (parseInt(v)||0) });
+                            }} />
+                        </div>
+                      </div>
+                      <div style={{ ...S.grid2, marginTop:10 }}>
+                        <div>
+                          <label style={S.label}>Bonif. armadura</label>
+                          <input style={inp({textAlign:'center'})} type="number"
+                            value={formData.ac_config?.armor_bonus ?? 0}
+                            onChange={e=>set('ac_config', { ...formData.ac_config, armor_bonus: parseInt(e.target.value)||0 })} />
+                        </div>
+                        <div>
+                          <label style={S.label}>Bonif. escudo</label>
+                          <input style={inp({textAlign:'center'})} type="number"
+                            value={formData.ac_config?.shield_bonus ?? 0}
+                            onChange={e=>set('ac_config', { ...formData.ac_config, shield_bonus: parseInt(e.target.value)||0 })} />
+                        </div>
+                      </div>
+                      <p style={{ color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', margin:'10px 0 0', textAlign:'center' }}>
+                        Fórmula: <span style={{ color:'#a5b4fc', fontFamily:'monospace' }}>
+                          base + min(mod {ABILITY_LABEL[formData.ac_config?.stat] ?? '—'}, cap) + armadura + escudo
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dados de Golpe */}
+                <div style={S.panel}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <p style={{ ...S.panelTitle, margin:0, borderBottom:'none', paddingBottom:0 }}>Dados de Golpe</p>
+                    <button type="button" onClick={()=>set('hit_dice', [...(formData.hit_dice||[]), { die:'d8', total:1, current:1 }])} style={{ ...S.addBtn, padding:'4px 12px', fontSize:12 }}>+ Añadir dado de golpe</button>
+                  </div>
+                  {(!formData.hit_dice || formData.hit_dice.length === 0) ? (
+                    <p style={{ color:'#334155', fontSize:12, fontFamily:'sans-serif', textAlign:'center', padding:12 }}>Sin dados de golpe configurados</p>
+                  ) : (
+                    formData.hit_dice.map((row, i) => (
+                      <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:8, marginBottom:6, alignItems:'center' }}>
+                        <select style={smallInp}
+                          value={row.die || 'd8'}
+                          onChange={e=>{
+                            const next = [...formData.hit_dice];
+                            next[i] = { ...next[i], die: e.target.value };
+                            set('hit_dice', next);
+                          }}>
+                          {HIT_DIE_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <div>
+                          <label style={{ ...S.label, marginBottom:2, fontSize:9 }}>Total</label>
+                          <input style={{ ...smallInp, textAlign:'center' }} type="number" min={0}
+                            value={row.total ?? 0}
+                            onChange={e=>{
+                              const total = parseInt(e.target.value)||0;
+                              const next = [...formData.hit_dice];
+                              const cur = parseInt(next[i].current, 10) || 0;
+                              next[i] = { ...next[i], total, current: Math.min(cur, total) };
+                              set('hit_dice', next);
+                            }} />
+                        </div>
+                        <div>
+                          <label style={{ ...S.label, marginBottom:2, fontSize:9 }}>Actual</label>
+                          <input style={{ ...smallInp, textAlign:'center' }} type="number" min={0}
+                            value={row.current ?? 0}
+                            onChange={e=>{
+                              let v = parseInt(e.target.value)||0;
+                              const total = parseInt(formData.hit_dice[i].total, 10) || 0;
+                              if (v > total) v = total;
+                              if (v < 0) v = 0;
+                              const next = [...formData.hit_dice];
+                              next[i] = { ...next[i], current: v };
+                              set('hit_dice', next);
+                            }} />
+                        </div>
+                        <button type="button" onClick={()=>set('hit_dice', formData.hit_dice.filter((_,j)=>j!==i))} style={S.delBtn}
+                          onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                          onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Modificadores de Salvación */}
+                <div style={S.panel}>
+                  <p style={S.panelTitle}>Modificadores de Salvación</p>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
+                    {SAVE_KEYS.map(sv => (
+                      <div key={sv.key} style={S.savRow}>
+                        <span style={{ color:'#cbd5e1', fontSize:12, fontFamily:'sans-serif', flex:1 }}>{sv.label}</span>
+                        <input type="number" name={`${sv.key}_mod`} value={formData[`${sv.key}_mod`]} onChange={handleInputChange}
+                          style={{ ...smallInp, width:54, textAlign:'center', padding:'4px 4px' }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Modificadores de Habilidad */}
+                <div style={S.panel}>
+                  <p style={S.panelTitle}>Modificadores de Habilidad</p>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0 16px' }}>
+                    {SKILLS_LIST.map(skill => (
+                      <div key={skill} style={S.skillRow}>
+                        <span style={{ color:'#cbd5e1', fontSize:11, fontFamily:'sans-serif', flex:1 }}>{SKILL_ES[skill]}</span>
+                        <span style={{ color:'#475569', fontSize:9, fontFamily:'sans-serif' }}>{STAT_LABELS[SKILL_STAT[skill]]}</span>
+                        <input type="number" name={`${skill}_mod`} value={formData[`${skill}_mod`]} onChange={handleInputChange}
+                          style={{ ...smallInp, width:48, textAlign:'center', padding:'3px 4px' }} />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1272,70 +1777,87 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                   </div>
                 </div>
 
-                <div style={S.panel}>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                    <p style={{ ...S.panelTitle, margin:0, borderBottom:'none', paddingBottom:0 }}>Hechizos</p>
-                    <button type="button" onClick={handleAddSpell} style={{ ...S.addBtn, padding:'3px 12px', fontSize:14 }}>+</button>
-                  </div>
-                </div>
-
-                {Object.keys(spellsByLevel).sort((a,b)=>a-b).map(lvl => (
-                  <div key={lvl} style={S.panel}>
-                    <div style={S.spellLvlHeader}>
-                      {parseInt(lvl)===0 ? 'Trucos (Nivel 0)' : `Nivel ${lvl}`}
-                    </div>
-                    {spellsByLevel[lvl].map(spell => (
-                      <div key={spell.id} style={S.listItem}>
-                        {editingSpellId === spell.id ? (
-                          <div style={{ flex:1 }}>
-                            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                              <input style={{ ...smallInp, flex:2 }} value={editSpell.name} onChange={e=>setEditSpell({...editSpell,name:e.target.value})} placeholder="Nombre" />
-                              <input style={{ ...smallInp, width:60, textAlign:'center' }} type="number" value={editSpell.level} onChange={e=>setEditSpell({...editSpell,level:parseInt(e.target.value)||0})} placeholder="Niv" />
-                              <select style={{ ...S.select, fontSize:12, padding:'6px 8px' }} value={editSpell.school} onChange={e=>setEditSpell({...editSpell,school:e.target.value})}>
-                                <option>Evocación</option><option>Abjuración</option><option>Conjuración</option><option>Adivinación</option><option>Encantamiento</option><option>Ilusión</option><option>Nigromancia</option><option>Transmutación</option>
-                              </select>
-                              <input style={{ ...smallInp, width:90 }} value={editSpell.casting_time} onChange={e=>setEditSpell({...editSpell,casting_time:e.target.value})} placeholder="Tiempo" />
-                              <input style={{ ...smallInp, width:70 }} value={editSpell.range} onChange={e=>setEditSpell({...editSpell,range:e.target.value})} placeholder="Rango" />
-                              <input style={{ ...smallInp, width:90 }} value={editSpell.duration} onChange={e=>setEditSpell({...editSpell,duration:e.target.value})} placeholder="Duración" />
+                {[0,1,2,3,4,5,6,7,8,9].map(lvl => {
+                  const lvlSpells = spells.filter(s => (s.level ?? 0) === lvl);
+                  const slot = lvl > 0 ? (formData.spell_slots || []).find(s => s.level === lvl) : null;
+                  return (
+                    <div key={lvl} style={S.panel}>
+                      {/* Level header row */}
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: lvlSpells.length > 0 ? 10 : 0 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+                          <span style={{ color:'#8b5cf6', fontWeight:700, fontSize:13, fontFamily:'sans-serif', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                            {lvl === 0 ? 'Trucos (Nivel 0)' : `Nivel ${lvl}`}
+                          </span>
+                          {slot && (
+                            <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                              <button type="button"
+                                onClick={() => updateSpellSlot(lvl, 'current', slot.current - 1)}
+                                style={{ background:'#1e293b', border:'1px solid #334155', color:'#94a3b8', borderRadius:4, width:20, height:20, cursor:'pointer', fontFamily:'sans-serif', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>−</button>
+                              <span style={{ color:'#f1f5f9', fontSize:14, fontWeight:700, fontFamily:'sans-serif', minWidth:18, textAlign:'center' }}>{slot.current}</span>
+                              <button type="button"
+                                onClick={() => updateSpellSlot(lvl, 'current', slot.current + 1)}
+                                style={{ background:'#1e293b', border:'1px solid #334155', color:'#94a3b8', borderRadius:4, width:20, height:20, cursor:'pointer', fontFamily:'sans-serif', fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', padding:0 }}>+</button>
+                              <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif' }}>/</span>
+                              <input type="number" value={slot.max} min={0}
+                                onChange={e => updateSpellSlot(lvl, 'max', e.target.value)}
+                                style={{ width:36, textAlign:'center', background:'#0f172a', color:'#94a3b8', border:'1px solid #334155', borderRadius:4, padding:'2px 4px', fontSize:12, fontFamily:'sans-serif' }} />
+                              <span style={{ color:'#475569', fontSize:10, fontFamily:'sans-serif' }}>máx</span>
                             </div>
-                            <textarea style={{ ...smallInp, width:'100%', marginTop:4, resize:'vertical', minHeight:40 }}
-                              value={editSpell.description} onChange={e=>setEditSpell({...editSpell,description:e.target.value})} placeholder="Descripción" />
-                            <div style={{ display:'flex', gap:6, marginTop:4 }}>
-                              <button type="button" onClick={()=>handleSaveSpell(spell.id)} style={S.addBtn}>Guardar</button>
-                              <button type="button" onClick={()=>setEditingSpellId(null)} style={S.delBtn}>Cancelar</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ flex:1 }}>
-                            <span style={{ color:'#f1f5f9', fontWeight:700, fontSize:13, fontFamily:'sans-serif' }}>{spell.name}</span>
-                            <span style={{ color:'#8b5cf6', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>{spell.school}</span>
-                            <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>
-                              {spell.casting_time} · {spell.range} · {spell.duration}
-                            </span>
-                            {spell.description && <p style={{ color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', margin:'4px 0 0', lineHeight:1.5 }}>{spell.description}</p>}
-                          </div>
-                        )}
-                        {editingSpellId !== spell.id && (
-                          <div style={{ display:'flex', gap:4, alignItems:'center' }}>
-                            <button type="button"
-                              onClick={()=>{ setEditingSpellId(spell.id); setEditSpell({ name:spell.name, level:spell.level, school:spell.school, casting_time:spell.casting_time, range:spell.range, duration:spell.duration, description:spell.description??'' }); }}
-                              style={S.delBtn} title="Editar"
-                              onMouseEnter={e=>e.currentTarget.style.color='#a5b4fc'}
-                              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>⚙</button>
-                            <button type="button" onClick={()=>handleDeleteSpell(spell.id)} style={S.delBtn}
-                              onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
-                              onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                        <button type="button" onClick={() => handleAddSpell(lvl)}
+                          style={{ ...S.addBtn, padding:'2px 10px', fontSize:12 }}>+ Hechizo</button>
                       </div>
-                    ))}
-                  </div>
-                ))}
-                {spells.length === 0 && (
-                  <div style={{ ...S.panel, textAlign:'center', padding:32 }}>
-                    <p style={{ color:'#334155', fontFamily:'sans-serif', fontSize:13 }}>Sin hechizos aprendidos</p>
-                  </div>
-                )}
+
+                      {/* Spell list */}
+                      {lvlSpells.map(spell => (
+                        <div key={spell.id} style={S.listItem}>
+                          {editingSpellId === spell.id ? (
+                            <div style={{ flex:1 }}>
+                              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                                <input style={{ ...smallInp, flex:2 }} value={editSpell.name} onChange={e=>setEditSpell({...editSpell,name:e.target.value})} placeholder="Nombre" />
+                                <input style={{ ...smallInp, width:60, textAlign:'center' }} type="number" value={editSpell.level} onChange={e=>setEditSpell({...editSpell,level:parseInt(e.target.value)||0})} placeholder="Niv" />
+                                <select style={{ ...S.select, fontSize:12, padding:'6px 8px' }} value={editSpell.school} onChange={e=>setEditSpell({...editSpell,school:e.target.value})}>
+                                  <option>Evocación</option><option>Abjuración</option><option>Conjuración</option><option>Adivinación</option><option>Encantamiento</option><option>Ilusión</option><option>Nigromancia</option><option>Transmutación</option>
+                                </select>
+                                <input style={{ ...smallInp, width:90 }} value={editSpell.casting_time} onChange={e=>setEditSpell({...editSpell,casting_time:e.target.value})} placeholder="Tiempo" />
+                                <input style={{ ...smallInp, width:70 }} value={editSpell.range} onChange={e=>setEditSpell({...editSpell,range:e.target.value})} placeholder="Rango" />
+                                <input style={{ ...smallInp, width:90 }} value={editSpell.duration} onChange={e=>setEditSpell({...editSpell,duration:e.target.value})} placeholder="Duración" />
+                              </div>
+                              <textarea style={{ ...smallInp, width:'100%', marginTop:4, resize:'vertical', minHeight:40 }}
+                                value={editSpell.description} onChange={e=>setEditSpell({...editSpell,description:e.target.value})} placeholder="Descripción" />
+                              <div style={{ display:'flex', gap:6, marginTop:4 }}>
+                                <button type="button" onClick={()=>handleSaveSpell(spell.id)} style={S.addBtn}>Guardar</button>
+                                <button type="button" onClick={()=>setEditingSpellId(null)} style={S.delBtn}>Cancelar</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ flex:1 }}>
+                              <span style={{ color:'#f1f5f9', fontWeight:700, fontSize:13, fontFamily:'sans-serif' }}>{spell.name}</span>
+                              <span style={{ color:'#8b5cf6', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>{spell.school}</span>
+                              <span style={{ color:'#475569', fontSize:11, fontFamily:'sans-serif', marginLeft:8 }}>
+                                {spell.casting_time} · {spell.range} · {spell.duration}
+                              </span>
+                              {spell.description && <p style={{ color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', margin:'4px 0 0', lineHeight:1.5 }}>{spell.description}</p>}
+                            </div>
+                          )}
+                          {editingSpellId !== spell.id && (
+                            <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                              <button type="button"
+                                onClick={()=>{ setEditingSpellId(spell.id); setEditSpell({ name:spell.name, level:spell.level, school:spell.school, casting_time:spell.casting_time, range:spell.range, duration:spell.duration, description:spell.description??'' }); }}
+                                style={S.delBtn} title="Editar"
+                                onMouseEnter={e=>e.currentTarget.style.color='#a5b4fc'}
+                                onMouseLeave={e=>e.currentTarget.style.color='#475569'}>⚙</button>
+                              <button type="button" onClick={()=>handleDeleteSpell(spell.id)} style={S.delBtn}
+                                onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                                onMouseLeave={e=>e.currentTarget.style.color='#475569'}>✕</button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
