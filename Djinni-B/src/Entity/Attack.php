@@ -59,6 +59,9 @@ class Attack
     #[ORM\Column(length: 30, nullable: true)]
     private ?string $damage_modifier2 = null;
 
+    #[ORM\Column(options: ['default' => true])]
+    private bool $is_attack_roll = true;
+
     #[ORM\ManyToOne(inversedBy: 'attacks')]
     private ?CharacterSheet $character_attack = null;
 
@@ -243,6 +246,18 @@ class Attack
     public function setDamageModifier2(?string $damage_modifier2): static
     {
         $this->damage_modifier2 = AbilityName::assertNullable($damage_modifier2);
+
+        return $this;
+    }
+
+    public function isAttackRoll(): bool
+    {
+        return $this->is_attack_roll;
+    }
+
+    public function setIsAttackRoll(bool $is_attack_roll): static
+    {
+        $this->is_attack_roll = $is_attack_roll;
 
         return $this;
     }

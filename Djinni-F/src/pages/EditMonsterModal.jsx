@@ -274,7 +274,7 @@ const rollD20Mode = (mode) => {
   return { kept, discarded, keptCrit: kept === 1 ? 'min' : kept === 20 ? 'max' : null };
 };
 
-// eslint-disable-next-line no-unused-vars
+ 
 const rollDmgMode = (dice, mode) => {
   if (!dice) return null;
   const a = rollDice(dice);
@@ -343,6 +343,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
   const [spells, setSpells] = useState([]);
   const [editingSpellId, setEditingSpellId] = useState(null);
   const [editSpell, setEditSpell] = useState({});
+  const [editingActionKey, setEditingActionKey] = useState(null);
 
   const ZOOM_MIN = 0.7, ZOOM_MAX = 1.5, ZOOM_STEP = 0.1;
   const adjustZoom = (delta) => setZoom(z => {
@@ -361,13 +362,24 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
 
   useEffect(() => {
     if (!isOpen) return;
-    const initW = Math.min(1020, Math.round(window.innerWidth * 0.9));
-    const initH = Math.min(700, Math.round(window.innerHeight * 0.85));
-    setSize({ w: initW, h: initH });
-    setPos({
-      x: Math.round((window.innerWidth - initW) / 2),
-      y: Math.round((window.innerHeight - initH) / 2),
-    });
+    const setLayout = () => {
+      const mobile = window.innerWidth < 768;
+      if (mobile) {
+        setSize({ w: window.innerWidth, h: window.innerHeight });
+        setPos({ x: 0, y: 0 });
+        return;
+      }
+      const initW = Math.min(1020, Math.round(window.innerWidth * 0.9));
+      const initH = Math.min(700, Math.round(window.innerHeight * 0.85));
+      setSize({ w: initW, h: initH });
+      setPos({
+        x: Math.round((window.innerWidth - initW) / 2),
+        y: Math.round((window.innerHeight - initH) / 2),
+      });
+    };
+    setLayout();
+    window.addEventListener('resize', setLayout);
+    return () => window.removeEventListener('resize', setLayout);
   }, [isOpen]);
 
   useEffect(() => {
@@ -529,8 +541,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         image_url: res.data.image_url ?? monster.image_url,
         portrait_url: res.data.portrait_url ?? monster.portrait_url,
       });
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError('Error al subir la imagen.');
     } finally {
       if (type === 'token') setUploadingToken(false); else setUploadingPortrait(false);
@@ -557,8 +568,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         });
         onClose();
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError('Error al actualizar el monstruo.');
     } finally {
       setSaving(false);
@@ -626,6 +636,73 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
     }));
   };
 
+  const handleMonsterAttackRoll = (it) => {
+    if (!canSend()) return;
+    const atk = { ...DEFAULT_ATTACK, ...(it?.attack || {}) };
+    const doAttackRoll = atk.is_attack_roll !== false;
+    const atkBonus = parseInt(atk.attack_bonus, 10) || 0;
+    const atkAbil = atk.attack_ability && atk.attack_ability !== 'nada' ? atk.attack_ability : null;
+    const atkAbilMod = atkAbil ? mod(Number(formData[atkAbil] ?? 10)) : 0;
+    const N = atkAbilMod + atkBonus;
+    const atkD = doAttackRoll ? rollD20Mode(rollMode) : null;
+    const isCrit = atkD?.keptCrit === 'max';
+    const attackTotal = atkD ? atkD.kept + N : null;
+
+    const doubleDice = (notation) => {
+      const m2 = String(notation || '').match(/^(\d+)d(\d+)$/i);
+      return m2 ? `${Number(m2[1]) * 2}d${m2[2]}` : notation;
+    };
+
+    const dmgAbil = atk.damage_ability && atk.damage_ability !== 'nada' ? atk.damage_ability : null;
+    const dmgAbilMod = dmgAbil ? mod(Number(formData[dmgAbil] ?? 10)) : 0;
+    const M = dmgAbilMod;
+    const dmgBase = atk.damage_dice;
+    const dmgDice = dmgBase ? (isCrit ? doubleDice(dmgBase) : dmgBase) : null;
+    const dmgD = dmgDice ? rollDmgMode(dmgDice, 'normal') : null;
+    const dmgTotal = dmgD ? dmgD.kept + M : null;
+
+    let dmg2Total = null, dmg2Type = null, dmg2Mod = null, dmg2D = null;
+    if (atk.damage_dice_2) {
+      const d2Abil = atk.damage_ability_2 && atk.damage_ability_2 !== 'nada' ? atk.damage_ability_2 : null;
+      const d2AbilMod = d2Abil ? mod(Number(formData[d2Abil] ?? 10)) : 0;
+      dmg2Mod = d2AbilMod;
+      const d2Base = isCrit ? doubleDice(atk.damage_dice_2) : atk.damage_dice_2;
+      dmg2D = rollDmgMode(d2Base, 'normal');
+      dmg2Total = dmg2D.kept + dmg2Mod;
+      dmg2Type = atk.damage_type_2 || null;
+    }
+
+    const isSave = !!atk.is_saving_throw;
+    const saveDc = isSave
+      ? (atk.dc_mode === 'stat'
+          ? 10 + mod(Number(formData[atk.dc_ability] ?? 10))
+          : (parseInt(atk.dc_custom, 10) || 0))
+      : null;
+    const saveAbility = isSave ? (STAT_LONG[atk.save_target_ability] || null) : null;
+
+    const modeLabel = rollMode !== 'normal' ? modeLabelEs(rollMode) : null;
+    const finalName = modeLabel ? `${it?.name || 'Ataque'} [${modeLabel}]` : (it?.name || 'Ataque');
+
+    dispatchMessage(JSON.stringify({
+      type: 'attack_roll',
+      name: finalName,
+      attack: attackTotal,
+      attackRaw: atkD?.kept ?? null,
+      attackMod: doAttackRoll ? N : null,
+      attackCrit: atkD?.keptCrit ?? null,
+      attackDiscarded: atkD && atkD.discarded != null ? atkD.discarded + N : null,
+      damage: dmgTotal, dmgRaw: dmgD?.kept ?? null, dmgMod: M,
+      dmgCrit: dmgD?.keptCrit ?? null,
+      dmgDiscarded: null,
+      dmgType: atk.damage_type || null,
+      damage2: dmg2Total, dmg2Raw: dmg2D?.kept ?? null, dmg2Mod,
+      dmg2Crit: dmg2D?.keptCrit ?? null,
+      dmg2Discarded: null,
+      dmgType2: dmg2Type || null,
+      saveDc, saveAbility,
+    }));
+  };
+
   const handleAddSpell = async (level = 0) => {
     const token = localStorage.getItem('vtt_token');
     const blank = { name: 'Nuevo Hechizo', level, school: 'Evocación', casting_time: '', range: '', duration: '', description: '' };
@@ -633,7 +710,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
       const res = await axios.post(`${API}/api/monster/${monster.id}/spell/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => [...p, { ...blank, id: res.data.id }]);
-    } catch (err) { console.error(err); }
+    } catch { /* ignore */ }
   };
 
   const handleDeleteSpell = async (id) => {
@@ -642,7 +719,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
       await axios.delete(`${API}/api/monster/${monster.id}/spell/delete/${id}`,
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.filter(s => s.id !== id));
-    } catch (err) { console.error(err); }
+    } catch { /* ignore */ }
   };
 
   const handleSaveSpell = async (id) => {
@@ -653,21 +730,29 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.map(s => s.id === id ? { ...s, ...editSpell } : s));
       setEditingSpellId(null);
-    } catch (err) { console.error(err); }
+    } catch { /* ignore */ }
   };
 
   const TABS = [
-    { id: 'info',         label: 'Info' },
-    { id: 'combate',      label: 'Combate' },
-    { id: 'stats',        label: 'Stats' },
-    { id: 'acciones',     label: 'Acciones' },
-    { id: 'legendario',   label: 'Legendario' },
+    { id: 'info',     label: 'General' },
+    { id: 'stats',    label: 'Estadísticas' },
+    { id: 'combate',  label: 'Combate' },
+    { id: 'hechizos', label: 'Hechizos' },
   ];
+
+  const sectionHeader = {
+    color: '#86efac', fontSize: 13, fontWeight: 700,
+    letterSpacing: '0.14em', textTransform: 'uppercase',
+    borderBottom: '1px solid rgba(34,197,94,0.45)',
+    paddingBottom: 6, margin: '18px 0 4px 0',
+    fontFamily: 'sans-serif',
+  };
 
   const inp = (overrides = {}) => ({ ...S.input, ...overrides });
   const smallInp = { ...S.input, padding: '6px 8px', fontSize: 12 };
 
   const handleDragStart = (e) => {
+    if (window.innerWidth < 768) return;
     if (e.target.closest('button,input,select,textarea,label,a')) return;
     e.preventDefault();
     const startX = e.clientX - pos.x, startY = e.clientY - pos.y;
@@ -683,6 +768,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
   };
 
   const handleResizeStart = (e, dir) => {
+    if (window.innerWidth < 768) return;
     e.preventDefault(); e.stopPropagation();
     const sx = e.clientX, sy = e.clientY, sl = pos.x, st = pos.y, sw = size.w, sh = size.h;
     const MIN_W = 320, MIN_H = 240, MAX_W = Math.round(window.innerWidth * 0.95), MAX_H = Math.round(window.innerHeight * 0.95);
@@ -815,6 +901,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
     attack_ability: '', attack_bonus: 0,
     damage_dice: '', damage_type: '', damage_ability: '',
     damage_dice_2: '', damage_type_2: '', damage_ability_2: '',
+    is_attack_roll: true,
     is_saving_throw: false,
     save_target_ability: 'dex',
     dc_mode: 'stat', dc_ability: 'wis', dc_custom: 13,
@@ -859,42 +946,130 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
           const isAttack = !!it.is_attack;
           const atk = { ...DEFAULT_ATTACK, ...(it.attack || {}) };
           const isSave = !!atk.is_saving_throw;
+          const doAttackRoll = atk.is_attack_roll !== false;
           const computedDc = atk.dc_mode === 'stat'
             ? 10 + Math.floor(((Number(formData[atk.dc_ability] ?? 10)) - 10) / 2)
             : (parseInt(atk.dc_custom, 10) || 0);
           const saveTargetLabel = STAT_LONG[atk.save_target_ability] || '—';
+          const rowKey = `${field}:${i}`;
+          const isEditing = editingActionKey === rowKey;
+          const hasChatProp = typeof onSendMessage === 'function' || typeof onSendMessageGm === 'function';
+          const nameClickable = isAttack && hasChatProp;
           return (
             <div key={i} style={S.listItem}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                <input
-                  style={{ ...smallInp, flex: 1, fontWeight: 700 }}
-                  value={it.name || ''}
-                  onChange={e => updateNamedItem(field, i, 'name', e.target.value)}
-                  placeholder="Nombre"
-                />
-                <button type="button" onClick={() => removeNamedItem(field, i)} style={S.delBtn}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: isEditing ? 6 : 0 }}>
+                {isEditing ? (
+                  <input
+                    style={{ ...smallInp, flex: 1, fontWeight: 700 }}
+                    value={it.name || ''}
+                    onChange={e => updateNamedItem(field, i, 'name', e.target.value)}
+                    placeholder="Nombre"
+                  />
+                ) : (
+                  <span
+                    onClick={nameClickable ? (e) => {
+                      e.stopPropagation();
+                      handleMonsterAttackRoll(it);
+                    } : undefined}
+                    title={isAttack
+                      ? `Vinculado a ataque: ${it.name || '(sin nombre)'}${nameClickable ? ' · Click para tirar al chat' : ''}`
+                      : ''}
+                    onMouseEnter={nameClickable ? (e) => {
+                      e.currentTarget.style.color = ACCENT_LIGHT;
+                      e.currentTarget.style.textDecoration = 'underline';
+                      e.currentTarget.style.textShadow = `0 0 8px ${ACCENT_SOFT}`;
+                    } : undefined}
+                    onMouseLeave={nameClickable ? (e) => {
+                      e.currentTarget.style.color = '#ecfdf5';
+                      e.currentTarget.style.textDecoration = 'underline dotted';
+                      e.currentTarget.style.textShadow = 'none';
+                    } : undefined}
+                    style={{
+                      flex: 1, fontWeight: 700, fontSize: 13,
+                      color: '#ecfdf5', fontFamily: 'sans-serif',
+                      cursor: nameClickable ? 'pointer' : 'default',
+                      textDecoration: nameClickable ? 'underline dotted' : 'none',
+                      padding: '4px 0',
+                      transition: 'color 0.15s, text-shadow 0.15s',
+                    }}
+                  >
+                    {isAttack && (
+                      <span
+                        aria-hidden="true"
+                        style={{ marginRight: 6, color: ACCENT_LIGHT, fontSize: 11, verticalAlign: 'middle' }}
+                      >🔗</span>
+                    )}
+                    {it.name || '(sin nombre)'}
+                  </span>
+                )}
+                <button type="button"
+                  onClick={() => setEditingActionKey(isEditing ? null : rowKey)}
+                  style={S.delBtn}
+                  title={isEditing ? 'Cerrar edición' : 'Editar'}
+                  onMouseEnter={e => e.currentTarget.style.color = ACCENT_LIGHT}
+                  onMouseLeave={e => e.currentTarget.style.color = '#4a5d4a'}>{isEditing ? '✓' : '✎'}</button>
+                <button type="button" onClick={() => { if (isEditing) setEditingActionKey(null); removeNamedItem(field, i); }} style={S.delBtn}
                   onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
                   onMouseLeave={e => e.currentTarget.style.color = '#4a5d4a'}>✕</button>
               </div>
 
-              <button type="button"
-                onClick={() => toggleIsAttack(field, i)}
-                style={{
-                  background: isAttack ? ACCENT_SOFT : 'transparent',
-                  border: `1px solid ${isAttack ? ACCENT_BORDER : '#1e3a22'}`,
-                  color: isAttack ? ACCENT_LIGHT : '#86827a',
-                  borderRadius: 20, padding: '4px 12px',
-                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                  fontFamily: 'sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase',
-                  marginBottom: 8,
-                }}>
-                {isAttack ? '⚔ Es ataque' : '⚔ Marcar como ataque'}
-              </button>
+              {!isEditing && it.description && (
+                <p style={{ color: '#86827a', fontSize: 11, fontFamily: 'sans-serif', margin: '4px 0 0', lineHeight: 1.5 }}>{it.description}</p>
+              )}
+
+              {isEditing && (<>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+                <button type="button"
+                  onClick={() => toggleIsAttack(field, i)}
+                  style={{
+                    background: isAttack ? ACCENT_SOFT : 'transparent',
+                    border: `1px solid ${isAttack ? ACCENT_BORDER : '#1e3a22'}`,
+                    color: isAttack ? ACCENT_LIGHT : '#86827a',
+                    borderRadius: 20, padding: '4px 12px',
+                    fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: 'sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase',
+                  }}>
+                  {isAttack ? '⚔ Es ataque' : '⚔ Marcar como ataque'}
+                </button>
+                {isAttack && (
+                  <button type="button"
+                    onClick={() => handleMonsterAttackRoll(it)}
+                    disabled={!canSend()}
+                    title={canSend() ? 'Tirar ataque y daño' : 'No hay chat conectado'}
+                    style={{
+                      background: canSend() ? 'linear-gradient(135deg,#16a34a,#22c55e)' : '#1a2a1a',
+                      border: 'none',
+                      color: canSend() ? '#0d1f10' : '#4a5d4a',
+                      borderRadius: 20, padding: '4px 14px',
+                      fontSize: 11, fontWeight: 700,
+                      cursor: canSend() ? 'pointer' : 'not-allowed',
+                      fontFamily: 'sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase',
+                      boxShadow: canSend() ? '0 0 12px rgba(34,197,94,0.4)' : 'none',
+                    }}>
+                    🎲 Tirar
+                  </button>
+                )}
+              </div>
 
               {isAttack && (
                 <div style={{ ...S.panel, marginBottom: 8 }}>
                   <p style={S.panelTitle}>Ataque</p>
 
+                  <button type="button"
+                    onClick={() => updateAttackField(field, i, 'is_attack_roll', !doAttackRoll)}
+                    style={{
+                      background: doAttackRoll ? ACCENT_SOFT : 'transparent',
+                      border: `1px solid ${doAttackRoll ? ACCENT_BORDER : '#1e3a22'}`,
+                      color: doAttackRoll ? ACCENT_LIGHT : '#86827a',
+                      borderRadius: 20, padding: '4px 12px',
+                      fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      fontFamily: 'sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase',
+                      marginBottom: 10,
+                    }}>
+                    ⚔ Tirada de ataque (d20)
+                  </button>
+
+                  {doAttackRoll && (<>
                   <label style={S.label}>Tirada de ataque</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <select style={{ ...S.select, fontSize: 12, padding: '6px 8px' }}
@@ -908,6 +1083,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                       onChange={e => updateAttackField(field, i, 'attack_bonus', parseInt(e.target.value, 10) || 0)}
                       placeholder="Bonus" />
                   </div>
+                  </>)}
 
                   <label style={S.label}>Daño principal</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
@@ -1032,6 +1208,7 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                 placeholder="Descripción"
                 rows={3}
               />
+              </>)}
             </div>
           );
         })}
@@ -1321,12 +1498,28 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                   </div>
                 </div>
                 <p style={{ color: '#4a5d4a', fontSize: 11, fontFamily: 'sans-serif', margin: '10px 0 0', textAlign: 'center' }}>
-                  Contadores. Las acciones se editan en la pestaña <b style={{ color: ACCENT_LIGHT }}>Legendario</b>.
+                  Contadores. Las acciones se editan más abajo, en la sección <b style={{ color: ACCENT_LIGHT }}>Legendarias</b>.
                 </p>
               </div>
 
               {renderNamedArrayEditor('traits', 'Rasgos')}
 
+              <h3 style={sectionHeader}>Acciones</h3>
+              {renderAttackableArrayEditor('actions', 'Acciones')}
+              {renderAttackableArrayEditor('bonus_actions', 'Acciones Bonus')}
+              {renderAttackableArrayEditor('reactions', 'Reacciones')}
+
+              <h3 style={sectionHeader}>Legendarias</h3>
+              {renderAttackableArrayEditor('legendary_actions', 'Acciones Legendarias')}
+              {renderAttackableArrayEditor('mythic_actions', 'Acciones Míticas')}
+              {renderAttackableArrayEditor('lair_actions', 'Acciones de Guarida')}
+              {renderNamedArrayEditor('regional_effects', 'Efectos Regionales')}
+            </div>
+          )}
+
+          {/* ── HECHIZOS ── */}
+          {activeTab === 'hechizos' && (
+            <div style={S.sectionGap}>
               {[0,1,2,3,4,5,6,7,8,9].map(lvl => {
                 const lvlSpells = spells.filter(s => (s.level ?? 0) === lvl);
                 return (
@@ -1490,25 +1683,6 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
                   </p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* ── ACCIONES ── */}
-          {activeTab === 'acciones' && (
-            <div style={S.sectionGap}>
-              {renderAttackableArrayEditor('actions', 'Acciones')}
-              {renderAttackableArrayEditor('bonus_actions', 'Acciones Bonus')}
-              {renderAttackableArrayEditor('reactions', 'Reacciones')}
-            </div>
-          )}
-
-          {/* ── LEGENDARIO ── */}
-          {activeTab === 'legendario' && (
-            <div style={S.sectionGap}>
-              {renderAttackableArrayEditor('legendary_actions', 'Acciones Legendarias')}
-              {renderAttackableArrayEditor('mythic_actions', 'Acciones Míticas')}
-              {renderAttackableArrayEditor('lair_actions', 'Acciones de Guarida')}
-              {renderNamedArrayEditor('regional_effects', 'Efectos Regionales')}
             </div>
           )}
 

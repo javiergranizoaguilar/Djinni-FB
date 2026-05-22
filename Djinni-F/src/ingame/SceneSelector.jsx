@@ -27,6 +27,7 @@ export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
 
     useEffect(() => {
         if (id) fetchScenes();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     // Cerrar al hacer clic fuera
@@ -126,7 +127,7 @@ export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
                                         gap: 6,
                                         transition: 'border-color 0.15s',
                                     }}
-                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#3b82f6'}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = '#22c55e'}
                                     onMouseLeave={e => e.currentTarget.style.borderColor = '#334155'}
                                 >
                                     <div style={{

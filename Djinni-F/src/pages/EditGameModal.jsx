@@ -67,8 +67,7 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
                 onGameUpdated(); // Notificar al padre para recargar la lista
                 onClose();
             }
-        } catch (err) {
-            console.error("Error updating game:", err);
+        } catch {
             setError('Error al actualizar la partida.');
         } finally {
             setSaving(false);
@@ -76,8 +75,8 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200 dark:border-[#23482f]">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4">
+            <div className="bg-white dark:bg-[#0d1f10] p-5 sm:p-6 rounded-xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto border border-gray-200 dark:border-emerald-900/50">
                 <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Editar Partida</h2>
                 
                 {error && (

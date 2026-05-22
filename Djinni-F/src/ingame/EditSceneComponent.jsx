@@ -30,7 +30,7 @@ export default function EditSceneComponent({ scene, onSceneUpdated }) {
             if (onSceneUpdated) {
                 onSceneUpdated(response.data);
             }
-        } catch (err) {
+        } catch {
             setError('Error updating scene');
         }
     };

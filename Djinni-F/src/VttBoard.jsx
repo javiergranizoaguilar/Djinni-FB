@@ -31,10 +31,36 @@ const API    = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 const WS_URL = import.meta.env.VITE_WS_URL  || 'ws://localhost:8081';
 const HEADER_H  = 0;
 const TOOLBAR_H = 44;
-const SIDEBAR_W_DEFAULT = 200;
+const SIDEBAR_W_DEFAULT = 280;
+const SIDEBAR_W_MOBILE  = 280;
 const ZOOM_MIN  = 0.2;
 const ZOOM_MAX  = 4;
 const ZOOM_STEP = 1.12;
+
+// Accent palette (verde djinni)
+const ACCENT       = '#22c55e';
+const ACCENT_DEEP  = '#16a34a';
+const ACCENT_SOFT  = 'rgba(34,197,94,0.18)';
+const ACCENT_BORD  = 'rgba(34,197,94,0.45)';
+const SURFACE_DEEP = '#0a0f0c';
+const SURFACE      = '#0d1f10';
+const SURFACE_HI   = '#162b1a';
+const BORDER_LO    = '#1a3a1f';
+const BORDER       = '#1e3a22';
+const TEXT_HI      = '#ecfdf5';
+const TEXT_MED     = '#a7c4ab';
+const TEXT_LO      = '#6b7d6b';
+
+function useMediaQuery(query) {
+    const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+    useEffect(() => {
+        const m = window.matchMedia(query);
+        const fn = (e) => setMatch(e.matches);
+        m.addEventListener ? m.addEventListener('change', fn) : m.addListener(fn);
+        return () => { m.removeEventListener ? m.removeEventListener('change', fn) : m.removeListener(fn); };
+    }, [query]);
+    return match;
+}
 
 function authHeaders() {
     const token = localStorage.getItem('vtt_token');
@@ -98,7 +124,7 @@ const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899',
 // ref apunta al KonvaImage (no al Group) → Transformer solo rodea la imagen, no las auras
 const TokenImageNode = forwardRef(function TokenImageNode(
     { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDblClick, onDragStart, onDragMove, onDragEnd, onTransformEnd, onContextMenu,
-      auras, activeCounters, isSelected, editingIdx, onBadgeClick, onNameDblClick },
+      auras, activeCounters, isSelected, editingIdx, onBadgeClick },
     ref
 ) {
     const [img, setImg] = useState(null);
@@ -111,7 +137,7 @@ const TokenImageNode = forwardRef(function TokenImageNode(
         const image = new window.Image();
         image.src = API + item.image_url;
         image.onload  = () => setImg(image);
-        image.onerror = () => console.error('Error cargando token img:', item.image_url);
+        image.onerror = () => {};
     }, [item.image_url]);
 
     const w = item.width  || squareSize;
@@ -191,7 +217,7 @@ const SceneImageNode = forwardRef(function SceneImageNode(
         const image = new window.Image();
         image.src = API + item.image_url;
         image.onload  = () => setImg(image);
-        image.onerror = () => console.error('Error cargando imagen:', API + item.image_url);
+        image.onerror = () => {};
     }, [item.image_url]);
 
     return (
@@ -271,6 +297,12 @@ export default function VttBoard() {
     const [childModalOpen, setChildModalOpen] = useState(false); // modal abierto desde sidebar
     const [sidebarTab,     setSidebarTab]     = useState('tokens');
     const [sidebarW,       setSidebarW]       = useState(SIDEBAR_W_DEFAULT);
+    const isMobile = useMediaQuery('(max-width: 767px)');
+    const isTablet = useMediaQuery('(max-width: 1023px)');
+    const [sidebarOpen, setSidebarOpen] = useState(!isTablet);
+    useEffect(() => { setSidebarOpen(!isTablet); }, [isTablet]);
+    const sidebarOffset = isTablet ? 0 : sidebarW;
+    const effSidebarW = isMobile ? SIDEBAR_W_MOBILE : sidebarW;
     const [fogData,        setFogData]        = useState({ mode: 'fog', revealed: [] });
     const [wallsData,      setWallsData]      = useState({ walls: [] });
     const [fogOpacity,     setFogOpacity]     = useState(0.7);
@@ -324,7 +356,7 @@ export default function VttBoard() {
     const squareSize       = 50;
     const boardPixelWidth  = gridWidth  * squareSize;
     const boardPixelHeight = gridHeight * squareSize;
-    const availableW = windowSize.w - sidebarW;
+    const availableW = windowSize.w - sidebarOffset;
     const availableH = windowSize.h - HEADER_H - TOOLBAR_H;
     const boardX = boardOrigin.x;
     const boardY = boardOrigin.y;
@@ -358,7 +390,7 @@ export default function VttBoard() {
                 try {
                     await axios.put(`${API}/scene/api/scenes/${scene.id}/walls`, { walls_data: newData }, { headers: authHeaders() });
                     sendTokenEvent('scene_walls_updated', { sceneId: scene.id, wallsData: newData });
-                } catch (err) { console.error(err); }
+                } catch { /* ignore */ }
             }
         };
         window.addEventListener('keydown', onKeyDown);
@@ -369,13 +401,13 @@ export default function VttBoard() {
     useEffect(() => {
         const bw = (scene?.grid_width  || 10) * 50;
         const bh = (scene?.grid_height || 10) * 50;
-        const availW = windowSize.w - sidebarW;
+        const availW = windowSize.w - sidebarOffset;
         const availH = windowSize.h - HEADER_H - TOOLBAR_H;
         setBoardOrigin({
-            x: sidebarW + Math.floor((availW - bw) / 2),
+            x: sidebarOffset + Math.floor((availW - bw) / 2),
             y: HEADER_H + TOOLBAR_H + Math.floor((availH - bh) / 2),
         });
-    }, [scene?.id, scene?.grid_width, scene?.grid_height, sidebarW, windowSize.w, windowSize.h]);
+    }, [scene?.id, scene?.grid_width, scene?.grid_height, sidebarOffset, windowSize.w, windowSize.h]);
 
     // Sincronizar Transformer con imagen o token seleccionado
     useEffect(() => {
@@ -440,7 +472,7 @@ export default function VttBoard() {
         const stage    = stageRef.current;
         const oldScale = stage.scaleX();
         const newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, oldScale * factor));
-        const cx = sidebarW + availableW / 2;
+        const cx = sidebarOffset + availableW / 2;
         const cy = HEADER_H + TOOLBAR_H + availableH / 2;
         const mousePointTo = { x: (cx - stage.x()) / oldScale, y: (cy - stage.y()) / oldScale };
         stage.scale({ x: newScale, y: newScale });
@@ -613,10 +645,8 @@ export default function VttBoard() {
         });
         const ephemeral = [];
         for (const tok of sceneItems) {
+            if (tok.layer !== 'user') continue;
             if (!tok.vision_radius || tok.vision_radius <= 0) continue;
-            // GM: every token with vision contributes.
-            // Player: every character-kind token contributes (party-shared vision).
-            if (!isDm && tok.kind !== 'character') continue;
             let cx, cy;
             if (tok.image_url) {
                 const tx = tok.x != null ? tok.x : boardX + (tok.col || 0) * squareSize;
@@ -684,7 +714,8 @@ export default function VttBoard() {
                             return prev.map(i => {
                                 if (i.id !== tok.id) return i;
                                 if (draggingTokenIdRef.current === tok.id) {
-                                    const { x, y, col, row, ...rest } = tok;
+                                    const { x: _x, y: _y, col: _c, row: _r, ...rest } = tok;
+                                    void _x; void _y; void _c; void _r;
                                     return { ...i, ...rest };
                                 }
                                 return { ...i, ...tok };
@@ -769,7 +800,7 @@ export default function VttBoard() {
                             pendingAnimations.current[tokenId].raf = requestAnimationFrame(animate);
                         }
                     }
-                } catch {}
+                } catch { /* ignore */ }
             };
 
             ws.onerror = () => {};
@@ -913,9 +944,7 @@ export default function VttBoard() {
             }, { headers: authHeaders() });
             setSceneItems(prev => [...prev, res.data]);
             sendTokenEvent('scene_token_created', { token: res.data, sceneId: scene.id });
-        } catch (err) {
-            console.error('Failed to create token:', err);
-        }
+        } catch { /* ignore */ }
     };
 
     const handleImageFileDrop = async (file, clientX, clientY) => {
@@ -941,9 +970,7 @@ export default function VttBoard() {
             );
             setSceneImages(prev => [...prev, res.data]);
             sendTokenEvent('scene_image_created', { image: res.data, sceneId: scene.id });
-        } catch (err) {
-            console.error('Failed to upload image:', err);
-        }
+        } catch { /* ignore */ }
     };
 
     // ── Tokens: mover ─────────────────────────────────────────────────────────
@@ -1024,7 +1051,7 @@ export default function VttBoard() {
             try {
                 await axios.put(`${API}/api/scene-token/${item.id}`, { x: px, y: py, col, row }, { headers: authHeaders() });
                 broadcastPathAndUpdate(item, pathSnapshot, { ...item, x: px, y: py, col, row });
-            } catch (err) { console.error(err); }
+            } catch { /* ignore */ }
         } else {
             const px = e.target.x();
             const py = e.target.y();
@@ -1049,7 +1076,7 @@ export default function VttBoard() {
             try {
                 await axios.put(`${API}/api/scene-token/${item.id}`, { x: null, y: null, col, row }, { headers: authHeaders() });
                 broadcastPathAndUpdate(item, pathSnapshot, { ...item, x: null, y: null, col, row });
-            } catch (err) { console.error(err); }
+            } catch { /* ignore */ }
         }
     };
 
@@ -1069,7 +1096,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/api/scene-image/${item.id}`, pos, { headers: authHeaders() });
             sendTokenEvent('scene_image_moved', { imageId: item.id, sceneId: sceneIdRef.current, ...pos });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     // ── Tokens con imagen: redimensionar ─────────────────────────────────────
@@ -1114,7 +1141,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/api/scene-token/${item.id}`, { x: xSave, y: ySave, col, row, width: newWidth, height: newHeight }, { headers: authHeaders() });
             sendTokenEvent('scene_token_updated', { token: { ...item, x: xSave, y: ySave, col, row, width: newWidth, height: newHeight }, sceneId: sceneIdRef.current });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     // ── Imágenes: redimensionar ───────────────────────────────────────────────
@@ -1156,7 +1183,7 @@ export default function VttBoard() {
                 { headers: authHeaders() }
             );
             sendTokenEvent('scene_image_resized', { imageId: item.id, sceneId: sceneIdRef.current, x: newX, y: newY, width: newWidth, height: newHeight });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     // ── Doble clic en token → abrir ficha ────────────────────────────────────
@@ -1197,7 +1224,7 @@ export default function VttBoard() {
                 if (selectedImgId   === ctxMenu.id) setSelectedImgId(null);
                 if (selectedTokenId === ctxMenu.id) setSelectedTokenId(null);
             }
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
         setCtxMenu(null);
     };
 
@@ -1213,7 +1240,7 @@ export default function VttBoard() {
                 await axios.put(`${API}/api/scene-image/${ctxMenu.id}`, { layer: newLayer }, { headers: authHeaders() });
                 setSceneImages(prev => prev.map(i => i.id === ctxMenu.id ? { ...i, layer: newLayer } : i));
             }
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
         setCtxMenu(null);
     };
 
@@ -1238,7 +1265,7 @@ export default function VttBoard() {
         }
     };
 
-    const handleStageMouseMove = (e) => {
+    const handleStageMouseMove = () => {
         if (freeRulerRef.current.active) {
             const ptr = stageRef.current.getPointerPosition();
             const { x, y } = screenToStage(ptr.x, ptr.y);
@@ -1289,7 +1316,7 @@ export default function VttBoard() {
                 try {
                     await axios.put(`${API}/scene/api/scenes/${scene.id}/walls`, { walls_data: newData }, { headers: authHeaders() });
                     sendTokenEvent('scene_walls_updated', { sceneId: scene.id, wallsData: newData });
-                } catch (err) { console.error(err); }
+                } catch { /* ignore */ }
             }
             setWallDrawing(null);
         }
@@ -1306,7 +1333,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/scene/api/scenes/${scene.id}/fog`, { fog_data: newFogData }, { headers: authHeaders() });
             sendTokenEvent('scene_fog_updated', { sceneId: scene.id, fogData: newFogData });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     const commitHide = async () => {
@@ -1320,7 +1347,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/scene/api/scenes/${scene.id}/fog`, { fog_data: newFogData }, { headers: authHeaders() });
             sendTokenEvent('scene_fog_updated', { sceneId: scene.id, fogData: newFogData });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     const revealAll = async () => {
@@ -1330,7 +1357,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/scene/api/scenes/${scene.id}/fog`, { fog_data: newFogData }, { headers: authHeaders() });
             sendTokenEvent('scene_fog_updated', { sceneId: scene.id, fogData: newFogData });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     const hideAll = async () => {
@@ -1340,7 +1367,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/scene/api/scenes/${scene.id}/fog`, { fog_data: newFogData }, { headers: authHeaders() });
             sendTokenEvent('scene_fog_updated', { sceneId: scene.id, fogData: newFogData });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     // ── Walls panel handlers ─────────────────────────────────────────────────
@@ -1350,7 +1377,7 @@ export default function VttBoard() {
         try {
             await axios.put(`${API}/scene/api/scenes/${scene.id}/walls`, { walls_data: newData }, { headers: authHeaders() });
             sendTokenEvent('scene_walls_updated', { sceneId: scene.id, wallsData: newData });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
     const deleteWallById = (id) => {
         if (selectedWallId === id) setSelectedWallId(null);
@@ -1426,7 +1453,7 @@ const saveCounters = async (tokenId, counters) => {
             await axios.put(`${API}/api/scene-token/${tokenId}`, { counters }, { headers: authHeaders() });
             const tok = sceneItemsRef.current.find(i => i.id === tokenId);
             if (tok) sendTokenEvent('scene_token_updated', { token: { ...tok, counters }, sceneId: sceneIdRef.current });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
     const saveAuras = async (tokenId, auras) => {
@@ -1435,7 +1462,7 @@ const saveCounters = async (tokenId, counters) => {
             await axios.put(`${API}/api/scene-token/${tokenId}`, { auras }, { headers: authHeaders() });
             const tok = sceneItemsRef.current.find(i => i.id === tokenId);
             if (tok) sendTokenEvent('scene_token_updated', { token: { ...tok, auras }, sceneId: sceneIdRef.current });
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
     };
 
 
@@ -1603,8 +1630,9 @@ const saveCounters = async (tokenId, counters) => {
                 onMouseup={handleStageMouseUp}
                 onContextMenu={(e) => e.evt.preventDefault()}
             >
-                {/* Fondo + imágenes de escena (debajo del grid) */}
-                <Layer name="images" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                {/* Scene Layer: imágenes + tokens background + grid (fusionadas) */}
+                <Layer name="scene" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
+                    {/* Fondo + imágenes de escena */}
                     <Rect x={boardX} y={boardY} width={boardPixelWidth} height={boardPixelHeight} fill="#ecf0f1" listening={false} />
                     <Group x={boardX} y={boardY}>
                         {sceneImages.map(img => (
@@ -1623,15 +1651,13 @@ const saveCounters = async (tokenId, counters) => {
                             )
                         ))}
                     </Group>
+                    {/* Tokens de capa background */}
+                    <Group>
+                        {backgroundItems.map(renderToken)}
+                    </Group>
+                    {/* Grid — sin interacción */}
+                    <Group listening={false}>{renderGrid()}</Group>
                 </Layer>
-
-                {/* Tokens de capa background */}
-                <Layer name="background" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
-                    {backgroundItems.map(renderToken)}
-                </Layer>
-
-                {/* Grid: entre background y tokens, sin interacción */}
-                <Layer name="grid" listening={false}>{renderGrid()}</Layer>
 
                 {/* Tokens de capas user y gm */}
                 <Layer name="tokens" clipX={boardX} clipY={boardY} clipWidth={boardPixelWidth} clipHeight={boardPixelHeight}>
@@ -1650,212 +1676,173 @@ const saveCounters = async (tokenId, counters) => {
                     />
                 </Layer>
 
-                {/* Drag ruler — arrow + waypoints + ft label while dragging a token */}
-                {dragRuler.active && dragRuler.origin && dragRuler.current && (() => {
-                    const points = [dragRuler.origin, ...dragRuler.waypoints, dragRuler.current];
-                    let totalSquares = 0;
-                    for (let i = 1; i < points.length; i++) {
-                        const dx = Math.abs(points[i].x - points[i - 1].x) / squareSize;
-                        const dy = Math.abs(points[i].y - points[i - 1].y) / squareSize;
-                        totalSquares += Math.max(dx, dy);
-                    }
-                    const feet = Math.round(totalSquares) * 5;
-                    const flat = points.flatMap(p => [p.x, p.y]);
-                    const labelX = dragRuler.current.x;
-                    const labelY = dragRuler.current.y - 36;
-                    const labelW = 72;
-                    const labelH = 22;
-                    return (
-                        <Layer name="drag-ruler" listening={false}>
-                            {/* Shadow pass for depth */}
-                            <Arrow
-                                points={flat}
-                                stroke="rgba(0,0,0,0.55)"
-                                fill="rgba(0,0,0,0.55)"
-                                strokeWidth={6}
-                                pointerLength={14}
-                                pointerWidth={14}
-                                dash={[12, 7]}
-                                listening={false}
-                            />
-                            {/* Main arrow */}
-                            <Arrow
-                                points={flat}
-                                stroke="#f59e0b"
-                                fill="#f59e0b"
-                                strokeWidth={3}
-                                pointerLength={12}
-                                pointerWidth={12}
-                                dash={[12, 7]}
-                                listening={false}
-                            />
-                            {/* Waypoint diamonds */}
-                            {dragRuler.waypoints.map((w, i) => (
-                                <Group key={i} x={w.x} y={w.y} listening={false}>
-                                    <Circle radius={7} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={2} />
-                                    <Circle radius={3} fill="#f59e0b" />
-                                </Group>
-                            ))}
-                            {/* Label pill background */}
-                            <Rect
-                                x={labelX - labelW / 2}
-                                y={labelY - labelH / 2}
-                                width={labelW}
-                                height={labelH}
-                                fill="#1e1b4b"
-                                stroke="#f59e0b"
-                                strokeWidth={1.5}
-                                cornerRadius={11}
-                                listening={false}
-                            />
-                            <Text
-                                x={labelX - labelW / 2}
-                                y={labelY - labelH / 2 + 4}
-                                width={labelW}
-                                text={`${feet} ft`}
-                                fontSize={13}
-                                fill="#fbbf24"
-                                align="center"
-                                fontStyle="bold"
-                                listening={false}
-                            />
-                        </Layer>
-                    );
-                })()}
-
-                {/* Free ruler — standalone measurement without a token */}
-                {freeRuler.active && freeRuler.origin && freeRuler.current && (() => {
-                    const labelW = 72;
-                    const labelH = 22;
-
-                    if (rulerShape === 'cone') {
-                        const ox = freeRuler.origin.x, oy = freeRuler.origin.y;
-                        const cx = freeRuler.current.x, cy = freeRuler.current.y;
-                        const dx = cx - ox, dy = cy - oy;
-                        const d = Math.sqrt(dx * dx + dy * dy);
-                        if (d < 1) return null;
-                        const dirX = dx / d, dirY = dy / d;
-                        const perpX = -dirY, perpY = dirX;
-                        const halfW = d / 2;
-                        const conePts = [
-                            ox, oy,
-                            cx + halfW * perpX, cy + halfW * perpY,
-                            cx - halfW * perpX, cy - halfW * perpY,
-                        ];
-                        const feet = Math.round(d / squareSize) * 5;
-                        const labelX = cx + dirX * 20;
-                        const labelY = cy + dirY * 20;
+                {/* Overlays Layer: drag-ruler + free-ruler + shared-paths + walls (fusionadas) */}
+                <Layer name="overlays">
+                    {/* Drag ruler — arrow + waypoints + ft label while dragging a token */}
+                    {dragRuler.active && dragRuler.origin && dragRuler.current && (() => {
+                        const points = [dragRuler.origin, ...dragRuler.waypoints, dragRuler.current];
+                        let totalSquares = 0;
+                        for (let i = 1; i < points.length; i++) {
+                            const dx = Math.abs(points[i].x - points[i - 1].x) / squareSize;
+                            const dy = Math.abs(points[i].y - points[i - 1].y) / squareSize;
+                            totalSquares += Math.max(dx, dy);
+                        }
+                        const feet = Math.round(totalSquares) * 5;
+                        const flat = points.flatMap(p => [p.x, p.y]);
+                        const labelX = dragRuler.current.x;
+                        const labelY = dragRuler.current.y - 36;
+                        const labelW = 72;
+                        const labelH = 22;
                         return (
-                            <Layer name="free-ruler" listening={false}>
-                                <Line points={conePts} closed fill="rgba(245,158,11,0.20)" stroke="#f59e0b" strokeWidth={2} listening={false} />
+                            <Group listening={false}>
+                                <Arrow points={flat} stroke="rgba(0,0,0,0.55)" fill="rgba(0,0,0,0.55)" strokeWidth={6} pointerLength={14} pointerWidth={14} dash={[12, 7]} listening={false} />
+                                <Arrow points={flat} stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[12, 7]} listening={false} />
+                                {dragRuler.waypoints.map((w, i) => (
+                                    <Group key={i} x={w.x} y={w.y} listening={false}>
+                                        <Circle radius={7} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={2} />
+                                        <Circle radius={3} fill="#f59e0b" />
+                                    </Group>
+                                ))}
                                 <Rect x={labelX - labelW / 2} y={labelY - labelH / 2} width={labelW} height={labelH} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={1.5} cornerRadius={11} listening={false} />
                                 <Text x={labelX - labelW / 2} y={labelY - labelH / 2 + 4} width={labelW} text={`${feet} ft`} fontSize={13} fill="#fbbf24" align="center" fontStyle="bold" listening={false} />
-                            </Layer>
+                            </Group>
                         );
-                    }
+                    })()}
 
-                    const points = [freeRuler.origin, ...freeRuler.waypoints, freeRuler.current];
-                    let totalSquares = 0;
-                    for (let i = 1; i < points.length; i++) {
-                        const dx = Math.abs(points[i].x - points[i - 1].x) / squareSize;
-                        const dy = Math.abs(points[i].y - points[i - 1].y) / squareSize;
-                        totalSquares += Math.max(dx, dy);
-                    }
-                    const feet = Math.round(totalSquares) * 5;
-                    const flat = points.flatMap(p => [p.x, p.y]);
-                    const labelX = freeRuler.current.x;
-                    const labelY = freeRuler.current.y - 36;
-                    return (
-                        <Layer name="free-ruler" listening={false}>
-                            <Arrow points={flat} stroke="rgba(0,0,0,0.55)" fill="rgba(0,0,0,0.55)" strokeWidth={6} pointerLength={14} pointerWidth={14} dash={[12, 7]} listening={false} />
-                            <Arrow points={flat} stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[12, 7]} listening={false} />
-                            {freeRuler.waypoints.map((w, i) => (
-                                <Group key={i} x={w.x} y={w.y} listening={false}>
-                                    <Circle radius={7} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={2} />
-                                    <Circle radius={3} fill="#f59e0b" />
-                                </Group>
-                            ))}
-                            <Rect x={labelX - labelW / 2} y={labelY - labelH / 2} width={labelW} height={labelH} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={1.5} cornerRadius={11} listening={false} />
-                            <Text x={labelX - labelW / 2} y={labelY - labelH / 2 + 4} width={labelW} text={`${feet} ft`} fontSize={13} fill="#fbbf24" align="center" fontStyle="bold" listening={false} />
-                        </Layer>
-                    );
-                })()}
+                    {/* Free ruler — standalone measurement without a token */}
+                    {freeRuler.active && freeRuler.origin && freeRuler.current && (() => {
+                        const labelW = 72;
+                        const labelH = 22;
 
-                {/* Shared movement paths from peers */}
-                {sharedPaths.length > 0 && (
-                    <Layer name="shared-paths" listening={false}>
-                        {sharedPaths.map(path => {
-                            const pts = [path.origin, ...path.waypoints, path.dest];
-                            const flat = pts.flatMap(p => [p.x, p.y]);
-                            const labelX = path.dest.x;
-                            const labelY = path.dest.y - 36;
-                            const labelW = 72;
-                            const labelH = 22;
+                        if (rulerShape === 'cone') {
+                            const ox = freeRuler.origin.x, oy = freeRuler.origin.y;
+                            const cx = freeRuler.current.x, cy = freeRuler.current.y;
+                            const dx = cx - ox, dy = cy - oy;
+                            const d = Math.sqrt(dx * dx + dy * dy);
+                            if (d < 1) return null;
+                            const dirX = dx / d, dirY = dy / d;
+                            const perpX = -dirY, perpY = dirX;
+                            const halfW = d / 2;
+                            const conePts = [
+                                ox, oy,
+                                cx + halfW * perpX, cy + halfW * perpY,
+                                cx - halfW * perpX, cy - halfW * perpY,
+                            ];
+                            const feet = Math.round(d / squareSize) * 5;
+                            const labelX = cx + dirX * 20;
+                            const labelY = cy + dirY * 20;
                             return (
-                                <Group key={path.id}>
-                                    <Arrow points={flat} stroke="rgba(0,0,0,0.55)" fill="rgba(0,0,0,0.55)" strokeWidth={6} pointerLength={14} pointerWidth={14} dash={[12, 7]} listening={false} />
-                                    <Arrow points={flat} stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[12, 7]} listening={false} />
-                                    {path.waypoints.map((w, i) => (
-                                        <Group key={i} x={w.x} y={w.y} listening={false}>
-                                            <Circle radius={7} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={2} />
-                                            <Circle radius={3} fill="#f59e0b" />
-                                        </Group>
-                                    ))}
+                                <Group listening={false}>
+                                    <Line points={conePts} closed fill="rgba(245,158,11,0.20)" stroke="#f59e0b" strokeWidth={2} listening={false} />
                                     <Rect x={labelX - labelW / 2} y={labelY - labelH / 2} width={labelW} height={labelH} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={1.5} cornerRadius={11} listening={false} />
-                                    <Text x={labelX - labelW / 2} y={labelY - labelH / 2 + 4} width={labelW} text={`${path.feet} ft`} fontSize={13} fill="#fbbf24" align="center" fontStyle="bold" listening={false} />
+                                    <Text x={labelX - labelW / 2} y={labelY - labelH / 2 + 4} width={labelW} text={`${feet} ft`} fontSize={13} fill="#fbbf24" align="center" fontStyle="bold" listening={false} />
                                 </Group>
                             );
-                        })}
-                    </Layer>
-                )}
+                        }
 
-                {/* Walls layer — GM only, semi-transparent blue segments */}
-                {isDm && (
-                    <Layer name="walls" listening={activeLayer === 'walls'}>
-                        {(wallsData.walls || []).map(wall => {
-                            const sel = selectedWallId === wall.id;
-                            const stroke = sel ? '#facc15' : '#ef4444';
-                            const strokeWidth = sel ? 3 : 2;
-                            if (wall.type === 'rect') {
-                                const rx = Math.min(wall.x1, wall.x2), ry = Math.min(wall.y1, wall.y2);
-                                const rw = Math.abs(wall.x2 - wall.x1), rh = Math.abs(wall.y2 - wall.y1);
+                        const points = [freeRuler.origin, ...freeRuler.waypoints, freeRuler.current];
+                        let totalSquares = 0;
+                        for (let i = 1; i < points.length; i++) {
+                            const dx = Math.abs(points[i].x - points[i - 1].x) / squareSize;
+                            const dy = Math.abs(points[i].y - points[i - 1].y) / squareSize;
+                            totalSquares += Math.max(dx, dy);
+                        }
+                        const feet = Math.round(totalSquares) * 5;
+                        const flat = points.flatMap(p => [p.x, p.y]);
+                        const labelX = freeRuler.current.x;
+                        const labelY = freeRuler.current.y - 36;
+                        return (
+                            <Group listening={false}>
+                                <Arrow points={flat} stroke="rgba(0,0,0,0.55)" fill="rgba(0,0,0,0.55)" strokeWidth={6} pointerLength={14} pointerWidth={14} dash={[12, 7]} listening={false} />
+                                <Arrow points={flat} stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[12, 7]} listening={false} />
+                                {freeRuler.waypoints.map((w, i) => (
+                                    <Group key={i} x={w.x} y={w.y} listening={false}>
+                                        <Circle radius={7} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={2} />
+                                        <Circle radius={3} fill="#f59e0b" />
+                                    </Group>
+                                ))}
+                                <Rect x={labelX - labelW / 2} y={labelY - labelH / 2} width={labelW} height={labelH} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={1.5} cornerRadius={11} listening={false} />
+                                <Text x={labelX - labelW / 2} y={labelY - labelH / 2 + 4} width={labelW} text={`${feet} ft`} fontSize={13} fill="#fbbf24" align="center" fontStyle="bold" listening={false} />
+                            </Group>
+                        );
+                    })()}
+
+                    {/* Shared movement paths from peers */}
+                    {sharedPaths.length > 0 && (
+                        <Group listening={false}>
+                            {sharedPaths.map(path => {
+                                const pts = [path.origin, ...path.waypoints, path.dest];
+                                const flat = pts.flatMap(p => [p.x, p.y]);
+                                const labelX = path.dest.x;
+                                const labelY = path.dest.y - 36;
+                                const labelW = 72;
+                                const labelH = 22;
                                 return (
-                                    <Rect key={wall.id}
-                                        x={rx} y={ry} width={rw} height={rh}
-                                        stroke={stroke} strokeWidth={strokeWidth} fill="transparent"
+                                    <Group key={path.id}>
+                                        <Arrow points={flat} stroke="rgba(0,0,0,0.55)" fill="rgba(0,0,0,0.55)" strokeWidth={6} pointerLength={14} pointerWidth={14} dash={[12, 7]} listening={false} />
+                                        <Arrow points={flat} stroke="#f59e0b" fill="#f59e0b" strokeWidth={3} pointerLength={12} pointerWidth={12} dash={[12, 7]} listening={false} />
+                                        {path.waypoints.map((w, i) => (
+                                            <Group key={i} x={w.x} y={w.y} listening={false}>
+                                                <Circle radius={7} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={2} />
+                                                <Circle radius={3} fill="#f59e0b" />
+                                            </Group>
+                                        ))}
+                                        <Rect x={labelX - labelW / 2} y={labelY - labelH / 2} width={labelW} height={labelH} fill="#1e1b4b" stroke="#f59e0b" strokeWidth={1.5} cornerRadius={11} listening={false} />
+                                        <Text x={labelX - labelW / 2} y={labelY - labelH / 2 + 4} width={labelW} text={`${path.feet} ft`} fontSize={13} fill="#fbbf24" align="center" fontStyle="bold" listening={false} />
+                                    </Group>
+                                );
+                            })}
+                        </Group>
+                    )}
+
+                    {/* Walls — GM only, listening dinámico según capa activa */}
+                    {isDm && (
+                        <Group listening={activeLayer === 'walls'}>
+                            {(wallsData.walls || []).map(wall => {
+                                const sel = selectedWallId === wall.id;
+                                const stroke = sel ? '#facc15' : '#ef4444';
+                                const strokeWidth = sel ? 3 : 2;
+                                if (wall.type === 'rect') {
+                                    const rx = Math.min(wall.x1, wall.x2), ry = Math.min(wall.y1, wall.y2);
+                                    const rw = Math.abs(wall.x2 - wall.x1), rh = Math.abs(wall.y2 - wall.y1);
+                                    return (
+                                        <Rect key={wall.id}
+                                            x={rx} y={ry} width={rw} height={rh}
+                                            stroke={stroke} strokeWidth={strokeWidth} fill="transparent"
+                                            opacity={0.8} hitStrokeWidth={12}
+                                            onClick={() => setSelectedWallId(wall.id)}
+                                        />
+                                    );
+                                }
+                                return (
+                                    <Line key={wall.id}
+                                        points={[wall.x1, wall.y1, wall.x2, wall.y2]}
+                                        stroke={stroke} strokeWidth={strokeWidth}
                                         opacity={0.8} hitStrokeWidth={12}
                                         onClick={() => setSelectedWallId(wall.id)}
                                     />
                                 );
-                            }
-                            return (
-                                <Line key={wall.id}
-                                    points={[wall.x1, wall.y1, wall.x2, wall.y2]}
-                                    stroke={stroke} strokeWidth={strokeWidth}
-                                    opacity={0.8} hitStrokeWidth={12}
-                                    onClick={() => setSelectedWallId(wall.id)}
-                                />
-                            );
-                        })}
-                        {wallDrawing && (
-                            wallDrawMode === 'rect' ? (
-                                <Rect
-                                    x={Math.min(wallDrawing.x1, wallDrawing.x2)}
-                                    y={Math.min(wallDrawing.y1, wallDrawing.y2)}
-                                    width={Math.abs(wallDrawing.x2 - wallDrawing.x1)}
-                                    height={Math.abs(wallDrawing.y2 - wallDrawing.y1)}
-                                    stroke="#93c5fd" strokeWidth={3} fill="rgba(147,197,253,0.08)"
-                                    opacity={0.8} listening={false}
-                                />
-                            ) : (
-                                <Line
-                                    points={[wallDrawing.x1, wallDrawing.y1, wallDrawing.x2, wallDrawing.y2]}
-                                    stroke="#93c5fd" strokeWidth={3} opacity={0.8} listening={false}
-                                />
-                            )
-                        )}
-                    </Layer>
-                )}
+                            })}
+                            {wallDrawing && (
+                                wallDrawMode === 'rect' ? (
+                                    <Rect
+                                        x={Math.min(wallDrawing.x1, wallDrawing.x2)}
+                                        y={Math.min(wallDrawing.y1, wallDrawing.y2)}
+                                        width={Math.abs(wallDrawing.x2 - wallDrawing.x1)}
+                                        height={Math.abs(wallDrawing.y2 - wallDrawing.y1)}
+                                        stroke="#93c5fd" strokeWidth={3} fill="rgba(147,197,253,0.08)"
+                                        opacity={0.8} listening={false}
+                                    />
+                                ) : (
+                                    <Line
+                                        points={[wallDrawing.x1, wallDrawing.y1, wallDrawing.x2, wallDrawing.y2]}
+                                        stroke="#93c5fd" strokeWidth={3} opacity={0.8} listening={false}
+                                    />
+                                )
+                            )}
+                        </Group>
+                    )}
+                </Layer>
 
                 {/* Fog of War layer — topmost content layer */}
                 <Layer name="fog" listening={false}>
@@ -1956,43 +1943,68 @@ const saveCounters = async (tokenId, counters) => {
             <div style={{
                 position: 'absolute', top: HEADER_H, left: 0, right: 0,
                 height: TOOLBAR_H, zIndex: 20,
-                background: 'rgba(15, 23, 42, 0.95)',
-                borderBottom: '1px solid #2d3e50',
-                display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
+                background: 'linear-gradient(180deg, rgba(10,15,12,0.96) 0%, rgba(13,31,16,0.92) 100%)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                borderBottom: `1px solid ${BORDER_LO}`,
+                display: 'flex', alignItems: 'center',
+                padding: isMobile ? '0 6px' : '0 12px',
+                gap: isMobile ? 4 : 8,
+                overflowX: 'auto',
             }}>
+                {isTablet && (
+                    <button
+                        onClick={() => setSidebarOpen(o => !o)}
+                        title={sidebarOpen ? 'Ocultar panel' : 'Mostrar panel'}
+                        style={{
+                            width: 34, height: 30, borderRadius: 6,
+                            background: sidebarOpen ? ACCENT_SOFT : SURFACE_HI,
+                            border: `1px solid ${sidebarOpen ? ACCENT_BORD : BORDER}`,
+                            color: sidebarOpen ? '#86efac' : TEXT_MED,
+                            cursor: 'pointer', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 16, lineHeight: 1,
+                        }}
+                    >☰</button>
+                )}
                 <SceneSelector onSceneSelect={handleSceneSelect} onSceneUpdated={handleSceneUpdated} />
 
                 <span style={{
-                    flex: 1, textAlign: 'center', color: '#e2e8f0',
-                    fontWeight: 600, fontSize: 14,
+                    flex: 1, textAlign: 'center', color: TEXT_HI,
+                    fontWeight: 600, fontSize: isMobile ? 12 : 14,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    letterSpacing: '0.02em',
                 }}>
                     {scene ? scene.name : 'Cargando escena…'}
                 </span>
 
                 {/* Controles de zoom */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                     <button onClick={() => applyZoom(1 / ZOOM_STEP)} style={zoomBtnStyle}>−</button>
                     <span onClick={resetZoom} title="Restablecer zoom"
-                        style={{ color: '#94a3b8', fontSize: 12, minWidth: 38, textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                        style={{ color: TEXT_MED, fontSize: 12, minWidth: 38, textAlign: 'center', cursor: 'pointer', userSelect: 'none', fontVariantNumeric: 'tabular-nums' }}>
                         {zoomPct}%
                     </span>
                     <button onClick={() => applyZoom(ZOOM_STEP)} style={zoomBtnStyle}>+</button>
                 </div>
 
                 {/* Capas */}
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                    <span style={{ color: '#94a3b8', fontSize: 12, marginRight: 4 }}>Capa:</span>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                    {!isMobile && <span style={{ color: TEXT_LO, fontSize: 11, marginRight: 4, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Capa</span>}
                     {(isDm ? LAYERS : LAYERS.filter(l => l.id === 'user')).map(l => (
                         <button key={l.id} onClick={() => { setActiveLayer(l.id); setSelectedImgId(null); setSelectedTokenId(null); }}
+                            title={l.label}
                             style={{
-                                padding: '4px 10px', borderRadius: 4, fontSize: 12,
-                                fontWeight: activeLayer === l.id ? 700 : 400,
-                                background: activeLayer === l.id ? '#3b82f6' : '#334155',
-                                color: 'white', border: 'none', cursor: 'pointer',
-                                transition: 'background 0.15s',
+                                padding: isMobile ? '4px 8px' : '4px 12px', borderRadius: 6, fontSize: 11,
+                                fontWeight: activeLayer === l.id ? 700 : 500,
+                                background: activeLayer === l.id ? ACCENT_SOFT : SURFACE_HI,
+                                color: activeLayer === l.id ? '#86efac' : TEXT_MED,
+                                border: `1px solid ${activeLayer === l.id ? ACCENT_BORD : BORDER}`,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                letterSpacing: '0.05em',
                             }}>
-                            {l.label}
+                            {isMobile ? l.label.charAt(0) : l.label}
                         </button>
                     ))}
                 </div>
@@ -2022,11 +2034,14 @@ const saveCounters = async (tokenId, counters) => {
                             }}
                             title={title}
                             style={{
-                                padding: '4px 10px', borderRadius: 4, fontSize: 12,
-                                fontWeight: active ? 700 : 400,
-                                background: active ? '#f59e0b' : '#334155',
-                                color: 'white', border: 'none', cursor: 'pointer',
-                                transition: 'background 0.15s',
+                                padding: '4px 10px', borderRadius: 6, fontSize: 13,
+                                fontWeight: active ? 700 : 500,
+                                background: active ? 'rgba(245,158,11,0.22)' : SURFACE_HI,
+                                color: active ? '#fbbf24' : TEXT_MED,
+                                border: `1px solid ${active ? 'rgba(245,158,11,0.55)' : BORDER}`,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                flexShrink: 0,
                             }}
                         >
                             {icon}
@@ -2036,25 +2051,46 @@ const saveCounters = async (tokenId, counters) => {
             </div>
 
             {/* ── PANEL IZQUIERDO ── */}
+            {isTablet && sidebarOpen && (
+                <div
+                    onClick={() => setSidebarOpen(false)}
+                    style={{
+                        position: 'fixed', inset: 0, top: HEADER_H + TOOLBAR_H,
+                        background: 'rgba(0,0,0,0.45)',
+                        backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)',
+                        zIndex: 14,
+                    }}
+                />
+            )}
             <div style={{
                 position: 'absolute', top: HEADER_H + TOOLBAR_H, left: 0,
-                width: sidebarW, bottom: 0, zIndex: 10,
-                background: 'rgba(15, 23, 42, 0.85)',
-                borderRight: '1px solid #2d3e50',
+                width: effSidebarW, bottom: 0,
+                zIndex: 15,
+                background: 'linear-gradient(180deg, rgba(13,31,16,0.96) 0%, rgba(10,15,12,0.96) 100%)',
+                backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)',
+                borderRight: `1px solid ${BORDER_LO}`,
+                boxShadow: isTablet ? '4px 0 28px rgba(0,0,0,0.6)' : 'none',
                 display: 'flex', flexDirection: 'column',
                 overflowX: 'hidden',
+                transform: isTablet && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+                transition: isTablet ? 'transform 0.22s ease' : 'none',
             }}>
                 {/* Tab bar */}
-                <div style={{ display: 'flex', borderBottom: '1px solid #2d3e50', flexShrink: 0 }}>
+                <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER_LO}`, flexShrink: 0, background: SURFACE }}>
                     {['tokens', 'chat', 'ajustes'].map(tab => (
                         <button
                             key={tab}
                             onClick={() => setSidebarTab(tab)}
                             style={{
-                                flex: 1, padding: '6px 0', fontSize: 12, fontWeight: sidebarTab === tab ? 700 : 400,
-                                background: sidebarTab === tab ? '#3b82f6' : '#334155',
-                                color: 'white', border: 'none', cursor: 'pointer',
-                                textTransform: 'capitalize', transition: 'background 0.15s',
+                                flex: 1, padding: '10px 0', fontSize: 11,
+                                fontWeight: sidebarTab === tab ? 700 : 500,
+                                background: sidebarTab === tab ? ACCENT_SOFT : 'transparent',
+                                color: sidebarTab === tab ? '#86efac' : TEXT_LO,
+                                border: 'none',
+                                borderBottom: `2px solid ${sidebarTab === tab ? ACCENT : 'transparent'}`,
+                                cursor: 'pointer',
+                                textTransform: 'uppercase', letterSpacing: '0.12em',
+                                transition: 'all 0.15s',
                             }}
                         >
                             {tab === 'tokens' ? 'Tokens' : tab === 'chat' ? 'Chat' : 'Ajustes'}
@@ -2109,12 +2145,12 @@ const saveCounters = async (tokenId, counters) => {
                     )}
                 </div>
 
-                {/* Handle de resize — oculto cuando hay un modal de hoja abierto */}
-                {!sheetModal && !childModalOpen && (
+                {/* Handle de resize — oculto cuando hay un modal de hoja abierto o en tablet/móvil */}
+                {!sheetModal && !childModalOpen && !isTablet && (
                     <div
                         onMouseDown={(e) => {
                             e.preventDefault();
-                            const onMove = (ev) => setSidebarW(Math.min(420, Math.max(160, ev.clientX)));
+                            const onMove = (ev) => setSidebarW(Math.min(420, Math.max(180, ev.clientX)));
                             const onUp = () => {
                                 window.removeEventListener('mousemove', onMove);
                                 window.removeEventListener('mouseup', onUp);
@@ -2139,7 +2175,7 @@ const saveCounters = async (tokenId, counters) => {
                     style={{
                         position: 'fixed',
                         top: HEADER_H + TOOLBAR_H + 10,
-                        left: sidebarW + 10,
+                        left: sidebarOffset + 10,
                         background: '#1e293b',
                         border: '1px solid #334155',
                         borderRadius: 8,
@@ -2161,8 +2197,11 @@ const saveCounters = async (tokenId, counters) => {
                     <div style={{ display: 'flex', gap: 6 }}>
                         {['rect', 'freehand'].map(tool => (
                             <button key={tool} onClick={() => setFogDrawTool(tool)} style={{
-                                flex: 1, padding: '5px 0', fontSize: 12, border: 'none', borderRadius: 4, cursor: 'pointer',
-                                background: fogDrawTool === tool ? '#3b82f6' : '#334155', color: 'white',
+                                flex: 1, padding: '5px 0', fontSize: 12, borderRadius: 6, cursor: 'pointer',
+                                background: fogDrawTool === tool ? ACCENT_SOFT : SURFACE_HI,
+                                color: fogDrawTool === tool ? '#86efac' : TEXT_MED,
+                                border: `1px solid ${fogDrawTool === tool ? ACCENT_BORD : BORDER}`,
+                                fontWeight: fogDrawTool === tool ? 700 : 500,
                             }}>
                                 {tool === 'rect' ? 'Rect' : 'Trazo libre'}
                             </button>
@@ -2170,9 +2209,11 @@ const saveCounters = async (tokenId, counters) => {
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                         <button onClick={() => setFogAction('reveal')} style={{
-                            flex: 1, padding: '6px 0', fontSize: 12, border: 'none', borderRadius: 4,
-                            background: fogAction === 'reveal' ? '#3b82f6' : '#334155',
-                            color: 'white', fontWeight: fogAction === 'reveal' ? 700 : 400,
+                            flex: 1, padding: '6px 0', fontSize: 12, borderRadius: 6,
+                            background: fogAction === 'reveal' ? ACCENT_SOFT : SURFACE_HI,
+                            color: fogAction === 'reveal' ? '#86efac' : TEXT_MED,
+                            border: `1px solid ${fogAction === 'reveal' ? ACCENT_BORD : BORDER}`,
+                            fontWeight: fogAction === 'reveal' ? 700 : 500,
                             cursor: 'pointer',
                         }}>Revelar</button>
                         <button onClick={() => setFogAction('hide')} style={{
@@ -2206,7 +2247,7 @@ const saveCounters = async (tokenId, counters) => {
                         style={{
                             position: 'fixed',
                             top: HEADER_H + TOOLBAR_H + 10,
-                            left: sidebarW + 10,
+                            left: sidebarOffset + 10,
                             background: '#1e293b',
                             border: '1px solid #334155',
                             borderRadius: 8,
@@ -2254,8 +2295,11 @@ const saveCounters = async (tokenId, counters) => {
                         <div style={{ display: 'flex', gap: 6 }}>
                             {['line', 'rect'].map(mode => (
                                 <button key={mode} onClick={() => setWallDrawMode(mode)} style={{
-                                    flex: 1, padding: '5px 0', fontSize: 12, border: 'none', borderRadius: 4, cursor: 'pointer',
-                                    background: wallDrawMode === mode ? '#3b82f6' : '#334155', color: 'white',
+                                    flex: 1, padding: '5px 0', fontSize: 12, borderRadius: 6, cursor: 'pointer',
+                                    background: wallDrawMode === mode ? ACCENT_SOFT : SURFACE_HI,
+                                    color: wallDrawMode === mode ? '#86efac' : TEXT_MED,
+                                    border: `1px solid ${wallDrawMode === mode ? ACCENT_BORD : BORDER}`,
+                                    fontWeight: wallDrawMode === mode ? 700 : 500,
                                 }}>
                                     {mode === 'line' ? 'Línea' : 'Rectángulo'}
                                 </button>
@@ -2381,7 +2425,7 @@ const saveCounters = async (tokenId, counters) => {
                                                     tok.entity_id,
                                                     payload
                                                 );
-                                            } catch (err) { console.error(err); }
+                                            } catch { /* ignore */ }
                                             setCtxMenu(null);
                                         }}
                                         style={{
@@ -2446,9 +2490,9 @@ const saveCounters = async (tokenId, counters) => {
                             if (token.kind === 'character') {
                                 const fd = new FormData();
                                 fd.append('hp', String(next));
-                                axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(console.error);
+                                axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(() => {});
                             } else if (token.kind === 'monster') {
-                                axios.post(`${API}/api/monster/edit/${token.entity_id}`, { hp: next }, { headers: authHeaders() }).catch(console.error);
+                                axios.post(`${API}/api/monster/edit/${token.entity_id}`, { hp: next }, { headers: authHeaders() }).catch(() => {});
                             }
                         }
                     }
@@ -2709,7 +2753,7 @@ const saveCounters = async (tokenId, counters) => {
                                     : `${API}/api/monster/${token.entity_id}/set-default-auras`;
                                 try {
                                     await axios.post(endpoint, { auras }, { headers: authHeaders() });
-                                } catch (err) { console.error(err); }
+                                } catch { /* ignore */ }
                             }}
                             style={{
                                 width: '100%', marginTop: 4, background: 'rgba(168,85,247,0.2)',
@@ -2743,7 +2787,7 @@ const saveCounters = async (tokenId, counters) => {
             {/* ── AVISO DROP IMAGEN ── */}
             <div style={{
                 position: 'absolute', bottom: 16,
-                left: sidebarW + 16, zIndex: 10,
+                left: sidebarOffset + 16, zIndex: 10,
                 color: '#475569', fontSize: 11,
                 pointerEvents: 'none',
             }}>
@@ -2790,6 +2834,11 @@ const saveCounters = async (tokenId, counters) => {
                     onSendMessage={(content) => {
                         if (vttWsRef.current?.readyState === WebSocket.OPEN) {
                             vttWsRef.current.send(JSON.stringify({ type: 'message', content }));
+                        }
+                    }}
+                    onSendMessageGm={(content) => {
+                        if (vttWsRef.current?.readyState === WebSocket.OPEN) {
+                            vttWsRef.current.send(JSON.stringify({ type: 'message_gm', content }));
                         }
                     }}
                 />

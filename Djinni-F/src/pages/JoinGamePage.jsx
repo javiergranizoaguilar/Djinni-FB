@@ -48,7 +48,6 @@ export default function JoinGamePage() {
                 }
 
             } catch (error) {
-                console.error("Error joining game:", error);
                 setStatus('error');
                 if (error.response && error.response.data && error.response.data.error) {
                     setMessage(error.response.data.error);
@@ -67,30 +66,39 @@ export default function JoinGamePage() {
     }, [token, navigate]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#112217]">
-            <div className="max-w-md w-full p-8 bg-white dark:bg-[#1a2c20] rounded-xl shadow-lg border border-gray-200 dark:border-[#23482f] text-center">
-                
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background-dark px-4 py-12">
+            <div className="max-w-md w-full p-8 bg-white dark:bg-surface rounded-2xl shadow-2xl border border-gray-200 dark:border-border-md text-center animate-fade-in">
                 {status === 'checking' || status === 'joining' ? (
                     <div className="flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{message}</h2>
+                        <div className="relative mb-5">
+                            <div className="animate-spin rounded-full h-14 w-14 border-4 border-primary/20 border-t-primary"></div>
+                            <div className="absolute inset-0 flex items-center justify-center text-primary">
+                                <span className="material-symbols-outlined">link</span>
+                            </div>
+                        </div>
+                        <h2 className="font-mystical text-xl font-semibold text-gray-800 dark:text-text-hi">{message}</h2>
                     </div>
                 ) : status === 'success' ? (
                     <div className="flex flex-col items-center">
-                        <span className="material-symbols-outlined text-6xl text-green-500 mb-4">check_circle</span>
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">Success!</h2>
-                        <p className="text-gray-600 dark:text-gray-300">{message}</p>
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/15 mb-4 ring-4 ring-primary/20">
+                            <span className="material-symbols-outlined text-4xl text-primary">check_circle</span>
+                        </div>
+                        <h2 className="font-mystical text-2xl font-bold text-gray-800 dark:text-text-hi mb-2">¡Listo!</h2>
+                        <p className="text-gray-600 dark:text-text-med">{message}</p>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center">
-                        <span className="material-symbols-outlined text-6xl text-red-500 mb-4">error</span>
-                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">Error</h2>
-                        <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
-                        <button 
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/15 mb-4 ring-4 ring-red-500/20">
+                            <span className="material-symbols-outlined text-4xl text-red-400">error</span>
+                        </div>
+                        <h2 className="font-mystical text-2xl font-bold text-gray-800 dark:text-text-hi mb-2">Error</h2>
+                        <p className="text-gray-600 dark:text-text-med mb-6">{message}</p>
+                        <button
                             onClick={() => navigate('/')}
-                            className="px-4 py-2 bg-primary text-[#112217] font-bold rounded-lg hover:bg-primary/90 transition-colors"
+                            className="px-5 py-2.5 bg-primary text-[#042713] font-bold rounded-lg shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all inline-flex items-center gap-2"
                         >
-                            Go Home
+                            <span className="material-symbols-outlined">home</span>
+                            Volver al inicio
                         </button>
                     </div>
                 )}

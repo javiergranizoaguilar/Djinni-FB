@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import EditCharacterModal from './EditCharacterModal.jsx';
+import { Toast, useToast } from '../components/Toast.jsx';
 
 export default function CharacterList() {
     const [characters, setCharacters] = useState([]);
@@ -12,53 +12,38 @@ export default function CharacterList() {
     const [selectedCharacter, setSelectedCharacter] = useState(null);
     const [newCharacterName, setNewCharacterName] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
-    const navigate = useNavigate();
+    const { toast, show: showToast, hide: hideToast } = useToast();
 
     const fetchCharacters = async () => {
         const token = localStorage.getItem('vtt_token');
-        if (!token) {
-            setError('No estás autenticado.');
-            setLoading(false);
-            return;
-        }
-
+        if (!token) { setError('No estás autenticado.'); setLoading(false); return; }
         try {
             const response = await axios.get('http://localhost:8000/api/character/my-characters', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             setCharacters(response.data);
-        } catch (err) {
-            console.error("Error fetching characters:", err);
+        } catch {
             setError('Error al cargar los personajes.');
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchCharacters();
-    }, []);
+    useEffect(() => { fetchCharacters(); }, []);
 
     const handleCreateCharacter = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('vtt_token');
         try {
-            await axios.post('http://localhost:8000/api/character/create', {
-                name: newCharacterName
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+            await axios.post('http://localhost:8000/api/character/create', { name: newCharacterName }, {
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             setShowCreateModal(false);
             setNewCharacterName('');
-            fetchCharacters(); // Recargar lista
-        } catch (err) {
-            console.error("Error creating character:", err);
-            alert("Error al crear el personaje");
+            showToast('Personaje creado', 'ok');
+            fetchCharacters();
+        } catch {
+            showToast('Error al crear el personaje', 'err');
         }
     };
 
@@ -68,100 +53,135 @@ export default function CharacterList() {
     };
 
     const handleDeleteCharacter = async (characterId) => {
-        if (!window.confirm('¿Estás seguro de que quieres eliminar este personaje? Esta acción no se puede deshacer.')) {
-            return;
-        }
-
+        if (!window.confirm('¿Estás seguro de que quieres eliminar este personaje? Esta acción no se puede deshacer.')) return;
         const token = localStorage.getItem('vtt_token');
         try {
             await axios.delete(`http://localhost:8000/api/character/delete/${characterId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-            fetchCharacters(); // Recargar lista
-        } catch (err) {
-            console.error("Error deleting character:", err);
-            alert("Error al eliminar el personaje");
+            showToast('Personaje eliminado', 'ok');
+            fetchCharacters();
+        } catch {
+            showToast('Error al eliminar el personaje', 'err');
         }
     };
 
-    const filteredCharacters = characters.filter(char => 
+    const filteredCharacters = characters.filter(char =>
         char.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    if (loading) return <div className="text-center p-4 text-gray-600 dark:text-gray-300 pt-24 min-h-screen">Cargando personajes...</div>;
-    if (error) return <div className="text-center p-4 text-red-500 pt-24">{error}</div>;
+    if (error) return (
+        <div className="container mx-auto p-6 pt-24 min-h-screen">
+            <div className="max-w-md mx-auto text-center p-8 bg-red-900/20 border border-red-500/40 rounded-xl">
+                <span className="material-symbols-outlined text-5xl text-red-400 mb-2">error</span>
+                <p className="text-red-300 font-semibold">{error}</p>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="container mx-auto p-6 pt-24 min-h-screen relative">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Mis Personajes</h2>
-                
-                <div className="flex w-full md:w-auto gap-4">
-                    <div className="relative flex-grow md:flex-grow-0 md:w-64">
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">search</span>
+        <div className="container mx-auto p-4 sm:p-6 pt-24 min-h-screen relative page-section">
+            <Toast toast={toast} onClose={hideToast} />
+
+            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-8 gap-3 md:gap-4">
+                <div>
+                    <h2 className="font-heading text-3xl sm:text-4xl text-text-hi tracking-widest">Mis Personajes</h2>
+                    <p className="text-sm text-text-lo mt-1">Tus héroes y sus hojas de personaje</p>
+                </div>
+
+                <div className="flex w-full md:w-auto gap-3">
+                    <div className="relative flex-grow md:flex-grow-0 md:w-72">
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-lo text-[18px]">search</span>
                         <input
                             type="text"
-                            placeholder="Buscar personaje..."
+                            placeholder="Buscar personaje…"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-[#23482f] rounded-lg bg-white dark:bg-[#1a2c20] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                            className="arcane-input pl-10"
                         />
                     </div>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-primary text-[#112217] px-4 py-2 rounded-lg font-bold shadow-glow hover:shadow-glow-hover transition-all flex items-center gap-2 whitespace-nowrap"
+                        className="arcane-btn"
                     >
-                        <span className="material-symbols-outlined">add_circle</span>
-                        Crear Personaje
+                        <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                        <span className="hidden sm:inline">Crear Personaje</span>
                     </button>
                 </div>
             </div>
 
-            {filteredCharacters.length === 0 ? (
-                <div className="text-center p-8 bg-gray-100 dark:bg-[#1a2c20] rounded-lg border border-dashed border-gray-300 dark:border-[#23482f]">
-                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        {searchTerm ? 'No se encontraron personajes que coincidan con tu búsqueda.' : 'No tienes personajes creados aún.'}
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" aria-busy="true">
+                    {[0, 1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className="arcane-card overflow-hidden">
+                            <div className="skeleton h-48 w-full rounded-none"></div>
+                            <div className="p-5 flex flex-col gap-3">
+                                <div className="skeleton h-5 w-2/3"></div>
+                                <div className="flex gap-2"><div className="skeleton h-4 w-16"></div><div className="skeleton h-4 w-12"></div></div>
+                                <div className="flex gap-2 mt-3 justify-end">
+                                    <div className="skeleton h-9 w-12"></div>
+                                    <div className="skeleton h-9 w-28"></div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : filteredCharacters.length === 0 ? (
+                <div className="max-w-lg mx-auto mt-16 text-center p-10 rounded-2xl border border-dashed border-primary/15 bg-surface/30 backdrop-blur animate-fade-in">
+                    <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/8 border border-primary/15 mb-4">
+                        <span className="material-symbols-outlined text-3xl text-primary">person</span>
+                    </div>
+                    <h3 className="font-heading text-lg text-text-hi tracking-wide mb-2">
+                        {searchTerm ? 'Sin resultados' : 'Aún no tienes personajes'}
+                    </h3>
+                    <p className="text-sm text-text-lo mb-6">
+                        {searchTerm ? 'Prueba con otra búsqueda o crea un personaje nuevo.' : 'Crea tu primer personaje y empieza a forjar su leyenda.'}
                     </p>
+                    {!searchTerm && (
+                        <button onClick={() => setShowCreateModal(true)} className="arcane-btn">
+                            <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                            Crear primer personaje
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredCharacters.map((char) => (
-                        <div key={char.id} className="bg-white dark:bg-[#1a2c20] rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-[#23482f] hover:shadow-lg transition-shadow duration-300 flex flex-col">
-                            <div className="h-48 bg-gray-200 dark:bg-gray-800 flex items-center justify-center relative overflow-hidden">
+                        <div key={char.id} className="arcane-card flex flex-col animate-fade-in">
+                            <div className="h-48 bg-gradient-to-br from-primary/8 via-surface to-surface-base flex items-center justify-center relative overflow-hidden">
                                 {char.token_image ? (
-                                    <img 
-                                        src={char.token_image.startsWith('/uploads') ? `http://localhost:8000${char.token_image}` : char.token_image} 
-                                        alt={char.name} 
-                                        className="w-full h-full object-cover" 
+                                    <img
+                                        src={char.token_image.startsWith('/uploads') ? `http://localhost:8000${char.token_image}` : char.token_image}
+                                        alt={char.name}
+                                        loading="lazy"
+                                        className="w-full h-full object-cover"
                                     />
                                 ) : (
-                                    <span className="material-symbols-outlined text-6xl text-gray-400">person</span>
+                                    <span className="material-symbols-outlined text-6xl text-primary/40">person</span>
                                 )}
                             </div>
                             <div className="p-5 flex-grow flex flex-col">
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{char.name}</h3>
-                                    <span className="bg-gray-100 dark:bg-[#23482f] text-gray-600 dark:text-gray-300 text-xs px-2 py-1 rounded-full font-semibold">
+                                <div className="flex justify-between items-start mb-2 gap-2">
+                                    <h3 className="text-xl font-bold text-gray-800 dark:text-text-hi line-clamp-1">{char.name}</h3>
+                                    <span className="bg-djinni-gold/15 text-djinni-gold border border-djinni-gold/35 text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap">
                                         Lvl {char.display_level}
                                     </span>
                                 </div>
-                                
-                                <div className="text-sm text-primary font-medium mb-3 flex flex-wrap gap-1">
-                                    {Array.isArray(char.level) ? (
+
+                                <div className="text-sm font-medium mb-3 flex flex-wrap gap-1">
+                                    {Array.isArray(char.level) && char.level.length > 0 ? (
                                         char.level.map((cls, idx) => (
-                                            <span key={idx} className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
+                                            <span key={idx} className="bg-primary/10 text-primary border border-primary/30 px-2 py-0.5 rounded text-xs">
                                                 {cls.class || 'Sin Clase'} {cls.level}
                                                 {cls.subclass ? ` (${cls.subclass})` : ''}
                                             </span>
                                         ))
                                     ) : (
-                                        <span className="text-gray-400 italic">Sin Clase</span>
+                                        <span className="text-gray-400 dark:text-text-lo italic">Sin Clase</span>
                                     )}
                                 </div>
 
-                                <div className="flex gap-4 mb-4 text-xs text-gray-500 dark:text-gray-400">
+                                <div className="flex gap-4 mb-4 text-xs text-gray-500 dark:text-text-med">
                                     <div className="flex items-center gap-1" title="Hechizos">
                                         <span className="material-symbols-outlined text-[16px]">auto_fix</span>
                                         <span>{char.spells?.length || 0}</span>
@@ -179,16 +199,17 @@ export default function CharacterList() {
                                 <div className="mt-auto flex justify-end gap-2">
                                     {char.is_editable && (
                                         <>
-                                            <button 
+                                            <button
                                                 onClick={() => handleDeleteCharacter(char.id)}
-                                                className="px-3 py-2 bg-red-500 text-white text-sm font-bold rounded-lg hover:bg-red-600 transition-colors flex items-center gap-1"
+                                                className="p-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/30 hover:border-red-500 text-sm font-bold rounded-lg transition-all flex items-center"
                                                 title="Eliminar personaje"
+                                                aria-label="Eliminar personaje"
                                             >
                                                 <span className="material-symbols-outlined text-lg">delete</span>
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleEditCharacter(char)}
-                                                className="px-4 py-2 bg-primary text-[#112217] text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
+                                                className="px-4 py-2 bg-primary text-[#042713] text-sm font-bold rounded-lg hover:bg-primary-dark hover:-translate-y-0.5 shadow-glow hover:shadow-glow-hover transition-all flex items-center gap-2"
                                             >
                                                 <span className="material-symbols-outlined text-lg">edit</span>
                                                 Ver Hoja
@@ -204,32 +225,26 @@ export default function CharacterList() {
 
             {/* Modal de Creación */}
             {showCreateModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-[#1a2c20] p-6 rounded-lg shadow-xl w-full max-w-md border border-gray-200 dark:border-[#23482f]">
-                        <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Nuevo Personaje</h2>
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
+                    <div className="arcane-modal p-6 w-full max-w-md max-h-[92vh] overflow-y-auto">
+                        <h2 className="font-heading text-xl text-text-hi tracking-widest mb-5">Nuevo Personaje</h2>
                         <form onSubmit={handleCreateCharacter}>
-                            <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre</label>
-                                <input 
-                                    type="text" 
+                            <div className="mb-5">
+                                <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre</label>
+                                <input
+                                    type="text"
                                     value={newCharacterName}
                                     onChange={(e) => setNewCharacterName(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-[#23482f] rounded-md bg-white dark:bg-[#112217] text-gray-900 dark:text-gray-100"
+                                    className="arcane-input"
                                     required
+                                    autoFocus
                                 />
                             </div>
                             <div className="flex justify-end gap-3">
-                                <button 
-                                    type="button" 
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#23482f] rounded-md"
-                                >
+                                <button type="button" onClick={() => setShowCreateModal(false)} className="arcane-btn-ghost">
                                     Cancelar
                                 </button>
-                                <button 
-                                    type="submit" 
-                                    className="px-4 py-2 bg-primary text-[#112217] rounded-md font-bold"
-                                >
+                                <button type="submit" className="arcane-btn">
                                     Crear
                                 </button>
                             </div>
@@ -238,9 +253,9 @@ export default function CharacterList() {
                 </div>
             )}
 
-            <EditCharacterModal 
-                isOpen={showEditModal} 
-                onClose={() => setShowEditModal(false)} 
+            <EditCharacterModal
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
                 character={selectedCharacter}
                 onCharacterUpdated={fetchCharacters}
             />

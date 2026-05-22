@@ -121,13 +121,15 @@ export default function ChatTab({ gameId, isActive }) {
     return (
         <div style={{
             display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0,
-            background: '#0f172a', color: '#e2e8f0', overflowX: 'hidden', minWidth: 0,
+            background: '#0a0f0c', color: '#ecfdf5', overflowX: 'hidden', minWidth: 0,
         }}>
             {/* Status */}
             <div style={{
-                padding: '4px 8px', fontSize: 11,
-                color: connected ? '#22c55e' : '#ef4444',
-                borderBottom: '1px solid #2d3e50',
+                padding: '6px 10px', fontSize: 10,
+                color: connected ? '#86efac' : '#fca5a5',
+                borderBottom: '1px solid #1a3a1f',
+                letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600,
+                background: 'rgba(13,31,16,0.4)',
             }}>
                 {connected ? '● Conectado' : '○ Desconectado'}
             </div>
@@ -139,7 +141,7 @@ export default function ChatTab({ gameId, isActive }) {
             }}>
                 {messages.map((m, i) => {
                     let parsed = null;
-                    try { parsed = JSON.parse(m.content); } catch {}
+                    try { parsed = JSON.parse(m.content); } catch { /* ignore */ }
                     const isRoll = parsed?.type === 'attack_roll';
                     const isDiceRoll = parsed?.type === 'dice_roll';
                     return (
@@ -163,18 +165,20 @@ export default function ChatTab({ gameId, isActive }) {
                                     <div style={{ color: '#f59e0b', fontWeight: 700, fontSize: 13, letterSpacing: '0.03em' }}>
                                         ⚔️ {parsed.name}
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                                        <span style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ataque</span>
-                                        <RollTooltip
-                                            raw={parsed.attackRaw} mod={parsed.attackMod}
-                                            color={parsed.attackCrit === 'max' ? '#4ade80' : parsed.attackCrit === 'min' ? '#f87171' : '#fbbf24'}
-                                            textShadow={parsed.attackCrit ? `0 0 8px ${parsed.attackCrit === 'max' ? '#4ade80' : '#f87171'}` : 'none'}
-                                            fontSize={22} fontWeight={800}
-                                        >{parsed.attack}</RollTooltip>
-                                        {parsed.attackDiscarded != null && (
-                                            <span style={{ color: '#475569', fontSize: 22, fontWeight: 800, fontFamily: 'inherit' }}>{parsed.attackDiscarded}</span>
-                                        )}
-                                    </div>
+                                    {parsed.attack != null && (
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                                            <span style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Ataque</span>
+                                            <RollTooltip
+                                                raw={parsed.attackRaw} mod={parsed.attackMod}
+                                                color={parsed.attackCrit === 'max' ? '#4ade80' : parsed.attackCrit === 'min' ? '#f87171' : '#fbbf24'}
+                                                textShadow={parsed.attackCrit ? `0 0 8px ${parsed.attackCrit === 'max' ? '#4ade80' : '#f87171'}` : 'none'}
+                                                fontSize={22} fontWeight={800}
+                                            >{parsed.attack}</RollTooltip>
+                                            {parsed.attackDiscarded != null && (
+                                                <span style={{ color: '#475569', fontSize: 22, fontWeight: 800, fontFamily: 'inherit' }}>{parsed.attackDiscarded}</span>
+                                            )}
+                                        </div>
+                                    )}
                                     {parsed.damage !== null && (
                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                                             <span style={{ color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Daño</span>
@@ -203,6 +207,18 @@ export default function ChatTab({ gameId, isActive }) {
                                                 <span style={{ color: '#475569', fontSize: 18, fontWeight: 700, fontFamily: 'inherit' }}>{parsed.dmg2Discarded}</span>
                                             )}
                                             {parsed.dmgType2 && <span style={{ color: '#6b7280', fontSize: 11 }}>{parsed.dmgType2}</span>}
+                                        </div>
+                                    )}
+                                    {parsed.saveDc != null && (
+                                        <div style={{
+                                            display: 'flex', flexDirection: 'column', gap: 2,
+                                            marginTop: 4, paddingTop: 4,
+                                            borderTop: '1px dashed #475569',
+                                        }}>
+                                            <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 700, letterSpacing: '0.06em' }}>DC {parsed.saveDc}</span>
+                                            {parsed.saveAbility && (
+                                                <span style={{ color: '#cbd5e1', fontSize: 11 }}>{parsed.saveAbility}</span>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -239,8 +255,9 @@ export default function ChatTab({ gameId, isActive }) {
 
             {/* Input row */}
             <div style={{
-                display: 'flex', gap: 4, padding: '6px 8px',
-                borderTop: '1px solid #2d3e50', flexShrink: 0,
+                display: 'flex', gap: 6, padding: '8px',
+                borderTop: '1px solid #1a3a1f', flexShrink: 0,
+                background: 'rgba(13,31,16,0.6)',
             }}>
                 <input
                     value={input}
@@ -248,17 +265,20 @@ export default function ChatTab({ gameId, isActive }) {
                     onKeyDown={e => e.key === 'Enter' && send()}
                     placeholder="Mensaje…"
                     style={{
-                        flex: 1, minWidth: 0, background: '#1e293b', color: '#e2e8f0',
-                        border: '1px solid #334155', borderRadius: 4,
-                        padding: '4px 8px', fontSize: 13, outline: 'none',
+                        flex: 1, minWidth: 0, background: '#0d1f10', color: '#ecfdf5',
+                        border: '1px solid #1e3a22', borderRadius: 6,
+                        padding: '6px 10px', fontSize: 13, outline: 'none',
                     }}
                 />
                 <button
                     onClick={send}
                     style={{
-                        flexShrink: 0, padding: '4px 10px', borderRadius: 4, fontSize: 12,
-                        background: '#3b82f6', color: 'white',
+                        flexShrink: 0, padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                        background: 'linear-gradient(135deg,#16a34a,#22c55e)',
+                        color: '#0d1f10',
                         border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                        boxShadow: '0 0 14px rgba(34,197,94,0.35)',
+                        letterSpacing: '0.04em',
                     }}
                 >
                     Enviar

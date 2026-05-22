@@ -20,7 +20,7 @@ export default function CreateSceneButton({ gameId, onSceneCreated }) { // Recib
             onSceneCreated(response.data);
             setIsOpen(false);
             setName('');
-        } catch (err) {
+        } catch {
             setError('Could not create scene.');
         }
     };

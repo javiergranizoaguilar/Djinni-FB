@@ -216,6 +216,7 @@ class ApiCharacterController extends AbstractController
                         'saving_throw_type_dc' => $a->getSavingThrowTypeDc(),
                         'damage_modifier' => $a->getDamageModifier(),
                         'damage_modifier2' => $a->getDamageModifier2(),
+                        'is_attack_roll' => $a->isAttackRoll(),
                     ]),
                     'abilities' => $formatCollection($sheet->getAbilities(), fn(Ability $a) => [
                         'id' => $a->getId(),
@@ -319,7 +320,7 @@ class ApiCharacterController extends AbstractController
             'sleight_of_hand' => $sheet->getSleightOfHand(), 'sleight_of_hand_mod' => $sheet->getSleightOfHandMod(),
             'stealth' => $sheet->getStealth(), 'stealth_mod' => $sheet->getStealthMod(),
             'survival' => $sheet->getSurvival(), 'survival_mod' => $sheet->getSurvivalMod(),
-            'attacks' => $fc($sheet->getAttacks(), fn(Attack $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'damage_dice' => $a->getDamageDice(), 'damage_type' => $a->getDamageType(), 'damage_dice_2' => $a->getDamageDice2(), 'damage_type_2' => $a->getDamageType2(), 'range' => $a->getRange(), 'description' => $a->getDescription(), 'attack_modifier' => $a->getAttackModifier(), 'attack_bonus' => $a->getAttackBonus(), 'is_proficient' => $a->isProficient(), 'is_saving_throw' => $a->isSavingThrow(), 'saving_throw_tipe' => $a->getSavingThrowTipe(), 'saving_throw_type_dc' => $a->getSavingThrowTypeDc(), 'damage_modifier' => $a->getDamageModifier(), 'damage_modifier2' => $a->getDamageModifier2()]),
+            'attacks' => $fc($sheet->getAttacks(), fn(Attack $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'damage_dice' => $a->getDamageDice(), 'damage_type' => $a->getDamageType(), 'damage_dice_2' => $a->getDamageDice2(), 'damage_type_2' => $a->getDamageType2(), 'range' => $a->getRange(), 'description' => $a->getDescription(), 'attack_modifier' => $a->getAttackModifier(), 'attack_bonus' => $a->getAttackBonus(), 'is_proficient' => $a->isProficient(), 'is_saving_throw' => $a->isSavingThrow(), 'saving_throw_tipe' => $a->getSavingThrowTipe(), 'saving_throw_type_dc' => $a->getSavingThrowTypeDc(), 'damage_modifier' => $a->getDamageModifier(), 'damage_modifier2' => $a->getDamageModifier2(), 'is_attack_roll' => $a->isAttackRoll()]),
             'abilities' => $fc($sheet->getAbilities(), fn(Ability $a) => ['id' => $a->getId(), 'name' => $a->getName(), 'description' => $a->getDescription(), 'source_tipe' => $a->getSourceTipe(), 'is_active' => $a->isActive(), 'has_limited_uses' => $a->hasLimitedUses(), 'max_uses' => $a->getMaxUses(), 'current_uses' => $a->getCurrentUses(), 'recharge_type' => $a->getRechargeType()]),
             'spells' => $fc($sheet->getSpells(), fn(Spell $s) => ['id' => $s->getId(), 'name' => $s->getName(), 'level' => $s->getLevel(), 'school' => $s->getSchool(), 'description' => $s->getDescription(), 'is_prepared' => $s->isPrepared(), 'casting_time' => $s->getCastingTime(), 'range' => $s->getSpellRange(), 'components' => $s->getComponents(), 'duration' => $s->getDuration()]),
             'inventory' => $fc($sheet->getInventories(), fn(Inventory $i) => ['id' => $i->getId(), 'item_name' => $i->getItems()?->getName() ?? 'Unknown', 'item_description' => $i->getItems()?->getDescription() ?? '', 'quantity' => $i->getQuantity(), 'is_equipped' => $i->isEquipped()]),
@@ -677,6 +678,7 @@ class ApiCharacterController extends AbstractController
         $attack->setSavingThrowTypeDc($data['saving_throw_type_dc'] ?? null);
         $attack->setDamageModifier($data['damage_modifier'] ?? null);
         $attack->setDamageModifier2($data['damage_modifier2'] ?? null);
+        $attack->setIsAttackRoll($data['is_attack_roll'] ?? true);
         $attack->setCharacterAttack($characterSheet);
 
         $entityManager->persist($attack);
@@ -739,6 +741,7 @@ class ApiCharacterController extends AbstractController
         if (array_key_exists('saving_throw_type_dc', $data)) $attack->setSavingThrowTypeDc($data['saving_throw_type_dc']);
         if (array_key_exists('damage_modifier', $data)) $attack->setDamageModifier($data['damage_modifier']);
         if (array_key_exists('damage_modifier2', $data)) $attack->setDamageModifier2($data['damage_modifier2']);
+        if (isset($data['is_attack_roll'])) $attack->setIsAttackRoll((bool)$data['is_attack_roll']);
         $entityManager->flush();
 
         return $this->json(['message' => 'Attack updated']);

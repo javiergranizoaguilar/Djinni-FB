@@ -65,7 +65,7 @@ function loadPersonal() {
     catch { return []; }
 }
 
-const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId, onEntityUpdated, onSendMessage, onSendMessageGm, onChildModalChange }, ref) {
+const TokenSpawner = forwardRef(function TokenSpawner({ gameId, onEntityUpdated, onSendMessage, onSendMessageGm, onChildModalChange }, ref) {
     const [characters,       setCharacters]       = useState([]);
     const [monsters,         setMonsters]         = useState([]);
 
@@ -114,9 +114,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
                 ]);
                 setCharacters(charRes.data);
                 setMonsters(monRes.data);
-            } catch (err) {
-                console.error('Error loading tokens:', err);
-            } finally {
+            } catch { /* ignore */ } finally {
                 setLoading(false);
             }
         };
@@ -142,9 +140,7 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
             }
             setCreateName('');
             setCreateMenu(null);
-        } catch (err) {
-            console.error('Error creating entity:', err);
-        } finally {
+        } catch { /* ignore */ } finally {
             setCreating(false);
         }
     };
@@ -165,10 +161,12 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
     const removePersonal = (id) => savePersonal(personal.filter(p => p.id !== id));
 
     const tabStyle = (active) => ({
-        flex: 1, padding: '5px 0', fontSize: 10, fontWeight: 600,
-        background: active ? '#3b82f6' : 'transparent',
-        color: active ? 'white' : '#64748b',
-        border: 'none', borderRadius: 4, cursor: 'pointer',
+        flex: 1, padding: '6px 0', fontSize: 10, fontWeight: 700,
+        background: active ? 'rgba(34,197,94,0.18)' : 'transparent',
+        color: active ? '#86efac' : '#6b7d6b',
+        border: `1px solid ${active ? 'rgba(34,197,94,0.45)' : 'transparent'}`,
+        borderRadius: 6, cursor: 'pointer',
+        letterSpacing: '0.08em', textTransform: 'uppercase',
         transition: 'all 0.15s',
     });
 
@@ -249,12 +247,12 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
             </div>
 
             {/* Tabs fila 1 */}
-            <div style={{ display: 'flex', gap: 4, background: '#0f172a', borderRadius: 6, padding: 3 }}>
+            <div style={{ display: 'flex', gap: 4, background: '#0d1f10', border: '1px solid #1a3a1f', borderRadius: 8, padding: 3 }}>
                 <button style={tabStyle(tab === 'characters')} onClick={() => setTab('characters')}>PJs</button>
                 <button style={tabStyle(tab === 'monsters')}   onClick={() => setTab('monsters')}>Monstruos</button>
             </div>
             {/* Tabs fila 2 */}
-            <div style={{ display: 'flex', gap: 4, background: '#0f172a', borderRadius: 6, padding: 3 }}>
+            <div style={{ display: 'flex', gap: 4, background: '#0d1f10', border: '1px solid #1a3a1f', borderRadius: 8, padding: 3 }}>
                 <button style={tabStyle(tab === 'personal')} onClick={() => setTab('personal')}>Personal</button>
                 <button style={tabStyle(tab === 'roster')}   onClick={() => setTab('roster')}>Recuento</button>
             </div>
@@ -346,8 +344,12 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
                         <button
                             onClick={addPersonal}
                             style={{
-                                background: '#3b82f6', border: 'none', borderRadius: 5,
-                                color: 'white', fontSize: 12, padding: '5px 0', cursor: 'pointer',
+                                background: 'linear-gradient(135deg,#16a34a,#22c55e)',
+                                border: 'none', borderRadius: 6,
+                                color: '#0d1f10', fontSize: 12, fontWeight: 700,
+                                padding: '6px 0', cursor: 'pointer',
+                                boxShadow: '0 0 12px rgba(34,197,94,0.3)',
+                                letterSpacing: '0.04em',
                             }}
                         >
                             + Añadir
@@ -405,6 +407,8 @@ const TokenSpawner = forwardRef(function TokenSpawner({ sceneItems = [], gameId,
                     if (updated?.id) setMonsters(prev => prev.map(m => m.id === updated.id ? updated : m));
                     onEntityUpdated?.('monster', updated);
                 }}
+                onSendMessage={onSendMessage}
+                onSendMessageGm={onSendMessageGm}
             />
         </div>
     );

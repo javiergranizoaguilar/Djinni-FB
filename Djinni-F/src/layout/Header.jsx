@@ -5,63 +5,44 @@ import CreateGameModal from '../pages/CreateGameModal.jsx';
 
 export default function Header() {
     const navigate = useNavigate();
-    const location = useLocation(); // Hook para detectar cambios de ruta
+    const location = useLocation();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userAvatar, setUserAvatar] = useState(null);
     const [showCreateGameModal, setShowCreateGameModal] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // Esta función verifica el token y carga el usuario
     const checkLoginStatus = async () => {
         const token = localStorage.getItem('vtt_token');
         if (token) {
             setIsLoggedIn(true);
             try {
                 const response = await axios.get('http://localhost:8000/api/user/me', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.data && response.data.avatar_url) {
-                    // Si la URL es relativa (empieza con /uploads), le añadimos el dominio del backend
                     const avatarUrl = response.data.avatar_url.startsWith('/uploads')
                         ? `http://localhost:8000${response.data.avatar_url}`
                         : response.data.avatar_url;
-
                     setUserAvatar(avatarUrl);
                 } else {
-                    // Si no tiene avatar, null para que use el default
                     setUserAvatar(null);
                 }
-            } catch (error) {
-                console.error("Error fetching user data:", error);
-                // Si el token es inválido, podríamos hacer logout
-                // handleLogout(); 
-            }
+            } catch { /* ignore */ }
         } else {
             setIsLoggedIn(false);
             setUserAvatar(null);
         }
     };
 
-    // Ejecutar la verificación cuando el componente se monta Y cuando cambia la ruta (location)
     useEffect(() => {
         checkLoginStatus();
-        setIsMobileMenuOpen(false); // Cerrar menú móvil al cambiar de ruta
-    }, [location]); // <--- La dependencia 'location' hace que se ejecute al navegar
+        setIsMobileMenuOpen(false);
+    }, [location]);
 
-    // También podemos escuchar un evento personalizado si queremos ser más reactivos sin cambiar de ruta
     useEffect(() => {
-        const handleStorageChange = () => {
-            checkLoginStatus();
-        };
-
-        // Escuchar cambios en localStorage (solo funciona entre pestañas, pero útil saberlo)
+        const handleStorageChange = () => { checkLoginStatus(); };
         window.addEventListener('storage', handleStorageChange);
-
-        // Escuchar un evento custom que despacharemos al hacer login
         window.addEventListener('auth-change', handleStorageChange);
-
         return () => {
             window.removeEventListener('storage', handleStorageChange);
             window.removeEventListener('auth-change', handleStorageChange);
@@ -70,7 +51,6 @@ export default function Header() {
 
     const handleLogout = () => {
         localStorage.removeItem('vtt_token');
-        // Despachar evento para notificar a otros componentes si fuera necesario
         window.dispatchEvent(new Event('auth-change'));
         setIsLoggedIn(false);
         setUserAvatar(null);
@@ -82,188 +62,145 @@ export default function Header() {
         setIsMobileMenuOpen(false);
     };
 
-    const handleCloseModal = () => {
-        setShowCreateGameModal(false);
-    };
+    const handleCloseModal = () => { setShowCreateGameModal(false); };
+    const toggleMobileMenu = () => { setIsMobileMenuOpen(!isMobileMenuOpen); };
 
-    const toggleMobileMenu = () => {
-        setIsMobileMenuOpen(!isMobileMenuOpen);
-    };
+    const navLinkClass = "relative px-4 py-2 text-sm font-medium text-text-lo hover:text-primary-light transition-colors duration-200 group tracking-wide";
+    const navUnderline = "absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-px bg-primary rounded-full transition-all duration-300 group-hover:w-2/3 opacity-0 group-hover:opacity-100";
 
     return (
-        <header
-            className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200 dark:border-[#23482f] bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md transition-all duration-300">
-            <div className="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
-                {/* Logo Section */}
-                <Link to="/Games" className="flex items-center gap-3 group cursor-pointer">
-                    <div
-                        className="relative size-10 flex items-center justify-center text-primary transition-transform group-hover:scale-110 duration-300">
-                        <div
-                            className="absolute inset-0 bg-primary/20 rounded-full blur-md opacity-50 group-hover:opacity-80 transition-opacity"></div>
-                        <svg className="relative z-10 w-8 h-8" fill="none" viewBox="0 0 24 24"
-                             xmlns="http://www.w3.org/2000/svg">
-                            <path
-                                d="M19 8C20.6569 8 22 9.34315 22 11C22 12.6569 20.6569 14 19 14H18V18C18 19.1046 17.1046 20 16 20H4C2.89543 20 2 19.1046 2 18V11C2 9.89543 2.89543 9 4 9H6.17071C6.58254 9 6.96327 8.78368 7.1691 8.4237L7.76442 7.3821C8.35974 6.3405 9.46091 5.71509 10.6517 5.71509H12.5C13.8807 5.71509 15 6.83438 15 8.21509V8H19ZM4 11V18H16V14H6V11H4ZM14 12V10H10V12H14Z"
-                                fill="currentColor"></path>
-                            <path
-                                d="M13 2C13 2.55228 12.5523 3 12 3C11.4477 3 11 2.55228 11 2C11 1.44772 11.4477 1 12 1C12.5523 1 13 1.44772 13 2Z"
-                                fill="currentColor"></path>
-                            <path
-                                d="M16 4C16 4.55228 15.5523 5 15 5C14.4477 5 14 4.55228 14 4C14 3.44772 14.4477 3 15 3C15.5523 3 16 3.44772 16 4Z"
-                                fill="currentColor" opacity="0.5"></path>
+        <header className="fixed top-0 left-0 right-0 z-50 bg-surface-base/90 backdrop-blur-md"
+            style={{ borderBottom: '1px solid rgba(34,197,94,0.1)', boxShadow: '0 1px 0 rgba(34,197,94,0.06), 0 4px 24px rgba(0,0,0,0.6)' }}>
+            <div className="max-w-[1440px] mx-auto px-5 sm:px-6 h-[72px] flex items-center justify-between gap-4">
+
+                {/* Logo */}
+                <Link to="/Games" className="flex items-center gap-3 group cursor-pointer flex-shrink-0">
+                    <div className="relative size-9 flex items-center justify-center text-primary transition-transform group-hover:scale-110 duration-300 animate-glow-pulse">
+                        <div className="absolute inset-0 bg-primary/15 rounded-full blur-md"></div>
+                        <svg className="relative z-10 w-7 h-7" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M19 8C20.6569 8 22 9.34315 22 11C22 12.6569 20.6569 14 19 14H18V18C18 19.1046 17.1046 20 16 20H4C2.89543 20 2 19.1046 2 18V11C2 9.89543 2.89543 9 4 9H6.17071C6.58254 9 6.96327 8.78368 7.1691 8.4237L7.76442 7.3821C8.35974 6.3405 9.46091 5.71509 10.6517 5.71509H12.5C13.8807 5.71509 15 6.83438 15 8.21509V8H19ZM4 11V18H16V14H6V11H4ZM14 12V10H10V12H14Z" fill="currentColor"/>
+                            <path d="M13 2C13 2.55228 12.5523 3 12 3C11.4477 3 11 2.55228 11 2C11 1.44772 11.4477 1 12 1C12.5523 1 13 1.44772 13 2Z" fill="currentColor"/>
+                            <path d="M16 4C16 4.55228 15.5523 5 15 5C14.4477 5 14 4.55228 14 4C14 3.44772 14.4477 3 15 3C15.5523 3 16 3.44772 16 4Z" fill="currentColor" opacity="0.5"/>
                         </svg>
                     </div>
-                    <h1 className="font-mystical text-2xl tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500 dark:from-white dark:via-gray-200 dark:to-gray-400 drop-shadow-sm select-none">
+                    <span className="font-mystical text-xl tracking-widest text-text-hi select-none group-hover:text-primary-light transition-colors duration-300">
                         Djinni
-                    </h1>
+                    </span>
                 </Link>
 
-                {/* Desktop Navigation Links */}
-                <nav className="hidden md:flex items-center gap-1">
+                {/* Desktop nav */}
+                <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
                     {!isLoggedIn && (
                         <>
-                            <Link to="/login"
-                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
-                                Login
-                                <span
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            <Link to="/login" className={navLinkClass}>
+                                Login <span className={navUnderline}></span>
                             </Link>
-                            <Link to="/register"
-                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
-                                Register
-                                <span
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            <Link to="/register" className={navLinkClass}>
+                                Register <span className={navUnderline}></span>
                             </Link>
                         </>
                     )}
-
                     {isLoggedIn && (
                         <>
-                            <Link to="/Games"
-                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
-                                Games
-                                <span
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            <Link to="/Games" className={navLinkClass}>
+                                Games <span className={navUnderline}></span>
                             </Link>
-                            <Link to="/Character"
-                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
-                                Character
-                                <span
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            <Link to="/Character" className={navLinkClass}>
+                                Personajes <span className={navUnderline}></span>
                             </Link>
-                            <Link to="/Monster"
-                                  className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors group">
-                                Monster
-                                <span
-                                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-primary rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            <Link to="/Monster" className={navLinkClass}>
+                                Monstruos <span className={navUnderline}></span>
                             </Link>
-                            <button onClick={handleLogout} className="relative px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-500 dark:hover:text-red-400 transition-colors group">
-                                Logout
-                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-red-500 rounded-full transition-all duration-300 group-hover:w-1/2 opacity-0 group-hover:opacity-100"></span>
+                            <button onClick={handleLogout} className={`${navLinkClass} hover:text-red-400`}>
+                                Salir <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-px bg-red-500 rounded-full transition-all duration-300 group-hover:w-2/3 opacity-0 group-hover:opacity-100"></span>
                             </button>
                         </>
                     )}
                 </nav>
 
-                {/* User Actions & Mobile Menu Button */}
-                <div className="flex items-center gap-3 md:gap-5">
+                {/* Right actions */}
+                <div className="flex items-center gap-2 sm:gap-3">
                     {isLoggedIn && (
                         <>
                             <button onClick={handleCreateGameClick}
-                                    className="hidden md:flex items-center gap-2 bg-primary text-[#112217] px-5 py-2.5 rounded-lg text-sm font-bold shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 active:translate-y-0">
-                                <span className="material-symbols-outlined text-[20px] font-bold">add_circle</span>
-                                <span>Create Game</span>
+                                className="hidden md:inline-flex arcane-btn text-sm px-4 py-2">
+                                <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                                <span>Nueva Partida</span>
                             </button>
 
-                            <button aria-label="Notifications"
-                                    className="hidden md:block relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#23482f] hover:text-primary dark:hover:text-white transition-colors group">
-                                <span className="material-symbols-outlined text-[24px]">notifications</span>
-                                <span
-                                    className="absolute top-2 right-2.5 size-2 bg-primary rounded-full ring-2 ring-white dark:ring-[#102216]"></span>
-                            </button>
-
-                            <div className="relative group hidden md:block">
-                                <button className="flex items-center gap-2 focus:outline-none">
-                                    <div className="relative">
-                                        <div
-                                            className="size-10 rounded-full overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors bg-gray-200">
-                                            <img
-                                                alt="User avatar"
-                                                className="w-full h-full object-cover"
-                                                src={userAvatar || "https://ui-avatars.com/api/?name=User&background=random"}
-                                            />
-                                        </div>
-                                        <div
-                                            className="absolute bottom-0 right-0 size-3 bg-primary border-2 border-white dark:border-[#102216] rounded-full"></div>
-                                    </div>
-                                </button>
+                            <div className="hidden md:block relative">
+                                <div className="size-9 rounded-full overflow-hidden border border-border-md hover:border-primary/50 transition-colors cursor-pointer"
+                                    style={{ boxShadow: '0 0 0 2px rgba(34,197,94,0.08)' }}>
+                                    <img
+                                        alt="Avatar"
+                                        className="w-full h-full object-cover"
+                                        src={userAvatar || "https://ui-avatars.com/api/?name=U&background=0d1f10&color=22c55e"}
+                                    />
+                                </div>
+                                <span className="absolute bottom-0 right-0 size-2.5 bg-primary border-2 border-surface-base rounded-full"></span>
                             </div>
                         </>
                     )}
 
-                    {/* Mobile Menu Button */}
-                    <button 
+                    <button
                         onClick={toggleMobileMenu}
-                        className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors"
+                        className="md:hidden p-2 text-text-lo hover:text-primary transition-colors"
+                        aria-label="Toggle menu"
                     >
-                        <span className="material-symbols-outlined text-3xl">
+                        <span className="material-symbols-outlined text-[28px]">
                             {isMobileMenuOpen ? 'close' : 'menu'}
                         </span>
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Menu Dropdown */}
+            {/* Mobile menu */}
             {isMobileMenuOpen && (
-                <div className="md:hidden absolute top-20 left-0 right-0 bg-white dark:bg-[#1a2c20] border-b border-gray-200 dark:border-[#23482f] shadow-lg animate-fade-in">
-                    <div className="flex flex-col p-4 space-y-2">
+                <div className="md:hidden absolute top-[71px] left-0 right-0 bg-surface-base/95 backdrop-blur-md animate-fade-in"
+                    style={{ borderBottom: '1px solid rgba(34,197,94,0.1)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
+                    <div className="flex flex-col p-4 gap-1">
                         {isLoggedIn && (
-                            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-[#23482f]">
-                                <div className="size-10 rounded-full overflow-hidden bg-gray-200">
-                                    <img
-                                        alt="User avatar"
-                                        className="w-full h-full object-cover"
-                                        src={userAvatar || "https://ui-avatars.com/api/?name=User&background=random"}
-                                    />
+                            <div className="flex items-center gap-3 mb-3 pb-3" style={{ borderBottom: '1px solid rgba(34,197,94,0.1)' }}>
+                                <div className="size-9 rounded-full overflow-hidden border border-border-md">
+                                    <img alt="Avatar" className="w-full h-full object-cover"
+                                        src={userAvatar || "https://ui-avatars.com/api/?name=U&background=0d1f10&color=22c55e"} />
                                 </div>
-                                <span className="font-medium text-gray-800 dark:text-gray-100">Mi Perfil</span>
+                                <span className="font-medium text-text-hi text-sm">Mi Perfil</span>
                             </div>
                         )}
 
                         {!isLoggedIn && (
                             <>
-                                <Link to="/login" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium">
-                                    Login
+                                <Link to="/login" className="px-4 py-3 rounded-lg hover:bg-surface-hi text-text-med hover:text-text-hi font-medium text-sm transition-colors flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-[20px]">login</span> Login
                                 </Link>
-                                <Link to="/register" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium">
-                                    Register
+                                <Link to="/register" className="px-4 py-3 rounded-lg hover:bg-surface-hi text-text-med hover:text-text-hi font-medium text-sm transition-colors flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-[20px]">person_add</span> Register
                                 </Link>
                             </>
                         )}
 
                         {isLoggedIn && (
                             <>
-                                <Link to="/Games" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium flex items-center gap-3">
-                                    <span className="material-symbols-outlined">casino</span>
-                                    Games
+                                <Link to="/Games" className="px-4 py-3 rounded-lg hover:bg-surface-hi text-text-med hover:text-text-hi font-medium text-sm transition-colors flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-[20px]">casino</span> Partidas
                                 </Link>
-                                <Link to="/Character" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium flex items-center gap-3">
-                                    <span className="material-symbols-outlined">person</span>
-                                    Character
+                                <Link to="/Character" className="px-4 py-3 rounded-lg hover:bg-surface-hi text-text-med hover:text-text-hi font-medium text-sm transition-colors flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-[20px]">person</span> Personajes
                                 </Link>
-                                <Link to="/Monster" className="px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-[#23482f] text-gray-700 dark:text-gray-200 font-medium flex items-center gap-3">
-                                    <span className="material-symbols-outlined">pest_control</span>
-                                    Monster
+                                <Link to="/Monster" className="px-4 py-3 rounded-lg hover:bg-surface-hi text-text-med hover:text-text-hi font-medium text-sm transition-colors flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-[20px]">pest_control</span> Monstruos
                                 </Link>
-                                
-                                <button onClick={handleCreateGameClick} className="px-4 py-3 rounded-lg bg-primary/10 text-primary font-bold flex items-center gap-3 mt-2">
-                                    <span className="material-symbols-outlined">add_circle</span>
-                                    Create Game
+
+                                <button onClick={handleCreateGameClick}
+                                    className="mx-1 mt-2 arcane-btn justify-center py-3">
+                                    <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                                    Nueva Partida
                                 </button>
 
-                                <button onClick={handleLogout} className="px-4 py-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-medium flex items-center gap-3 mt-2">
-                                    <span className="material-symbols-outlined">logout</span>
-                                    Logout
+                                <button onClick={handleLogout}
+                                    className="px-4 py-3 rounded-lg hover:bg-red-900/20 text-red-500 hover:text-red-400 font-medium text-sm transition-colors flex items-center gap-3 mt-1">
+                                    <span className="material-symbols-outlined text-[20px]">logout</span> Salir
                                 </button>
                             </>
                         )}
@@ -271,10 +208,7 @@ export default function Header() {
                 </div>
             )}
 
-            <CreateGameModal
-                isOpen={showCreateGameModal}
-                onClose={handleCloseModal}
-            />
+            <CreateGameModal isOpen={showCreateGameModal} onClose={handleCloseModal} />
         </header>
     );
 }

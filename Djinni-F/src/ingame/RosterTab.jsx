@@ -21,7 +21,7 @@ function usePopoverClose(ref, onClose) {
         const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, [onClose]);
+    }, [onClose, ref]);
 }
 
 const popoverStyle = {
@@ -380,7 +380,7 @@ export default function RosterTab({ gameId, characters, onEntityUpdated, onSendM
         try {
             const r = await axios.get(`${API}/api/game/${gameId}/roster`, { headers: authHeaders() });
             setData(r.data);
-        } catch (err) { console.error(err); }
+        } catch { /* ignore */ }
         finally { setLoading(false); }
     };
 
@@ -576,6 +576,8 @@ export default function RosterTab({ gameId, characters, onEntityUpdated, onSendM
                     onClose={() => setSheetModal(null)}
                     monster={sheetModal.entity}
                     onMonsterUpdated={(updated) => { if (updated) onEntityUpdated?.('monster', updated); setSheetModal(null); }}
+                    onSendMessage={onSendMessage}
+                    onSendMessageGm={onSendMessageGm}
                 />
             )}
         </div>

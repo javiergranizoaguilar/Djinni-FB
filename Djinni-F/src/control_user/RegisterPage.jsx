@@ -24,28 +24,17 @@ export default function RegisterPage() {
         e.preventDefault();
         setLoading(true);
         setError('');
-        
         const formData = new FormData();
         formData.append('username', name);
         formData.append('email', email);
         formData.append('password', password);
-        if (avatar) {
-            formData.append('avatar', avatar);
-        }
-
+        if (avatar) { formData.append('avatar', avatar); }
         try {
             await axios.post('http://127.0.0.1:8000/api/register', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
-
-            // Opcional: Auto-login tras registro exitoso
-            // O simplemente redirigir
-            navigate('/login'); 
-
-        } catch (error) {
-            console.error(error);
+            navigate('/login');
+        } catch {
             setError("Error al registrarse. El email podría estar en uso.");
         } finally {
             setLoading(false);
@@ -53,33 +42,57 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-background-dark px-4 py-12">
-            <div className="max-w-md w-full bg-white dark:bg-[#1a2c20] rounded-xl shadow-xl border border-gray-200 dark:border-[#23482f] overflow-hidden">
-                <div className="p-8">
-                    <div className="text-center mb-8">
-                        <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-2">Crear Cuenta</h2>
-                        <p className="text-gray-600 dark:text-gray-400">Únete a Djinni y comienza tu aventura</p>
+        <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-section"
+            style={{ background: '#060d08' }}>
+
+            {/* Ambient orbs */}
+            <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+                <div className="absolute top-0 right-1/3 w-[450px] h-[450px] rounded-full opacity-[0.07]"
+                    style={{ background: 'radial-gradient(circle, #22c55e 0%, transparent 70%)', transform: 'translateY(-40%)' }}></div>
+                <div className="absolute bottom-0 left-1/4 w-[300px] h-[300px] rounded-full opacity-[0.05]"
+                    style={{ background: 'radial-gradient(circle, #d4af37 0%, transparent 70%)', transform: 'translateY(30%)' }}></div>
+            </div>
+
+            {/* Card */}
+            <div className="arcane-modal relative w-full max-w-md animate-slide-up overflow-hidden">
+                <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, transparent, #22c55e, transparent)' }}></div>
+
+                <div className="p-8 sm:p-10">
+                    <div className="text-center mb-6">
+                        <h2 className="font-heading text-2xl text-text-hi tracking-widest mb-1">Crear Cuenta</h2>
+                        <p className="text-text-lo text-sm">Únete y comienza tu aventura</p>
                     </div>
 
+                    <div className="rune-divider mb-6">◆</div>
+
                     {error && (
-                        <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm flex items-center gap-2">
-                            <span className="material-symbols-outlined text-lg">error</span>
+                        <div className="mb-4 p-3 rounded-lg text-sm flex items-center gap-2 text-red-300"
+                            style={{ background: 'rgba(127,29,29,0.25)', border: '1px solid rgba(248,113,113,0.25)' }}>
+                            <span className="material-symbols-outlined text-[18px] text-red-400">error</span>
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleRegister} className="space-y-5">
-                        <div className="flex justify-center mb-6">
+                    <form onSubmit={handleRegister} className="space-y-4">
+                        {/* Avatar upload */}
+                        <div className="flex justify-center mb-2">
                             <div className="relative group cursor-pointer">
-                                <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-[#112217] border-2 border-dashed border-gray-300 dark:border-[#23482f] flex items-center justify-center group-hover:border-primary transition-colors">
+                                <div className="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center transition-all duration-200 group-hover:scale-105"
+                                    style={{
+                                        background: previewAvatar ? 'transparent' : 'rgba(13,31,16,0.8)',
+                                        border: '2px dashed rgba(30,58,34,0.8)'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(34,197,94,0.5)'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(30,58,34,0.8)'}
+                                >
                                     {previewAvatar ? (
                                         <img src={previewAvatar} alt="Avatar Preview" className="w-full h-full object-cover" />
                                     ) : (
-                                        <span className="material-symbols-outlined text-4xl text-gray-400 group-hover:text-primary">add_a_photo</span>
+                                        <span className="material-symbols-outlined text-3xl text-text-lo group-hover:text-primary transition-colors">add_a_photo</span>
                                     )}
                                 </div>
-                                <input 
-                                    type="file" 
+                                <input
+                                    type="file"
                                     accept="image/*"
                                     onChange={handleAvatarChange}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -89,29 +102,29 @@ export default function RegisterPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre de Usuario</label>
+                            <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre de Héroe</label>
                             <div className="relative">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">person</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-lo text-[18px] select-none">person</span>
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-[#23482f] rounded-lg bg-gray-50 dark:bg-[#112217] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                    className="arcane-input pl-10"
                                     placeholder="Tu nombre de héroe"
                                     required
                                 />
                             </div>
                         </div>
-                        
+
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                            <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Email</label>
                             <div className="relative">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">mail</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-lo text-[18px] select-none">mail</span>
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-[#23482f] rounded-lg bg-gray-50 dark:bg-[#112217] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                    className="arcane-input pl-10"
                                     placeholder="tu@email.com"
                                     required
                                 />
@@ -119,14 +132,14 @@ export default function RegisterPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
+                            <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Contraseña</label>
                             <div className="relative">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-lo text-[18px] select-none">lock</span>
                                 <input
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-[#23482f] rounded-lg bg-gray-50 dark:bg-[#112217] text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                                    className="arcane-input pl-10"
                                     placeholder="••••••••"
                                     required
                                 />
@@ -136,25 +149,25 @@ export default function RegisterPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 px-4 bg-primary text-[#112217] font-bold rounded-lg shadow-glow hover:shadow-glow-hover hover:-translate-y-0.5 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="arcane-btn w-full justify-center py-3 mt-2"
                         >
                             {loading ? (
-                                <div className="w-5 h-5 border-2 border-[#112217] border-t-transparent rounded-full animate-spin"></div>
+                                <div className="w-5 h-5 border-2 border-[#042713]/40 border-t-[#042713] rounded-full animate-spin"></div>
                             ) : (
                                 <>
                                     <span>Registrarse</span>
-                                    <span className="material-symbols-outlined">person_add</span>
+                                    <span className="material-symbols-outlined text-[18px]">person_add</span>
                                 </>
                             )}
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
+                    <p className="mt-6 text-center text-sm text-text-lo">
                         ¿Ya tienes cuenta?{' '}
-                        <Link to="/login" className="text-primary font-bold hover:underline">
+                        <Link to="/login" className="text-primary hover:text-primary-light font-semibold transition-colors">
                             Inicia sesión
                         </Link>
-                    </div>
+                    </p>
                 </div>
             </div>
         </div>

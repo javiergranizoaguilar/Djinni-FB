@@ -1,6 +1,5 @@
-import {useState} from 'react'
 import './App.css'
-import {BrowserRouter, Route, Router, Routes, Navigate, useLocation} from "react-router-dom";
+import {BrowserRouter, Route, Routes, Navigate, useLocation} from "react-router-dom";
 import VttBoard from "./VttBoard.jsx";
 import MainLayout from "./layout/MainLayout.jsx";
 import Header from "./layout/Header.jsx";

@@ -3,16 +3,240 @@
 @tailwind utilities;
 
 @layer base {
+    html {
+        height: 100%;
+        background-color: #0a0f0c;
+        /* Subtle grain texture */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    }
+
     body {
-        /* Forzamos suavizado de fuente para que se vea premium */
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        background-color: #0a0f0c;
+        color: #ecfdf5;
+        min-height: 100%;
+        margin: 0;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #060d08; }
+    ::-webkit-scrollbar-thumb { background: #1e3a22; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(34,197,94,0.4); }
+
+    /* Focus accessible */
+    *:focus { outline: none; }
+    *:focus-visible {
+        outline: 2px solid rgba(34,197,94,0.7);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    button:focus-visible {
+        outline: 2px solid rgba(34,197,94,0.7);
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+
+    /* ── Arcane card — gradient border + inner depth ── */
+    .arcane-card {
+        position: relative;
+        border-radius: 0.75rem;
+        overflow: hidden;
+        background: linear-gradient(155deg, #0d1f10 0%, #060d08 100%);
+        box-shadow:
+            0 0 0 1px rgba(34,197,94,0.11),
+            0 8px 32px rgba(0,0,0,0.55),
+            inset 0 1px 0 rgba(34,197,94,0.06);
+        transition: box-shadow 0.25s ease, transform 0.25s ease;
+    }
+    .arcane-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            135deg,
+            rgba(34,197,94,0.04) 0%,
+            transparent 50%,
+            rgba(34,197,94,0.02) 100%
+        );
+        pointer-events: none;
+        z-index: 0;
+        border-radius: inherit;
+    }
+    .arcane-card > * { position: relative; z-index: 1; }
+    .arcane-card:hover {
+        box-shadow:
+            0 0 0 1px rgba(34,197,94,0.3),
+            0 12px 40px rgba(0,0,0,0.65),
+            inset 0 1px 0 rgba(34,197,94,0.12),
+            0 0 28px rgba(34,197,94,0.06);
+        transform: translateY(-3px);
+    }
+
+    /* ── Modal container ── */
+    .arcane-modal {
+        background: linear-gradient(155deg, #0d1f10 0%, #060d08 100%);
+        border-radius: 0.875rem;
+        border: 1px solid rgba(34,197,94,0.15);
+        box-shadow:
+            0 0 0 1px rgba(34,197,94,0.1),
+            0 24px 64px rgba(0,0,0,0.8),
+            inset 0 1px 0 rgba(34,197,94,0.08);
+    }
+
+    /* ── Input field ── */
+    .arcane-input {
+        background: rgba(6, 13, 8, 0.8);
+        border: 1px solid rgba(30, 58, 34, 0.8);
+        border-radius: 0.5rem;
+        color: #ecfdf5;
+        padding: 0.625rem 1rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        outline: none;
+        width: 100%;
+        font-size: 0.875rem;
+    }
+    .arcane-input::placeholder { color: #3d5040; }
+    .arcane-input:focus {
+        border-color: rgba(34,197,94,0.45);
+        box-shadow: 0 0 0 3px rgba(34,197,94,0.08), inset 0 0 0 1px rgba(34,197,94,0.12);
+    }
+
+    /* ── Primary CTA button ── */
+    .arcane-btn {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: #042713;
+        padding: 0.6rem 1.25rem;
+        border-radius: 0.5rem;
+        font-weight: 700;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        box-shadow: 0 0 14px rgba(34,197,94,0.28), inset 0 1px 0 rgba(255,255,255,0.12);
+        transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+        cursor: pointer;
+        border: none;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .arcane-btn:hover {
+        box-shadow: 0 0 24px rgba(34,197,94,0.5), inset 0 1px 0 rgba(255,255,255,0.18);
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+    }
+    .arcane-btn:active { transform: translateY(0); }
+    .arcane-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Ghost button ── */
+    .arcane-btn-ghost {
+        background: transparent;
+        color: #a7c4ab;
+        padding: 0.6rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border: 1px solid rgba(30, 58, 34, 0.6);
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .arcane-btn-ghost:hover {
+        background: rgba(34,197,94,0.08);
+        color: #ecfdf5;
+        border-color: rgba(34,197,94,0.3);
+    }
+
+    /* ── Page background with hex grid ── */
+    .page-section {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50Z' fill='none' stroke='%2322c55e' stroke-opacity='0.035' stroke-width='1'/%3E%3Cpath d='M28 100L0 84L0 50L28 34L56 50L56 84Z' fill='none' stroke='%2322c55e' stroke-opacity='0.035' stroke-width='1'/%3E%3C/svg%3E");
+        background-size: 56px 100px;
+    }
+
+    /* ── Rune divider ── */
+    .rune-divider {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: rgba(34,197,94,0.3);
+        font-size: 0.65rem;
+        letter-spacing: 0.3em;
+        user-select: none;
+    }
+    .rune-divider::before,
+    .rune-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(34,197,94,0.2), transparent);
+    }
+
+    /* ── Skeleton loader ── */
+    .skeleton {
+        background: linear-gradient(
+            90deg,
+            rgba(34,197,94,0.03) 0%,
+            rgba(34,197,94,0.08) 50%,
+            rgba(34,197,94,0.03) 100%
+        );
+        background-size: 600px 100%;
+        animation: shimmer 1.4s linear infinite;
+        border-radius: 6px;
+    }
+
+    /* ── Legacy lift-hover (kept for compatibility) ── */
+    .lift-hover {
+        transition: transform 0.15s ease, box-shadow 0.18s ease;
+    }
+    .lift-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(34,197,94,0.18), 0 4px 12px rgba(0,0,0,0.35);
+    }
+
+    /* ── Toast notifications ── */
+    .toast-base {
+        position: fixed;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.75rem 1rem;
+        border-radius: 0.625rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.55);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        max-width: min(420px, calc(100vw - 2rem));
+    }
+    .toast-ok {
+        background: rgba(22,163,74,0.92);
+        color: #042713;
+        border: 1px solid rgba(134,239,172,0.6);
+    }
+    .toast-err {
+        background: rgba(127,29,29,0.92);
+        color: #fee2e2;
+        border: 1px solid rgba(248,113,113,0.5);
     }
 }
 
 html, body {
     height: 100%;
     margin: 0;
+    background: #0a0f0c;
+    color: #ecfdf5;
 }
 
 #root {

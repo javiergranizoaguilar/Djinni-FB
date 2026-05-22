@@ -98,8 +98,10 @@ const S = {
   },
   tab: (active) => ({
     background: active ? 'rgba(99,102,241,0.18)' : 'transparent',
-    border: active ? '1px solid rgba(99,102,241,0.45)' : '1px solid transparent',
-    borderBottom: active ? '1px solid transparent' : '1px solid transparent',
+    borderTop: active ? '1px solid rgba(99,102,241,0.45)' : '1px solid transparent',
+    borderLeft: active ? '1px solid rgba(99,102,241,0.45)' : '1px solid transparent',
+    borderRight: active ? '1px solid rgba(99,102,241,0.45)' : '1px solid transparent',
+    borderBottom: '1px solid transparent',
     color: active ? '#a5b4fc' : '#475569',
     borderRadius: '8px 8px 0 0',
     padding: '8px 18px', fontSize: 12, fontWeight: 600,
@@ -390,12 +392,6 @@ const rollDice = (notation) => {
   return { total, crit };
 };
 
-const fmtDiceWithMod = (dice, modSum) => {
-  if (!dice) return '';
-  if (!modSum) return dice;
-  return modSum > 0 ? `${dice}+${modSum}` : `${dice}${modSum}`;
-};
-
 const modeLabelEs = (m) => m === 'advantage' ? 'Ventaja' : m === 'disadvantage' ? 'Desventaja' : null;
 const rollD20Mode = (mode) => {
   const a = Math.floor(Math.random() * 20) + 1;
@@ -416,8 +412,6 @@ const rollDmgMode = (dice, mode) => {
   const disc = useFirst ? b : a;
   return { kept: kept.total, discarded: disc.total, keptCrit: kept.crit };
 };
-const signedModStr = (n) => n === 0 ? '' : (n > 0 ? ` + ${n}` : ` - ${Math.abs(n)}`);
-
 export default function EditCharacterModal({ isOpen, onClose, character, onCharacterUpdated, onSendMessage, onSendMessageGm }) {
   const [formData, setFormData] = useState({
     name: '', spellcasting_abillity: '', caster_level: 0,
@@ -479,7 +473,6 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   });
 
   const dispatchMessage = (content) => {
-    console.log('[modal] dispatchMessage sendMode=', sendMode, 'hasGm=', typeof onSendMessageGm === 'function');
     if (sendMode === 'gm' && typeof onSendMessageGm === 'function') {
       onSendMessageGm(content);
       return;
@@ -497,13 +490,24 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
 
   useEffect(() => {
     if (!isOpen) return;
-    const initW = Math.min(1020, Math.round(window.innerWidth * 0.9));
-    const initH = Math.min(700, Math.round(window.innerHeight * 0.85));
-    setSize({ w: initW, h: initH });
-    setPos({
-      x: Math.round((window.innerWidth - initW) / 2),
-      y: Math.round((window.innerHeight - initH) / 2),
-    });
+    const setLayout = () => {
+      const mobile = window.innerWidth < 768;
+      if (mobile) {
+        setSize({ w: window.innerWidth, h: window.innerHeight });
+        setPos({ x: 0, y: 0 });
+        return;
+      }
+      const initW = Math.min(1020, Math.round(window.innerWidth * 0.9));
+      const initH = Math.min(700, Math.round(window.innerHeight * 0.85));
+      setSize({ w: initW, h: initH });
+      setPos({
+        x: Math.round((window.innerWidth - initW) / 2),
+        y: Math.round((window.innerHeight - initH) / 2),
+      });
+    };
+    setLayout();
+    window.addEventListener('resize', setLayout);
+    return () => window.removeEventListener('resize', setLayout);
   }, [isOpen]);
 
   useEffect(() => {
@@ -598,8 +602,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         } else {
           setAutosaveStatus('idle');
         }
-      } catch (err) {
-        console.error(err);
+      } catch {
         setAutosaveStatus('idle');
       }
     }, 1500);
@@ -709,8 +712,8 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
       if (response.status === 200) { dirtyAfterAutoSaveRef.current = false; onCharacterUpdated({ ...character, ...formData }); onClose(); }
-    } catch (err) {
-      console.error(err); setError('Error al actualizar el personaje.');
+    } catch {
+      setError('Error al actualizar el personaje.');
     } finally { setSaving(false); }
   };
 
@@ -723,12 +726,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     const prof = att.is_proficient ? profBonus(totalLevel) : 0;
     const atkBonus = parseInt(att.attack_bonus, 10) || 0;
 
+    const doAttackRoll = att.is_attack_roll !== false;
+
     const atkAbility = att.attack_modifier && att.attack_modifier !== 'nada' ? att.attack_modifier : null;
     const atkAbilityMod = atkAbility ? abilityModFromStats(atkAbility, stats) : 0;
     const N = atkAbilityMod + atkBonus + prof;
-    const atkD = rollD20Mode(rollMode);
-    const isCriticalHit = atkD.keptCrit === 'max';
-    const attackTotal = atkD.kept + N;
+    const atkD = doAttackRoll ? rollD20Mode(rollMode) : null;
+    const isCriticalHit = atkD?.keptCrit === 'max';
+    const attackTotal = atkD ? atkD.kept + N : null;
 
     const doubleDice = (notation) => {
       const m2 = String(notation || '').match(/^(\d+)d(\d+)$/i);
@@ -756,15 +761,32 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       dmg2Type = att.damage_type_2 || null;
     }
 
+    const isSave = !!att.is_saving_throw;
+    let saveDc = null;
+    if (isSave) {
+      const rawDc = att.saving_throw_type_dc;
+      const numericDc = parseInt(rawDc, 10);
+      if (!Number.isNaN(numericDc) && String(numericDc) === String(rawDc).trim()) {
+        saveDc = numericDc;
+      } else if (rawDc && rawDc !== 'nada' && ABILITY_TO_STAT[rawDc]) {
+        saveDc = 8 + profBonus(totalLevel) + abilityModFromStats(rawDc, stats);
+      }
+    }
+    const saveAbility = isSave && att.saving_throw_tipe && att.saving_throw_tipe !== 'nada'
+      ? (ABILITY_LABEL[att.saving_throw_tipe] || att.saving_throw_tipe)
+      : null;
+
     const modeLabel = rollMode !== 'normal' ? modeLabelEs(rollMode) : null;
     const finalName = modeLabel ? `${att.name} [${modeLabel}]` : att.name;
 
     dispatchMessage(JSON.stringify({
       type: 'attack_roll',
       name: finalName,
-      attack: attackTotal, attackRaw: atkD.kept, attackMod: N,
-      attackCrit: atkD.keptCrit,
-      attackDiscarded: atkD.discarded != null ? atkD.discarded + N : null,
+      attack: attackTotal,
+      attackRaw: atkD?.kept ?? null,
+      attackMod: doAttackRoll ? N : null,
+      attackCrit: atkD?.keptCrit ?? null,
+      attackDiscarded: atkD && atkD.discarded != null ? atkD.discarded + N : null,
       damage: dmgTotal, dmgRaw: dmgD?.kept ?? null, dmgMod: M,
       dmgCrit: dmgD?.keptCrit ?? null,
       dmgDiscarded: null,
@@ -773,6 +795,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       dmg2Crit: dmg2D?.keptCrit ?? null,
       dmg2Discarded: null,
       dmgType2: dmg2Type || null,
+      saveDc, saveAbility,
     }));
   };
 
@@ -861,19 +884,20 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       damage_modifier: null, damage_modifier2: null,
       is_proficient: false, is_saving_throw: false,
       saving_throw_tipe: null, saving_throw_type_dc: null,
+      is_attack_roll: true,
     };
     try {
       const res = await axios.post(`${API}/api/character/${character.id}/attack/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
       setAttacks(p => [...p, { ...blank, id: res.data.id }]);
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleDeleteAttack = async (id) => {
     const token = localStorage.getItem('vtt_token');
     try {
       await axios.delete(`${API}/api/character/${character.id}/attack/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setAttacks(p => p.filter(a => a.id !== id));
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleSaveAttack = async (id) => {
     const token = localStorage.getItem('vtt_token');
@@ -893,6 +917,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       saving_throw_type_dc: editAttack.saving_throw_type_dc || null,
       damage_modifier: editAttack.damage_modifier || null,
       damage_modifier2: editAttack.damage_modifier2 || null,
+      is_attack_roll: editAttack.is_attack_roll === undefined ? true : !!editAttack.is_attack_roll,
     };
     try {
       await axios.patch(`${API}/api/character/${character.id}/attack/update/${id}`, payload,
@@ -901,7 +926,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         ? { ...a, ...payload }
         : a));
       setEditingAttackId(null);
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleAddAbility = async () => {
     const token = localStorage.getItem('vtt_token');
@@ -910,14 +935,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         { headers: { Authorization: `Bearer ${token}` } });
       setAbilities(p => [...p, res.data || { ...newAbility, id: Date.now() }]);
       setNewAbility({ name:'', description:'', source_tipe:'Raza' });
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleDeleteAbility = async (id) => {
     const token = localStorage.getItem('vtt_token');
     try {
       await axios.delete(`${API}/api/character/${character.id}/ability/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setAbilities(p => p.filter(a => a.id !== id));
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleAddItem = async () => {
     const token = localStorage.getItem('vtt_token');
@@ -926,14 +951,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         { headers: { Authorization: `Bearer ${token}` } });
       setInventory(p => [...p, res.data || { ...newItem, id: Date.now() }]);
       setNewItem({ item_name:'', quantity:1, is_equipped:false });
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleDeleteItem = async (id) => {
     const token = localStorage.getItem('vtt_token');
     try {
       await axios.delete(`${API}/api/character/${character.id}/inventory/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setInventory(p => p.filter(i => i.id !== id));
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleAddSpell = async (level = 0) => {
     const token = localStorage.getItem('vtt_token');
@@ -942,7 +967,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       const res = await axios.post(`${API}/api/character/${character.id}/spell/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => [...p, { ...blank, id: res.data.id }]);
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
 
   const updateSpellSlot = (lvl, field, rawVal) => {
@@ -957,7 +982,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     try {
       await axios.delete(`${API}/api/character/${character.id}/spell/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.filter(s => s.id !== id));
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
   const handleSaveSpell = async (id) => {
     const token = localStorage.getItem('vtt_token');
@@ -967,7 +992,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.map(s => s.id === id ? { ...s, ...editSpell } : s));
       setEditingSpellId(null);
-    } catch(err) { console.error(err); }
+    } catch { /* ignore */ }
   };
 
   const totalLevel = formData.level.reduce((s, l) => s + (parseInt(l.level)||0), 0);
@@ -983,6 +1008,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const smallInp = { ...S.input, padding:'6px 8px', fontSize:12 };
 
   const handleDragStart = (e) => {
+    if (window.innerWidth < 768) return;
     if (e.target.closest('button,input,select,textarea,label,a')) return;
     e.preventDefault();
     const startX = e.clientX - pos.x, startY = e.clientY - pos.y;
@@ -998,6 +1024,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   };
 
   const handleResizeStart = (e, dir) => {
+    if (window.innerWidth < 768) return;
     e.preventDefault(); e.stopPropagation();
     const sx = e.clientX, sy = e.clientY, sl = pos.x, st = pos.y, sw = size.w, sh = size.h;
     const MIN_W = 320, MIN_H = 240, MAX_W = Math.round(window.innerWidth * 0.95), MAX_H = Math.round(window.innerHeight * 0.95);
@@ -1654,16 +1681,33 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                           <div style={{ flex:1 }}>
                             <input style={{ ...smallInp, width:'100%', marginBottom:6 }} value={editAttack.name} onChange={e=>setEditAttack({...editAttack,name:e.target.value})} placeholder="Nombre" />
 
-                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
-                              <select style={smallInp} value={editAttack.attack_modifier ?? ''} onChange={e=>setEditAttack({...editAttack,attack_modifier:e.target.value})} title="Modificador de ataque">
-                                {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                              </select>
-                              <input style={smallInp} type="number" value={editAttack.attack_bonus ?? 0} onChange={e=>setEditAttack({...editAttack,attack_bonus:e.target.value})} placeholder="Bono" />
-                              <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', cursor:'pointer', background:'#0f172a', border:'1px solid #334155', borderRadius:8, padding:'6px 8px' }}>
-                                <input type="checkbox" checked={!!editAttack.is_proficient} onChange={e=>setEditAttack({...editAttack,is_proficient:e.target.checked})} style={{ accentColor:'#6366f1' }} />
-                                Competente
-                              </label>
+                            <div style={{ display:'flex', gap:6, marginBottom:6, flexWrap:'wrap' }}>
+                              <button type="button"
+                                onClick={()=>setEditAttack({...editAttack, is_attack_roll: !(editAttack.is_attack_roll !== false)})}
+                                style={{
+                                  background: (editAttack.is_attack_roll !== false) ? 'rgba(99,102,241,0.18)' : 'transparent',
+                                  border: `1px solid ${(editAttack.is_attack_roll !== false) ? 'rgba(99,102,241,0.45)' : '#334155'}`,
+                                  color: (editAttack.is_attack_roll !== false) ? '#a5b4fc' : '#64748b',
+                                  borderRadius: 20, padding: '4px 12px',
+                                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                  fontFamily: 'sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase',
+                                }}>
+                                ⚔ Tirada de ataque (d20)
+                              </button>
                             </div>
+
+                            {(editAttack.is_attack_roll !== false) && (
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+                                <select style={smallInp} value={editAttack.attack_modifier ?? ''} onChange={e=>setEditAttack({...editAttack,attack_modifier:e.target.value})} title="Modificador de ataque">
+                                  {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                                <input style={smallInp} type="number" value={editAttack.attack_bonus ?? 0} onChange={e=>setEditAttack({...editAttack,attack_bonus:e.target.value})} placeholder="Bono" />
+                                <label style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6, color:'#94a3b8', fontSize:11, fontFamily:'sans-serif', cursor:'pointer', background:'#0f172a', border:'1px solid #334155', borderRadius:8, padding:'6px 8px' }}>
+                                  <input type="checkbox" checked={!!editAttack.is_proficient} onChange={e=>setEditAttack({...editAttack,is_proficient:e.target.checked})} style={{ accentColor:'#6366f1' }} />
+                                  Competente
+                                </label>
+                              </div>
+                            )}
 
                             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:6 }}>
                               <input style={smallInp} value={editAttack.damage_dice ?? ''} onChange={e=>setEditAttack({...editAttack,damage_dice:e.target.value})} placeholder="Daño (1d8)" />
@@ -1718,7 +1762,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
                         {editingAttackId !== att.id && (
                           <div style={{ display:'flex', gap:4, alignItems:'center' }}>
                             <button type="button"
-                              onClick={()=>{ setEditingAttackId(att.id); setEditAttack({ name:att.name, damage_dice:att.damage_dice?.[0]??'', damage_type:att.damage_type?.[0]??'', damage_dice_2:att.damage_dice_2??'', damage_type_2:att.damage_type_2??'', range:att.range??'', description:att.description??'', attack_modifier:att.attack_modifier??'', attack_bonus:att.attack_bonus??0, is_proficient:!!att.is_proficient, is_saving_throw:!!att.is_saving_throw, saving_throw_tipe:att.saving_throw_tipe??'', saving_throw_type_dc:att.saving_throw_type_dc??'', damage_modifier:att.damage_modifier??'', damage_modifier2:att.damage_modifier2??'' }); }}
+                              onClick={()=>{ setEditingAttackId(att.id); setEditAttack({ name:att.name, damage_dice:att.damage_dice?.[0]??'', damage_type:att.damage_type?.[0]??'', damage_dice_2:att.damage_dice_2??'', damage_type_2:att.damage_type_2??'', range:att.range??'', description:att.description??'', attack_modifier:att.attack_modifier??'', attack_bonus:att.attack_bonus??0, is_proficient:!!att.is_proficient, is_saving_throw:!!att.is_saving_throw, saving_throw_tipe:att.saving_throw_tipe??'', saving_throw_type_dc:att.saving_throw_type_dc??'', damage_modifier:att.damage_modifier??'', damage_modifier2:att.damage_modifier2??'', is_attack_roll: att.is_attack_roll !== false }); }}
                               style={S.delBtn} title="Editar"
                               onMouseEnter={e=>e.currentTarget.style.color='#a5b4fc'}
                               onMouseLeave={e=>e.currentTarget.style.color='#475569'}>⚙</button>
