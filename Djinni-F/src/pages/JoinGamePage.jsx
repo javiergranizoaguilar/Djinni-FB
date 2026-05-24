@@ -66,7 +66,7 @@ export default function JoinGamePage() {
     }, [token, navigate]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background-dark px-4 py-12">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-background-dark px-4 pt-24 pb-12">
             <div className="max-w-md w-full p-8 bg-white dark:bg-surface rounded-2xl shadow-2xl border border-gray-200 dark:border-border-md text-center animate-fade-in">
                 {status === 'checking' || status === 'joining' ? (
                     <div className="flex flex-col items-center">

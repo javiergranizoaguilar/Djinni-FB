@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useLayoutEffect, useMemo, memo } from 'react';
 import { computeLoS } from './los.js';
 import { Stage, Layer, Circle, Rect, Text, Group, Image as KonvaImage, Transformer, Line, Arrow } from 'react-konva';
 import Konva from 'konva';
@@ -120,17 +120,43 @@ const BAR_H = 5;
 const BAR_GAP = 2;
 const BAR_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7','#ec4899','#ffffff'];
 
+function tokenImgPropsEqual(prev, next) {
+    return prev.item === next.item
+        && prev.squareSize === next.squareSize
+        && prev.boardX === next.boardX
+        && prev.boardY === next.boardY
+        && prev.opacity === next.opacity
+        && prev.draggable === next.draggable
+        && prev.isSelected === next.isSelected
+        && prev.editingIdx === next.editingIdx;
+}
+
+function sceneImgPropsEqual(prev, next) {
+    return prev.item === next.item
+        && prev.opacity === next.opacity
+        && prev.draggable === next.draggable;
+}
+
 // Componente para tokens con imagen — Group único para que auras/barras sigan el drag
 // ref apunta al KonvaImage (no al Group) → Transformer solo rodea la imagen, no las auras
-const TokenImageNode = forwardRef(function TokenImageNode(
+const TokenImageNode = memo(forwardRef(function TokenImageNode(
     { item, squareSize, boardX, boardY, opacity, draggable, onClick, onDblClick, onDragStart, onDragMove, onDragEnd, onTransformEnd, onContextMenu,
-      auras, activeCounters, isSelected, editingIdx, onBadgeClick },
+      isSelected, editingIdx, onBadgeClick },
     ref
 ) {
     const [img, setImg] = useState(null);
     const groupRef = useRef(null);
     const imgRef   = useRef(null);
-    useImperativeHandle(ref, () => imgRef.current);
+    useImperativeHandle(ref, () => ({
+        get image() { return imgRef.current; },
+        get group() { return groupRef.current; },
+    }));
+
+    const auras = useMemo(() => item.auras || [], [item.auras]);
+    const activeCounters = useMemo(() => {
+        const cs = item.counters || DEFAULT_COUNTERS;
+        return cs.map((c, i) => ({ ...c, origIdx: i })).filter(c => c.max > 0);
+    }, [item.counters]);
 
     useEffect(() => {
         if (!item.image_url) return;
@@ -204,10 +230,10 @@ const TokenImageNode = forwardRef(function TokenImageNode(
             })}
         </Group>
     );
-});
+}), tokenImgPropsEqual);
 
 // Componente que carga y renderiza una imagen Konva
-const SceneImageNode = forwardRef(function SceneImageNode(
+const SceneImageNode = memo(forwardRef(function SceneImageNode(
     { item, opacity, draggable, onClick, onDragEnd, onTransformEnd, onContextMenu },
     ref
 ) {
@@ -237,6 +263,22 @@ const SceneImageNode = forwardRef(function SceneImageNode(
             onContextMenu={onContextMenu}
         />
     );
+}), sceneImgPropsEqual);
+
+const GridLayer = memo(function GridLayer({ boardX, boardY, gridWidth, gridHeight, squareSize }) {
+    const w = gridWidth * squareSize;
+    const h = gridHeight * squareSize;
+    const stroke = 'rgba(100,120,140,0.35)';
+    const lines = [];
+    for (let x = 0; x <= gridWidth; x++) {
+        const lx = boardX + x * squareSize;
+        lines.push(<Line key={`v-${x}`} points={[lx, boardY, lx, boardY + h]} stroke={stroke} strokeWidth={1} listening={false} perfectDrawEnabled={false} />);
+    }
+    for (let y = 0; y <= gridHeight; y++) {
+        const ly = boardY + y * squareSize;
+        lines.push(<Line key={`h-${y}`} points={[boardX, ly, boardX + w, ly]} stroke={stroke} strokeWidth={1} listening={false} perfectDrawEnabled={false} />);
+    }
+    return <>{lines}</>;
 });
 
 function WallEditor({ wall, onApply }) {
@@ -328,6 +370,9 @@ export default function VttBoard() {
     const transformerRef      = useRef(null);
     const imageNodesRef       = useRef({});
     const tokenNodesRef       = useRef({});
+    const tokenAnimRef        = useRef({});
+    const losCacheRef         = useRef(new Map());
+    const wallsListCacheRef   = useRef({ ref: null, wlist: [] });
     const isPanning           = useRef(false);
     const entityCacheRef      = useRef({ characters: null, monsters: null });
     const spawnerRef          = useRef(null);
@@ -403,10 +448,9 @@ export default function VttBoard() {
         const bh = (scene?.grid_height || 10) * 50;
         const availW = windowSize.w - sidebarOffset;
         const availH = windowSize.h - HEADER_H - TOOLBAR_H;
-        setBoardOrigin({
-            x: sidebarOffset + Math.floor((availW - bw) / 2),
-            y: HEADER_H + TOOLBAR_H + Math.floor((availH - bh) / 2),
-        });
+        const nextX = sidebarOffset + Math.floor((availW - bw) / 2);
+        const nextY = HEADER_H + TOOLBAR_H + Math.floor((availH - bh) / 2);
+        setBoardOrigin(prev => (prev.x === nextX && prev.y === nextY) ? prev : { x: nextX, y: nextY });
     }, [scene?.id, scene?.grid_width, scene?.grid_height, sidebarOffset, windowSize.w, windowSize.h]);
 
     // Sincronizar Transformer con imagen o token seleccionado
@@ -628,25 +672,36 @@ export default function VttBoard() {
         };
     }, []);
 
-    // ── Ephemeral LoS — recompute whenever tokens or walls change ─────────────
+    // ── Ephemeral LoS — recompute por token, cacheado por (pos, vision, walls) ─
     useEffect(() => {
-        const wlist = (wallsData?.walls || []).flatMap(w => {
-            if (w.type === 'rect') {
-                const x1 = Math.min(w.x1, w.x2), y1 = Math.min(w.y1, w.y2);
-                const x2 = Math.max(w.x1, w.x2), y2 = Math.max(w.y1, w.y2);
-                return [
-                    { x1, y1, x2, y2: y1 },
-                    { x1: x2, y1, x2, y2 },
-                    { x1: x2, y1: y2, x2: x1, y2 },
-                    { x1, y1: y2, x2: x1, y2: y1 },
-                ];
-            }
-            return [w];
-        });
+        let wlist;
+        if (wallsListCacheRef.current.ref === wallsData) {
+            wlist = wallsListCacheRef.current.wlist;
+        } else {
+            wlist = (wallsData?.walls || []).flatMap(w => {
+                if (w.type === 'rect') {
+                    const x1 = Math.min(w.x1, w.x2), y1 = Math.min(w.y1, w.y2);
+                    const x2 = Math.max(w.x1, w.x2), y2 = Math.max(w.y1, w.y2);
+                    return [
+                        { x1, y1, x2, y2: y1 },
+                        { x1: x2, y1, x2, y2 },
+                        { x1: x2, y1: y2, x2: x1, y2 },
+                        { x1, y1: y2, x2: x1, y2: y1 },
+                    ];
+                }
+                return [w];
+            });
+            wallsListCacheRef.current = { ref: wallsData, wlist };
+        }
+
+        const cache = losCacheRef.current;
+        const seenIds = new Set();
         const ephemeral = [];
+        let anyChange = false;
         for (const tok of sceneItems) {
             if (tok.layer !== 'user') continue;
             if (!tok.vision_radius || tok.vision_radius <= 0) continue;
+            seenIds.add(tok.id);
             let cx, cy;
             if (tok.image_url) {
                 const tx = tok.x != null ? tok.x : boardX + (tok.col || 0) * squareSize;
@@ -658,12 +713,32 @@ export default function VttBoard() {
                 cy = tok.y != null ? tok.y : boardY + (tok.row || 0) * squareSize + squareSize / 2;
             }
             const radiusPx = tok.vision_radius * squareSize / 5;
+            const cached = cache.get(tok.id);
+            if (cached && cached.cx === cx && cached.cy === cy && cached.radius === radiusPx && cached.walls === wallsData) {
+                ephemeral.push(cached.entry);
+                continue;
+            }
             const points = computeLoS({ x: cx, y: cy }, radiusPx, wlist);
             if (points.length >= 6) {
-                ephemeral.push({ type: 'polygon', points, ephemeral: true });
+                const entry = { type: 'polygon', points, ephemeral: true };
+                cache.set(tok.id, { cx, cy, radius: radiusPx, walls: wallsData, entry });
+                ephemeral.push(entry);
+                anyChange = true;
             }
         }
-        setEphemeralReveal(ephemeral);
+        for (const id of Array.from(cache.keys())) {
+            if (!seenIds.has(id)) { cache.delete(id); anyChange = true; }
+        }
+        setEphemeralReveal(prev => {
+            if (!anyChange && prev.length === ephemeral.length) {
+                let same = true;
+                for (let i = 0; i < prev.length; i++) {
+                    if (prev[i] !== ephemeral[i]) { same = false; break; }
+                }
+                if (same) return prev;
+            }
+            return ephemeral;
+        });
     }, [sceneItems, wallsData, boardX, boardY, squareSize, currentUserId, isDm]);
 
     const sendTokenEvent = (type, payload) => {
@@ -781,10 +856,12 @@ export default function VttBoard() {
                                     pos = fullPath[si+1];
                                 }
                                 const item = sceneItemsRef.current.find(i => i.id === tokenId);
-                                if (item) {
+                                const groupNode = tokenAnimRef.current[tokenId];
+                                if (item && groupNode) {
                                     const animX = item.image_url ? pos.x - (item.width || 50) / 2 : pos.x;
                                     const animY = item.image_url ? pos.y - (item.height || 50) / 2 : pos.y;
-                                    setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, x: animX, y: animY } : i));
+                                    groupNode.position({ x: animX, y: animY });
+                                    groupNode.getLayer()?.batchDraw();
                                 }
                                 if (t < 1 && pendingAnimations.current[tokenId]) {
                                     pendingAnimations.current[tokenId].raf = requestAnimationFrame(animate);
@@ -794,6 +871,13 @@ export default function VttBoard() {
                                         const ft = pendingPositions.current[tokenId];
                                         delete pendingPositions.current[tokenId];
                                         setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, ...ft } : i));
+                                    } else {
+                                        const item2 = sceneItemsRef.current.find(i => i.id === tokenId);
+                                        if (item2) {
+                                            const finalX = item2.image_url ? dest.x - (item2.width || 50) / 2 : dest.x;
+                                            const finalY = item2.image_url ? dest.y - (item2.height || 50) / 2 : dest.y;
+                                            setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, x: finalX, y: finalY } : i));
+                                        }
                                     }
                                 }
                             };
@@ -1388,22 +1472,6 @@ export default function VttBoard() {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-    const renderGrid = () => {
-        const lines = [];
-        for (let y = 0; y < gridHeight; y++)
-            for (let x = 0; x < gridWidth; x++)
-                lines.push(
-                    <Rect key={`g-${x}-${y}`}
-                        x={boardX + x * squareSize} y={boardY + y * squareSize}
-                        width={squareSize} height={squareSize}
-                        fill="transparent"
-                        stroke="rgba(100,120,140,0.35)"
-                        strokeWidth={1}
-                        listening={false}
-                    />
-                );
-        return lines;
-    };
 
     // ── Contadores ────────────────────────────────────────────────────────────
     const getCounters = (item) => item.counters || DEFAULT_COUNTERS;
@@ -1456,6 +1524,40 @@ const saveCounters = async (tokenId, counters) => {
         } catch { /* ignore */ }
     };
 
+    const counterPersistTimersRef = useRef({});
+    const linkedFieldTimersRef    = useRef({});
+    const saveCountersDebounced = (tokenId, counters, delay = 300) => {
+        setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, counters } : i));
+        const timers = counterPersistTimersRef.current;
+        if (timers[tokenId]) clearTimeout(timers[tokenId]);
+        timers[tokenId] = setTimeout(() => {
+            delete timers[tokenId];
+            axios.put(`${API}/api/scene-token/${tokenId}`, { counters }, { headers: authHeaders() })
+                .then(() => {
+                    const tok = sceneItemsRef.current.find(i => i.id === tokenId);
+                    if (tok) sendTokenEvent('scene_token_updated', { token: { ...tok, counters }, sceneId: sceneIdRef.current });
+                })
+                .catch(() => {});
+        }, delay);
+    };
+    const persistLinkedFieldDebounced = (token, fieldKey, value, delay = 300) => {
+        const key = `${token.id}|${fieldKey}`;
+        const timers = linkedFieldTimersRef.current;
+        if (timers[key]) clearTimeout(timers[key]);
+        timers[key] = setTimeout(() => {
+            delete timers[key];
+            if (token.kind === 'character') {
+                const fd = new FormData();
+                fd.append(fieldKey, value);
+                axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(() => {});
+            } else if (token.kind === 'monster') {
+                axios.post(`${API}/api/monster/edit/${token.entity_id}`, { [fieldKey]: value }, { headers: authHeaders() }).catch(() => {});
+            }
+            entityCacheRef.current[token.kind === 'character' ? 'characters' : 'monsters'] = null;
+            spawnerRef.current?.updateEntityField(token.kind, token.entity_id, { [fieldKey]: value });
+        }, delay);
+    };
+
     const saveAuras = async (tokenId, auras) => {
         setSceneItems(prev => prev.map(i => i.id === tokenId ? { ...i, auras } : i));
         try {
@@ -1492,15 +1594,21 @@ const saveCounters = async (tokenId, counters) => {
             return (
                 <TokenImageNode
                     key={item.id}
-                    ref={(node) => { if (node) tokenNodesRef.current[item.id] = node; }}
+                    ref={(node) => {
+                        if (node) {
+                            tokenNodesRef.current[item.id] = node.image;
+                            tokenAnimRef.current[item.id]  = node.group;
+                        } else {
+                            delete tokenNodesRef.current[item.id];
+                            delete tokenAnimRef.current[item.id];
+                        }
+                    }}
                     item={item}
                     squareSize={squareSize}
                     boardX={boardX}
                     boardY={boardY}
                     opacity={getOpacity(item)}
                     draggable={canDragTok(item)}
-                    auras={auras}
-                    activeCounters={activeCounters}
                     isSelected={isSelected}
                     editingIdx={editingIdx}
                     onBadgeClick={(e, counterIdx) => {
@@ -1535,7 +1643,9 @@ const saveCounters = async (tokenId, counters) => {
         const badgeCy = halfMax + badgeR + 3;
 
         return (
-            <Group key={item.id} x={getX(item)} y={getY(item)}
+            <Group key={item.id}
+                ref={(node) => { if (node) tokenAnimRef.current[item.id] = node; else delete tokenAnimRef.current[item.id]; }}
+                x={getX(item)} y={getY(item)}
                 opacity={getOpacity(item)}
                 draggable={canDragTok(item)}
                 onClick={() => { if (!freeRulerMode && item.layer === activeLayer) { const next = selectedTokenId === item.id ? null : item.id; setSelectedTokenId(next); setSelectedImgId(null); if (!next) setBarEditor(null); } }}
@@ -1655,8 +1765,11 @@ const saveCounters = async (tokenId, counters) => {
                     <Group>
                         {backgroundItems.map(renderToken)}
                     </Group>
-                    {/* Grid — sin interacción */}
-                    <Group listening={false}>{renderGrid()}</Group>
+                </Layer>
+
+                {/* Grid — Layer estática, sólo redibuja al cambiar tamaño */}
+                <Layer name="grid" listening={false}>
+                    <GridLayer boardX={boardX} boardY={boardY} gridWidth={gridWidth} gridHeight={gridHeight} squareSize={squareSize} />
                 </Layer>
 
                 {/* Tokens de capas user y gm */}
@@ -2614,7 +2727,7 @@ const saveCounters = async (tokenId, counters) => {
                                     type="text" value={c.label}
                                     onChange={e => {
                                         const updated = counters.map((x, j) => j === i ? { ...x, label: e.target.value } : x);
-                                        saveCounters(token.id, updated);
+                                        saveCountersDebounced(token.id, updated);
                                     }}
                                     placeholder="Nombre…"
                                     style={{ width: 56, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none' }}
@@ -2625,17 +2738,9 @@ const saveCounters = async (tokenId, counters) => {
                                     onChange={e => {
                                         const newValue = Number(e.target.value);
                                         const updated = counters.map((x, j) => j === i ? { ...x, current: newValue } : x);
-                                        saveCounters(token.id, updated);
+                                        saveCountersDebounced(token.id, updated);
                                         if (c.linked_field && token.entity_id) {
-                                            if (token.kind === 'character') {
-                                                const fd = new FormData();
-                                                fd.append(c.linked_field, newValue);
-                                                axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(() => {});
-                                            } else if (token.kind === 'monster') {
-                                                axios.post(`${API}/api/monster/edit/${token.entity_id}`, { [c.linked_field]: newValue }, { headers: authHeaders() }).catch(() => {});
-                                            }
-                                            entityCacheRef.current[token.kind === 'character' ? 'characters' : 'monsters'] = null;
-                                            spawnerRef.current?.updateEntityField(token.kind, token.entity_id, { [c.linked_field]: newValue });
+                                            persistLinkedFieldDebounced(token, c.linked_field, newValue);
                                         }
                                     }}
                                     style={{ width: 44, background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#f1f5f9', fontSize: 11, padding: '3px 5px', outline: 'none', textAlign: 'center' }}
@@ -2647,19 +2752,11 @@ const saveCounters = async (tokenId, counters) => {
                                     onChange={e => {
                                         const newMax = Number(e.target.value);
                                         const updated = counters.map((x, j) => j === i ? { ...x, max: newMax } : x);
-                                        saveCounters(token.id, updated);
+                                        saveCountersDebounced(token.id, updated);
                                         if (c.linked_field && token.entity_id) {
                                             const def = fieldDefs?.find(f => f.key === c.linked_field);
                                             if (def?.maxKey) {
-                                                if (token.kind === 'character') {
-                                                    const fd = new FormData();
-                                                    fd.append(def.maxKey, newMax);
-                                                    axios.post(`${API}/api/character/edit/${token.entity_id}`, fd, { headers: authHeaders() }).catch(() => {});
-                                                } else if (token.kind === 'monster') {
-                                                    axios.post(`${API}/api/monster/edit/${token.entity_id}`, { [def.maxKey]: newMax }, { headers: authHeaders() }).catch(() => {});
-                                                }
-                                                entityCacheRef.current[token.kind === 'character' ? 'characters' : 'monsters'] = null;
-                                                spawnerRef.current?.updateEntityField(token.kind, token.entity_id, { [def.maxKey]: newMax });
+                                                persistLinkedFieldDebounced(token, def.maxKey, newMax);
                                             }
                                         }
                                     }}

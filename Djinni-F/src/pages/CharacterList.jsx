@@ -71,7 +71,7 @@ export default function CharacterList() {
     );
 
     if (error) return (
-        <div className="container mx-auto p-6 pt-24 min-h-screen">
+        <div className="container mx-auto px-6 pb-6 pt-24 min-h-screen">
             <div className="max-w-md mx-auto text-center p-8 bg-red-900/20 border border-red-500/40 rounded-xl">
                 <span className="material-symbols-outlined text-5xl text-red-400 mb-2">error</span>
                 <p className="text-red-300 font-semibold">{error}</p>
@@ -80,7 +80,7 @@ export default function CharacterList() {
     );
 
     return (
-        <div className="container mx-auto p-4 sm:p-6 pt-24 min-h-screen relative page-section">
+        <div className="container mx-auto px-4 sm:px-6 pb-6 pt-24 min-h-screen relative page-section">
             <Toast toast={toast} onClose={hideToast} />
 
             <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-8 gap-3 md:gap-4">

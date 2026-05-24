@@ -37,3 +37,5 @@ erman[console] already running
 2026-05-21 16:41:33 pid:1033689 Workerman[console] stopping
 2026-05-21 16:41:34 pid:1033689 Workerman[console] has been stopped
 2026-05-21 16:47:46 pid:5948 Workerman[console] start in DEBUG mode
+2026-05-24 10:57:46 pid:8410 Workerman[console] start in DEBUG mode
+2026-05-24 10:57:46 pid:8410 Master pid:5948 is not alive

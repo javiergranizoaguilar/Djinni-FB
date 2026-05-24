@@ -22,6 +22,20 @@ class SceneTokenRepository extends ServiceEntityRepository
     }
 
     /**
+     * Devuelve todos los SceneTokens de la escena dada con la relación `token` ya
+     * cargada para evitar el N+1 cuando se serializan en GET /api/scene-token/scene/{id}.
+     */
+    public function findByScene(int $sceneId): array
+    {
+        return $this->createQueryBuilder('st')
+            ->leftJoin('st.token', 't')->addSelect('t')
+            ->where('st.scene = :sid')
+            ->setParameter('sid', $sceneId)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Devuelve todos los SceneTokens distintos (por token o por nombre+color si son custom)
      * que han sido usados en cualquier escena de la sesión dada.
      */

@@ -41,7 +41,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden page-section"
+        <div className="min-h-screen flex items-center justify-center px-4 pt-24 pb-12 relative overflow-hidden page-section"
             style={{ background: '#060d08' }}>
 
             {/* Ambient orbs */}

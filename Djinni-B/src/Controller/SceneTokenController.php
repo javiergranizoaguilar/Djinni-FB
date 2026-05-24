@@ -82,7 +82,7 @@ class SceneTokenController extends AbstractController
             }
         }
 
-        $tokens = $sceneTokenRepository->findBy(['scene' => $scene]);
+        $tokens = $sceneTokenRepository->findByScene($sceneId);
 
         $tokensData = [];
         foreach ($tokens as $st) {

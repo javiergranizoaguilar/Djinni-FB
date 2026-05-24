@@ -1,5 +1,5 @@
 import {Link, useLocation, useNavigate} from 'react-router-dom';
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import axios from 'axios';
 import CreateGameModal from '../pages/CreateGameModal.jsx';
 
@@ -10,6 +10,8 @@ export default function Header() {
     const [userAvatar, setUserAvatar] = useState(null);
     const [showCreateGameModal, setShowCreateGameModal] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const userMenuRef = useRef(null);
 
     const checkLoginStatus = async () => {
         const token = localStorage.getItem('vtt_token');
@@ -48,6 +50,24 @@ export default function Header() {
             window.removeEventListener('auth-change', handleStorageChange);
         };
     }, []);
+
+    useEffect(() => {
+        if (!isUserMenuOpen) return;
+        const onClick = (e) => {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+                setIsUserMenuOpen(false);
+            }
+        };
+        const onKey = (e) => { if (e.key === 'Escape') setIsUserMenuOpen(false); };
+        document.addEventListener('mousedown', onClick);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onClick);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [isUserMenuOpen]);
+
+    useEffect(() => { setIsUserMenuOpen(false); }, [location]);
 
     const handleLogout = () => {
         localStorage.removeItem('vtt_token');
@@ -128,16 +148,38 @@ export default function Header() {
                                 <span>Nueva Partida</span>
                             </button>
 
-                            <div className="hidden md:block relative">
-                                <div className="size-9 rounded-full overflow-hidden border border-border-md hover:border-primary/50 transition-colors cursor-pointer"
-                                    style={{ boxShadow: '0 0 0 2px rgba(34,197,94,0.08)' }}>
+                            <div className="hidden md:block relative" ref={userMenuRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsUserMenuOpen(v => !v)}
+                                    aria-haspopup="menu"
+                                    aria-expanded={isUserMenuOpen}
+                                    className="size-9 rounded-full overflow-hidden border border-border-md hover:border-primary/50 transition-colors cursor-pointer block"
+                                    style={{ boxShadow: '0 0 0 2px rgba(34,197,94,0.08)' }}
+                                >
                                     <img
                                         alt="Avatar"
                                         className="w-full h-full object-cover"
                                         src={userAvatar || "https://ui-avatars.com/api/?name=U&background=0d1f10&color=22c55e"}
                                     />
-                                </div>
-                                <span className="absolute bottom-0 right-0 size-2.5 bg-primary border-2 border-surface-base rounded-full"></span>
+                                </button>
+                                <span className="absolute bottom-0 right-0 size-2.5 bg-primary border-2 border-surface-base rounded-full pointer-events-none"></span>
+                                {isUserMenuOpen && (
+                                    <div
+                                        role="menu"
+                                        className="absolute right-0 mt-2 w-52 bg-surface-base/95 backdrop-blur-md rounded-lg overflow-hidden animate-fade-in"
+                                        style={{ border: '1px solid rgba(34,197,94,0.15)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}
+                                    >
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setIsUserMenuOpen(false); navigate('/account/settings'); }}
+                                            className="w-full text-left px-4 py-3 text-sm text-text-med hover:bg-surface-hi hover:text-text-hi font-medium transition-colors flex items-center gap-3"
+                                        >
+                                            <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
+                                            Ajustes de cuenta
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}
