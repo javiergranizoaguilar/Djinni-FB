@@ -1,2 +1,25 @@
 /.idea/
 /CLAUDE.md
+
+# Logs / runtime
+*.log
+*.pid
+Djinni-B/bin/workerman.console.pid
+Djinni-F/vite.log
+
+# Dependencies
+node_modules/
+Djinni-B/vendor/
+
+# Build output
+Djinni-F/dist/
+Djinni-B/var/cache/
+Djinni-B/var/log/
+
+# Env overrides
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+*.swp

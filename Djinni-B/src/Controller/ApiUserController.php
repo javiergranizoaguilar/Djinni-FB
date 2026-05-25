@@ -34,6 +34,8 @@ class ApiUserController extends AbstractController
             'username' => $user->getUsername(),
             'email' => $user->getEmail(),
             'avatar_url' => $user->getAvatarUrl(),
+            'roles' => $user->getRoles(),
+            'is_admin' => in_array('ROLE_ADMIN', $user->getRoles(), true),
         ]);
     }
 

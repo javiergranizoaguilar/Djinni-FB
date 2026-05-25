@@ -37,8 +37,9 @@ export default function RegisterPage() {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             navigate('/login');
-        } catch {
-            setError("Error al registrarse. El email podría estar en uso.");
+        } catch (err) {
+            const msg = err?.response?.data?.error;
+            setError(msg || "Error al registrarse. El email podría estar en uso.");
         } finally {
             setLoading(false);
         }
@@ -148,9 +149,11 @@ export default function RegisterPage() {
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="arcane-input pl-10"
                                     placeholder="••••••••"
+                                    minLength={12}
                                     required
                                 />
                             </div>
+                            <p className="mt-2 text-[11px] text-text-lo">Mínimo 12 caracteres.</p>
                         </div>
 
                         <button

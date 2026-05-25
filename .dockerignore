@@ -1,0 +1,23 @@
+# Reduce el contexto de build para acelerar `docker compose build`.
+.git/
+.gitignore
+.vscode/
+.idea/
+
+Djinni-B/vendor/
+Djinni-B/var/cache/
+Djinni-B/var/log/
+Djinni-B/bin/workerman.log
+Djinni-B/bin/workerman.console.pid
+Djinni-B/.env.local
+
+Djinni-F/node_modules/
+Djinni-F/dist/
+Djinni-F/vite.log
+Djinni-F/.env
+
+trabajos/
+*.log
+*.pdf
+*.zip
+*.tar.gz

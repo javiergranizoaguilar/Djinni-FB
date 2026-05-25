@@ -1,0 +1,22 @@
+flowchart LR
+    subgraph Cliente
+        Browser["Navegador del jugador"]
+        SPA["React SPA<br/>(Vite, react-konva, Tailwind)"]
+    end
+
+    subgraph Despliegue["Docker Compose"]
+        Nfront["nginx:5173<br/>SPA build estatico"]
+        Nback["nginx:8000<br/>proxy a PHP-FPM"]
+        PHP["PHP-FPM 8.4<br/>Symfony 8 (API REST)"]
+        WS["Workerman:8081<br/>WebSocket por partida"]
+        DB[("MariaDB 10.11<br/>app")]
+    end
+
+    Browser --> Nfront
+    Nfront -->|HTTP| Browser
+    Browser -->|HTTP JSON + JWT| Nback
+    Browser -->|WS auth JWT| WS
+    Nback --> PHP
+    PHP --> DB
+    WS --> DB
+    PHP -.JWT firmados con<br/>clave privada compartida.-> WS

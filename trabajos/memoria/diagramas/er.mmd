@@ -1,0 +1,191 @@
+erDiagram
+    USER ||--o{ USER_GAME_SESSION : participa
+    GAME_SESION ||--o{ USER_GAME_SESSION : reune
+    GAME_SESION ||--o{ SCENE : contiene
+    SCENE ||--o{ SCENE_TOKEN : pinta
+    SCENE ||--o{ SCENE_IMAGE : pinta
+    TOKEN ||--o{ SCENE_TOKEN : se_instancia_como
+    USER ||--o{ CHARACTER_SHEET_USER : posee
+    CHARACTER_SHEET ||--o{ CHARACTER_SHEET_USER : compartida_por
+    CHARACTER_SHEET ||--o{ ATTACK : tiene
+    CHARACTER_SHEET ||--o{ ABILITY : tiene
+    CHARACTER_SHEET ||--o{ INVENTORY : tiene
+    CHARACTER_SHEET ||--o{ SPELL : tiene
+    USER ||--o{ MONSTER_USER : posee
+    MONSTER ||--o{ MONSTER_USER : compartido_por
+    GAME_SESION ||--o{ GAME_MESSAGE : registra
+    USER ||--o{ GAME_MESSAGE : envia
+    GAME_SESION ||--o{ ROSTER_FOLDER : organiza
+    ROSTER_FOLDER ||--o{ ROSTER_ITEM : agrupa
+    ROSTER_ITEM ||--o{ ROSTER_VISIBILITY : expone_a
+    USER ||--o{ ROSTER_VISIBILITY : ve
+
+    USER {
+        int id PK
+        string username
+        string email
+        string password
+        string avatar_url
+        json roles
+        datetime datetime
+    }
+    GAME_SESION {
+        int id PK
+        string title
+        bool is_active
+        string invitation_token
+        string img_path
+        datetime created_at
+    }
+    USER_GAME_SESSION {
+        int id PK
+        int user_id FK
+        int game_session_id FK
+        bool is_dm
+    }
+    SCENE {
+        int id PK
+        int session_id FK
+        string name
+        int grid_width
+        int grid_height
+        json fog_data
+        json walls_data
+    }
+    SCENE_TOKEN {
+        int id PK
+        int scene_id FK
+        int token_id FK
+        string kind
+        int entity_id
+        int col
+        int row
+        int x
+        int y
+        int width
+        int height
+        string layer
+        string image_url
+        json counters
+        json auras
+        int vision_radius
+        int owner_id FK
+        int controlled_by_id FK
+    }
+    SCENE_IMAGE {
+        int id PK
+        int scene_id FK
+        string url
+        int x
+        int y
+        int width
+        int height
+        string layer
+    }
+    CHARACTER_SHEET {
+        int id PK
+        int gamesesion_id FK
+        string name
+        string race
+        string subrace
+        string alignment
+        int level
+        int hp
+        int max_hp
+        int armor_class
+        string ac_mode
+        json ac_config
+        int vision
+        json default_auras
+        string default_token
+        json default_token_data
+        json hit_dice
+        json spell_slots
+    }
+    ATTACK {
+        int id PK
+        int character_sheet_id FK
+        string name
+        string damage_dice
+        string damage_type
+        string saving_throw_tipe
+        int attack_bonus
+        bool is_attack_roll
+        bool is_proficient
+    }
+    ABILITY {
+        int id PK
+        int character_sheet_id FK
+        string name
+        text description
+    }
+    INVENTORY {
+        int id PK
+        int character_sheet_id FK
+        string name
+        int quantity
+    }
+    SPELL {
+        int id PK
+        int character_sheet_id FK
+        string name
+        int level
+        text description
+    }
+    MONSTER {
+        int id PK
+        int exist_id FK
+        int creador_id FK
+        string name
+        int hp
+        int max_hp
+        int armor_class
+        int vision
+        json default_auras
+        string default_token
+        json default_token_data
+    }
+    MONSTER_USER {
+        int id PK
+        int monster_id FK
+        int user_id FK
+    }
+    CHARACTER_SHEET_USER {
+        int id PK
+        int character_sheet_id FK
+        int user_id FK
+    }
+    GAME_MESSAGE {
+        int id PK
+        int game_sesion_id FK
+        int sender_id FK
+        text content
+        datetime created_at
+    }
+    ROSTER_FOLDER {
+        int id PK
+        int game_sesion_id FK
+        int parent_id FK
+        string name
+    }
+    ROSTER_ITEM {
+        int id PK
+        int folder_id FK
+        string kind
+        int entity_id
+        string name
+        string color
+        string image_url
+        int controlled_by_user_id FK
+        int created_by_id FK
+    }
+    ROSTER_VISIBILITY {
+        int id PK
+        int roster_item_id FK
+        int user_id FK
+    }
+    TOKEN {
+        int id PK
+        string name
+        string image_url
+    }

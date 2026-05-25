@@ -9,6 +9,7 @@ export default function Header() {
     const location = useLocation();
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [userAvatar, setUserAvatar] = useState(null);
+    const [isAdmin, setIsAdmin] = useState(false);
     const [showCreateGameModal, setShowCreateGameModal] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -30,10 +31,12 @@ export default function Header() {
                 } else {
                     setUserAvatar(null);
                 }
+                setIsAdmin(Boolean(response.data?.is_admin));
             } catch { /* ignore */ }
         } else {
             setIsLoggedIn(false);
             setUserAvatar(null);
+            setIsAdmin(false);
         }
     };
 
@@ -132,6 +135,11 @@ export default function Header() {
                             <Link to="/Monster" className={navLinkClass}>
                                 Monstruos <span className={navUnderline}></span>
                             </Link>
+                            {isAdmin && (
+                                <Link to="/admin" className={`${navLinkClass} text-amber-300 hover:text-amber-200`}>
+                                    Admin <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-px bg-amber-400 rounded-full transition-all duration-300 group-hover:w-2/3 opacity-0 group-hover:opacity-100"></span>
+                                </Link>
+                            )}
                             <button onClick={handleLogout} className={`${navLinkClass} hover:text-red-400`}>
                                 Salir <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-px bg-red-500 rounded-full transition-all duration-300 group-hover:w-2/3 opacity-0 group-hover:opacity-100"></span>
                             </button>
@@ -234,6 +242,11 @@ export default function Header() {
                                 <Link to="/Monster" className="px-4 py-3 rounded-lg hover:bg-surface-hi text-text-med hover:text-text-hi font-medium text-sm transition-colors flex items-center gap-3">
                                     <span className="material-symbols-outlined text-[20px]">pest_control</span> Monstruos
                                 </Link>
+                                {isAdmin && (
+                                    <Link to="/admin" className="px-4 py-3 rounded-lg hover:bg-amber-900/20 text-amber-300 hover:text-amber-200 font-medium text-sm transition-colors flex items-center gap-3">
+                                        <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span> Admin
+                                    </Link>
+                                )}
 
                                 <button onClick={handleCreateGameClick}
                                     className="mx-1 mt-2 arcane-btn justify-center py-3">
