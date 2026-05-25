@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New MonsterUser{% endblock %}
+
+{% block body %}
+    <h1>Create new MonsterUser</h1>
+
+    {{ include('monster_user/_form.html.twig') }}
+
+    <a href="{{ path('app_monster_user_index') }}">back to list</a>
+{% endblock %}

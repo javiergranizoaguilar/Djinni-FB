@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Scene{% endblock %}
+
+{% block body %}
+    <h1>Scene</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ scene.id }}</td>
+            </tr>
+            <tr>
+                <th>Name</th>
+                <td>{{ scene.name }}</td>
+            </tr>
+            <tr>
+                <th>Grid_width</th>
+                <td>{{ scene.gridWidth }}</td>
+            </tr>
+            <tr>
+                <th>Grid_height</th>
+                <td>{{ scene.gridHeight }}</td>
+            </tr>
+            <tr>
+                <th>Background</th>
+                <td>{{ scene.background }}</td>
+            </tr>
+            <tr>
+                <th>Data_json</th>
+                <td>{{ scene.dataJson ? scene.dataJson|json_encode : '' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_scene_index') }}">back to list</a>
+
+    <a href="{{ path('app_scene_edit', {'id': scene.id}) }}">edit</a>
+
+    {{ include('scene/_delete_form.html.twig') }}
+{% endblock %}

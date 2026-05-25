@@ -1,0 +1,67 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}CharacterSheet index{% endblock %}
+
+{% block body %}
+    <h1>CharacterSheet index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Spellcasting_abillity</th>
+                <th>Token_image</th>
+                <th>Portrait_image</th>
+                <th>Caster_level</th>
+                <th>Stats</th>
+                <th>Bonuses</th>
+                <th>Apareance</th>
+                <th>Backstory</th>
+                <th>Personality_traits</th>
+                <th>Ideals</th>
+                <th>Bonds</th>
+                <th>Flaws</th>
+                <th>Exaustion</th>
+                <th>Currency</th>
+                <th>Custom_counters</th>
+                <th>Modifiers</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for character_sheet in character_sheets %}
+            <tr>
+                <td>{{ character_sheet.id }}</td>
+                <td>{{ character_sheet.name }}</td>
+                <td>{{ character_sheet.spellcastingAbillity }}</td>
+                <td>{{ character_sheet.tokenImage }}</td>
+                <td>{{ character_sheet.portraitImage }}</td>
+                <td>{{ character_sheet.casterLevel }}</td>
+                <td>{{ character_sheet.stats ? character_sheet.stats|json_encode : '' }}</td>
+                <td>{{ character_sheet.bonuses ? character_sheet.bonuses|json_encode : '' }}</td>
+                <td>{{ character_sheet.apareance }}</td>
+                <td>{{ character_sheet.backstory }}</td>
+                <td>{{ character_sheet.personalityTraits }}</td>
+                <td>{{ character_sheet.ideals }}</td>
+                <td>{{ character_sheet.bonds }}</td>
+                <td>{{ character_sheet.flaws }}</td>
+                <td>{{ character_sheet.exaustion }}</td>
+                <td>{{ character_sheet.currency ? character_sheet.currency|json_encode : '' }}</td>
+                <td>{{ character_sheet.customCounters ? character_sheet.customCounters|json_encode : '' }}</td>
+                <td>{{ character_sheet.modifiers ? character_sheet.modifiers|json_encode : '' }}</td>
+                <td>
+                    <a href="{{ path('app_character_sheet_show', {'id': character_sheet.id}) }}">show</a>
+                    <a href="{{ path('app_character_sheet_edit', {'id': character_sheet.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="19">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_character_sheet_new') }}">Create new</a>
+{% endblock %}

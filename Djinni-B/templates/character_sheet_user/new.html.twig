@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New CharacterSheetUser{% endblock %}
+
+{% block body %}
+    <h1>Create new CharacterSheetUser</h1>
+
+    {{ include('character_sheet_user/_form.html.twig') }}
+
+    <a href="{{ path('app_character_sheet_user_index') }}">back to list</a>
+{% endblock %}

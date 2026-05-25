@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Scene index{% endblock %}
+
+{% block body %}
+    <h1>Scene index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Grid_width</th>
+                <th>Grid_height</th>
+                <th>Background</th>
+                <th>Data_json</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for scene in scenes %}
+            <tr>
+                <td>{{ scene.id }}</td>
+                <td>{{ scene.name }}</td>
+                <td>{{ scene.gridWidth }}</td>
+                <td>{{ scene.gridHeight }}</td>
+                <td>{{ scene.background }}</td>
+                <td>{{ scene.dataJson ? scene.dataJson|json_encode : '' }}</td>
+                <td>
+                    <a href="{{ path('app_scene_show', {'id': scene.id}) }}">show</a>
+                    <a href="{{ path('app_scene_edit', {'id': scene.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_scene_new') }}">Create new</a>
+{% endblock %}

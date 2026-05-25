@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}MonsterUser{% endblock %}
+
+{% block body %}
+    <h1>MonsterUser</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ monster_user.id }}</td>
+            </tr>
+            <tr>
+                <th>Editable</th>
+                <td>{{ monster_user.editable ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Visible</th>
+                <td>{{ monster_user.visible ? 'Yes' : 'No' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_monster_user_index') }}">back to list</a>
+
+    <a href="{{ path('app_monster_user_edit', {'id': monster_user.id}) }}">edit</a>
+
+    {{ include('monster_user/_delete_form.html.twig') }}
+{% endblock %}

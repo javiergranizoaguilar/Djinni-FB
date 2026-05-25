@@ -1,0 +1,38 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}GameSesion{% endblock %}
+
+{% block body %}
+    <h1>GameSesion</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ game_sesion.id }}</td>
+            </tr>
+            <tr>
+                <th>Title</th>
+                <td>{{ game_sesion.title }}</td>
+            </tr>
+            <tr>
+                <th>Is_active</th>
+                <td>{{ game_sesion.isActive ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Created_at</th>
+                <td>{{ game_sesion.createdAt ? game_sesion.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+            <tr>
+                <th>IsGm</th>
+                <td>{{ game_sesion.isGm ? 'Yes' : 'No' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_game_sesion_index') }}">back to list</a>
+
+    <a href="{{ path('app_game_sesion_edit', {'id': game_sesion.id}) }}">edit</a>
+
+    {{ include('game_sesion/_delete_form.html.twig') }}
+{% endblock %}

@@ -3,7 +3,10 @@
 namespace App\Entity;
 
 use App\Repository\SceneRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SceneRepository::class)]
 class Scene
@@ -14,22 +17,38 @@ class Scene
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 255)]
     private ?string $name = null;
 
     #[ORM\Column]
+    #[Assert\Range(min: 1, max: 200)]
     private ?int $grid_width = null;
 
     #[ORM\Column]
+    #[Assert\Range(min: 1, max: 200)]
     private ?int $grid_height = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $background = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?array $data_json = null;
 
     #[ORM\ManyToOne(inversedBy: 'scenes')]
     private ?GameSesion $session_id = null;
+
+    #[ORM\OneToMany(mappedBy: 'scene', targetEntity: SceneToken::class, orphanRemoval: true)]
+    private Collection $sceneTokens;
+
+    #[ORM\OneToMany(mappedBy: 'scene', targetEntity: SceneImage::class, cascade: ['remove'], orphanRemoval: true)]
+    private Collection $sceneImages;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $fogData = null;
+
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $wallsData = null;
+
+    public function __construct()
+    {
+        $this->sceneTokens  = new ArrayCollection();
+        $this->sceneImages  = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -72,30 +91,6 @@ class Scene
         return $this;
     }
 
-    public function getBackground(): ?string
-    {
-        return $this->background;
-    }
-
-    public function setBackground(?string $background): static
-    {
-        $this->background = $background;
-
-        return $this;
-    }
-
-    public function getDataJson(): ?array
-    {
-        return $this->data_json;
-    }
-
-    public function setDataJson(?array $data_json): static
-    {
-        $this->data_json = $data_json;
-
-        return $this;
-    }
-
     public function getSessionId(): ?GameSesion
     {
         return $this->session_id;
@@ -107,4 +102,40 @@ class Scene
 
         return $this;
     }
+
+    /**
+     * @return Collection<int, SceneToken>
+     */
+    public function getSceneTokens(): Collection
+    {
+        return $this->sceneTokens;
+    }
+
+    public function addSceneToken(SceneToken $sceneToken): static
+    {
+        if (!$this->sceneTokens->contains($sceneToken)) {
+            $this->sceneTokens->add($sceneToken);
+            $sceneToken->setScene($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSceneToken(SceneToken $sceneToken): static
+    {
+        if ($this->sceneTokens->removeElement($sceneToken)) {
+            // set the owning side to null (unless already changed)
+            if ($sceneToken->getScene() === $this) {
+                $sceneToken->setScene(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getFogData(): ?array { return $this->fogData; }
+    public function setFogData(?array $fogData): static { $this->fogData = $fogData; return $this; }
+
+    public function getWallsData(): ?array { return $this->wallsData; }
+    public function setWallsData(?array $wallsData): static { $this->wallsData = $wallsData; return $this; }
 }

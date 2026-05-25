@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New CharacterSheet{% endblock %}
+
+{% block body %}
+    <h1>Create new CharacterSheet</h1>
+
+    {{ include('character_sheet/_form.html.twig') }}
+
+    <a href="{{ path('app_character_sheet_index') }}">back to list</a>
+{% endblock %}

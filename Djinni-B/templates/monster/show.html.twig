@@ -1,0 +1,174 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Monster{% endblock %}
+
+{% block body %}
+    <h1>Monster</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ monster.id }}</td>
+            </tr>
+            <tr>
+                <th>Name</th>
+                <td>{{ monster.name }}</td>
+            </tr>
+            <tr>
+                <th>Source_book</th>
+                <td>{{ monster.sourceBook }}</td>
+            </tr>
+            <tr>
+                <th>Size</th>
+                <td>{{ monster.size }}</td>
+            </tr>
+            <tr>
+                <th>Page_number</th>
+                <td>{{ monster.pageNumber }}</td>
+            </tr>
+            <tr>
+                <th>Type</th>
+                <td>{{ monster.type }}</td>
+            </tr>
+            <tr>
+                <th>Alignment</th>
+                <td>{{ monster.alignment }}</td>
+            </tr>
+            <tr>
+                <th>Armor_class</th>
+                <td>{{ monster.armorClass }}</td>
+            </tr>
+            <tr>
+                <th>Ac_description</th>
+                <td>{{ monster.acDescription }}</td>
+            </tr>
+            <tr>
+                <th>Hit_points_average</th>
+                <td>{{ monster.hitPointsAverage }}</td>
+            </tr>
+            <tr>
+                <th>Hp_formula</th>
+                <td>{{ monster.hpFormula }}</td>
+            </tr>
+            <tr>
+                <th>Speed</th>
+                <td>{{ monster.speed ? monster.speed|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Str</th>
+                <td>{{ monster.str }}</td>
+            </tr>
+            <tr>
+                <th>Dex</th>
+                <td>{{ monster.dex }}</td>
+            </tr>
+            <tr>
+                <th>Con</th>
+                <td>{{ monster.con }}</td>
+            </tr>
+            <tr>
+                <th>Int_stat</th>
+                <td>{{ monster.intStat }}</td>
+            </tr>
+            <tr>
+                <th>Wis</th>
+                <td>{{ monster.wis }}</td>
+            </tr>
+            <tr>
+                <th>Cha</th>
+                <td>{{ monster.cha }}</td>
+            </tr>
+            <tr>
+                <th>Saving_throws</th>
+                <td>{{ monster.savingThrows ? monster.savingThrows|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Skills</th>
+                <td>{{ monster.skills ? monster.skills|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Passive_perception</th>
+                <td>{{ monster.passivePerception }}</td>
+            </tr>
+            <tr>
+                <th>Challenge_rating</th>
+                <td>{{ monster.challengeRating }}</td>
+            </tr>
+            <tr>
+                <th>Senses</th>
+                <td>{{ monster.senses }}</td>
+            </tr>
+            <tr>
+                <th>Languages</th>
+                <td>{{ monster.languages }}</td>
+            </tr>
+            <tr>
+                <th>Traits</th>
+                <td>{{ monster.traits ? monster.traits|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Spellcasting</th>
+                <td>{{ monster.spellcasting ? monster.spellcasting|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Actions</th>
+                <td>{{ monster.actions ? monster.actions|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Bonus_actions</th>
+                <td>{{ monster.bonusActions ? monster.bonusActions|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Reactions</th>
+                <td>{{ monster.reactions ? monster.reactions|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Legendary_resistances_count</th>
+                <td>{{ monster.legendaryResistancesCount }}</td>
+            </tr>
+            <tr>
+                <th>Legendary_actions_count</th>
+                <td>{{ monster.legendaryActionsCount }}</td>
+            </tr>
+            <tr>
+                <th>Legendary_actions</th>
+                <td>{{ monster.legendaryActions ? monster.legendaryActions|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Mythic_actions</th>
+                <td>{{ monster.mythicActions ? monster.mythicActions|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Lair_actions</th>
+                <td>{{ monster.lairActions ? monster.lairActions|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Regional_effects</th>
+                <td>{{ monster.regionalEffects ? monster.regionalEffects|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Enviroment</th>
+                <td>{{ monster.enviroment ? monster.enviroment|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Treasure</th>
+                <td>{{ monster.treasure ? monster.treasure|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Tags</th>
+                <td>{{ monster.tags ? monster.tags|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Vtt_metadata</th>
+                <td>{{ monster.vttMetadata ? monster.vttMetadata|json_encode : '' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_monster_index') }}">back to list</a>
+
+    <a href="{{ path('app_monster_edit', {'id': monster.id}) }}">edit</a>
+
+    {{ include('monster/_delete_form.html.twig') }}
+{% endblock %}

@@ -6,9 +6,11 @@ use App\Repository\UserRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
-class User
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -34,16 +36,10 @@ class User
     private array $roles = [];
 
     /**
-     * @var Collection<int, GameSesion>
+     * @var Collection<int, UserGameSession>
      */
-    #[ORM\OneToMany(targetEntity: GameSesion::class, mappedBy: 'gm')]
-    private Collection $gm;
-
-    /**
-     * @var Collection<int, GameSesion>
-     */
-    #[ORM\ManyToMany(targetEntity: GameSesion::class, mappedBy: 'player')]
-    private Collection $player;
+    #[ORM\OneToMany(targetEntity: UserGameSession::class, mappedBy: 'user', orphanRemoval: true)]
+    private Collection $userGameSessions;
 
     /**
      * @var Collection<int, Monster>
@@ -63,10 +59,16 @@ class User
     #[ORM\OneToMany(targetEntity: CharacterSheetUser::class, mappedBy: 'user_id')]
     private Collection $characterSheetUsers;
 
+    public function getUserIdentifier(): string
+    {
+        return (string) $this->email;
+    }
+
+    // Este también es obligatorio
+
     public function __construct()
     {
-        $this->gm = new ArrayCollection();
-        $this->player = new ArrayCollection();
+        $this->userGameSessions = new ArrayCollection();
         $this->monsters = new ArrayCollection();
         $this->monsterUsers = new ArrayCollection();
         $this->characterSheetUsers = new ArrayCollection();
@@ -139,7 +141,9 @@ class User
 
     public function getRoles(): array
     {
-        return $this->roles;
+        $roles = $this->roles;
+        $roles[] = 'ROLE_USER';
+        return array_unique($roles);
     }
 
     public function setRoles(array $roles): static
@@ -150,57 +154,30 @@ class User
     }
 
     /**
-     * @return Collection<int, GameSesion>
+     * @return Collection<int, UserGameSession>
      */
-    public function getGm(): Collection
+    public function getUserGameSessions(): Collection
     {
-        return $this->gm;
+        return $this->userGameSessions;
     }
 
-    public function addGm(GameSesion $gmId): static
+    public function addUserGameSession(UserGameSession $userGameSession): static
     {
-        if (!$this->gm->contains($gmId)) {
-            $this->gm->add($gmId);
-            $gmId->setGm($this);
+        if (!$this->userGameSessions->contains($userGameSession)) {
+            $this->userGameSessions->add($userGameSession);
+            $userGameSession->setUser($this);
         }
 
         return $this;
     }
 
-    public function removeGm(GameSesion $gmId): static
+    public function removeUserGameSession(UserGameSession $userGameSession): static
     {
-        if ($this->gm->removeElement($gmId)) {
+        if ($this->userGameSessions->removeElement($userGameSession)) {
             // set the owning side to null (unless already changed)
-            if ($gmId->getGm() === $this) {
-                $gmId->setGm(null);
+            if ($userGameSession->getUser() === $this) {
+                $userGameSession->setUser(null);
             }
-        }
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, GameSesion>
-     */
-    public function getPlayer(): Collection
-    {
-        return $this->player;
-    }
-
-    public function addPlayer(GameSesion $userId): static
-    {
-        if (!$this->player->contains($userId)) {
-            $this->player->add($userId);
-            $userId->addPlayer($this);
-        }
-
-        return $this;
-    }
-
-    public function removePlayer(GameSesion $userId): static
-    {
-        if ($this->player->removeElement($userId)) {
-            $userId->removePlayer($this);
         }
 
         return $this;

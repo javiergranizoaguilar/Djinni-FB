@@ -1,0 +1,90 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}CharacterSheet{% endblock %}
+
+{% block body %}
+    <h1>CharacterSheet</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ character_sheet.id }}</td>
+            </tr>
+            <tr>
+                <th>Name</th>
+                <td>{{ character_sheet.name }}</td>
+            </tr>
+            <tr>
+                <th>Spellcasting_abillity</th>
+                <td>{{ character_sheet.spellcastingAbillity }}</td>
+            </tr>
+            <tr>
+                <th>Token_image</th>
+                <td>{{ character_sheet.tokenImage }}</td>
+            </tr>
+            <tr>
+                <th>Portrait_image</th>
+                <td>{{ character_sheet.portraitImage }}</td>
+            </tr>
+            <tr>
+                <th>Caster_level</th>
+                <td>{{ character_sheet.casterLevel }}</td>
+            </tr>
+            <tr>
+                <th>Stats</th>
+                <td>{{ character_sheet.stats ? character_sheet.stats|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Bonuses</th>
+                <td>{{ character_sheet.bonuses ? character_sheet.bonuses|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Apareance</th>
+                <td>{{ character_sheet.apareance }}</td>
+            </tr>
+            <tr>
+                <th>Backstory</th>
+                <td>{{ character_sheet.backstory }}</td>
+            </tr>
+            <tr>
+                <th>Personality_traits</th>
+                <td>{{ character_sheet.personalityTraits }}</td>
+            </tr>
+            <tr>
+                <th>Ideals</th>
+                <td>{{ character_sheet.ideals }}</td>
+            </tr>
+            <tr>
+                <th>Bonds</th>
+                <td>{{ character_sheet.bonds }}</td>
+            </tr>
+            <tr>
+                <th>Flaws</th>
+                <td>{{ character_sheet.flaws }}</td>
+            </tr>
+            <tr>
+                <th>Exaustion</th>
+                <td>{{ character_sheet.exaustion }}</td>
+            </tr>
+            <tr>
+                <th>Currency</th>
+                <td>{{ character_sheet.currency ? character_sheet.currency|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Custom_counters</th>
+                <td>{{ character_sheet.customCounters ? character_sheet.customCounters|json_encode : '' }}</td>
+            </tr>
+            <tr>
+                <th>Modifiers</th>
+                <td>{{ character_sheet.modifiers ? character_sheet.modifiers|json_encode : '' }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_character_sheet_index') }}">back to list</a>
+
+    <a href="{{ path('app_character_sheet_edit', {'id': character_sheet.id}) }}">edit</a>
+
+    {{ include('character_sheet/_delete_form.html.twig') }}
+{% endblock %}

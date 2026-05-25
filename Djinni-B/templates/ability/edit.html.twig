@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit Ability{% endblock %}
+
+{% block body %}
+    <h1>Edit Ability</h1>
+
+    {{ include('ability/_form.html.twig', {'button_label': 'Update'}) }}
+
+    <a href="{{ path('app_ability_index') }}">back to list</a>
+
+    {{ include('ability/_delete_form.html.twig') }}
+{% endblock %}

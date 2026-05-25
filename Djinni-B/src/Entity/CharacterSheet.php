@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CharacterSheetRepository::class)]
 class CharacterSheet
@@ -25,6 +26,12 @@ class CharacterSheet
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $token_image = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $default_auras = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $default_token_data = null;
+
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $portrait_image = null;
 
@@ -35,7 +42,163 @@ class CharacterSheet
     private array $stats = [];
 
     #[ORM\Column(nullable: true)]
-    private ?array $bonuses = null;
+    private ?bool $sav_str = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_str_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $sav_dex = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_dex_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $sav_int = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_int_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $sav_wis = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_wis_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $sav_cha = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_cha_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?bool $sav_con = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sav_con_mod = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $armor_class = null;
+
+    #[ORM\Column(length: 10, nullable: true)]
+    private ?string $ac_mode = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $ac_config = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $hit_dice = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $spell_slots = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $acrobatics = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $acrobatics_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $animal_handling = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $animal_handling_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $arcana = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $arcana_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $athletics = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $athletics_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $deception = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $deception_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $history = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $history_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $insight = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $insight_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $intimidation = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $intimidation_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $investigation = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $investigation_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $medicine = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $medicine_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $nature = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $nature_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $perception = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $perception_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $performance = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $performance_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $persuasion = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $persuasion_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $religion = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $religion_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $sleight_of_hand = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $sleight_of_hand_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stealth = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $stealth_mod = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $survival = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $survival_mod = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $apareance = null;
@@ -55,6 +218,15 @@ class CharacterSheet
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $flaws = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $race = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $subrace = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $alignment = null;
+
     #[ORM\Column(nullable: true)]
     private ?int $exaustion = null;
 
@@ -64,16 +236,19 @@ class CharacterSheet
     #[ORM\Column(nullable: true)]
     private ?array $custom_counters = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?array $level = null;
+
     /**
      * @var Collection<int, Inventory>
      */
-    #[ORM\OneToMany(targetEntity: Inventory::class, mappedBy: 'seet')]
+    #[ORM\OneToMany(targetEntity: Inventory::class, mappedBy: 'seet', orphanRemoval: true)]
     private Collection $inventories;
 
     /**
      * @var Collection<int, Attack>
      */
-    #[ORM\OneToMany(targetEntity: Attack::class, mappedBy: 'character_attack')]
+    #[ORM\OneToMany(targetEntity: Attack::class, mappedBy: 'character_attack', orphanRemoval: true)]
     private Collection $attacks;
 
     /**
@@ -83,18 +258,30 @@ class CharacterSheet
     private Collection $spells;
 
     #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 999)]
+    private ?int $hp = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 999)]
+    private ?int $max_hp = null;
+
+    #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 500)]
+    private ?int $vision = null;
+
+    #[ORM\Column(nullable: true)]
     private ?array $modifiers = null;
 
     /**
      * @var Collection<int, Proficency>
      */
-    #[ORM\OneToMany(targetEntity: Proficency::class, mappedBy: 'character_id')]
+    #[ORM\OneToMany(targetEntity: Proficency::class, mappedBy: 'character_id', orphanRemoval: true)]
     private Collection $proficencies;
 
     /**
      * @var Collection<int, Ability>
      */
-    #[ORM\OneToMany(targetEntity: Ability::class, mappedBy: 'character_id')]
+    #[ORM\OneToMany(targetEntity: Ability::class, mappedBy: 'character_id', orphanRemoval: true)]
     private Collection $abilities;
 
     #[ORM\ManyToOne(inversedBy: 'characterSheets')]
@@ -103,7 +290,7 @@ class CharacterSheet
     /**
      * @var Collection<int, CharacterSheetUser>
      */
-    #[ORM\OneToMany(targetEntity: CharacterSheetUser::class, mappedBy: 'charactersheet_id')]
+    #[ORM\OneToMany(targetEntity: CharacterSheetUser::class, mappedBy: 'charactersheet_id', orphanRemoval: true)]
     private Collection $characterSheetUsers;
 
     public function __construct()
@@ -140,7 +327,7 @@ class CharacterSheet
 
     public function setSpellcastingAbillity(?string $spellcasting_abillity): static
     {
-        $this->spellcasting_abillity = $spellcasting_abillity;
+        $this->spellcasting_abillity = AbilityName::assertNullable($spellcasting_abillity);
 
         return $this;
     }
@@ -156,6 +343,12 @@ class CharacterSheet
 
         return $this;
     }
+
+    public function getDefaultAuras(): ?array { return $this->default_auras; }
+    public function setDefaultAuras(?array $default_auras): static { $this->default_auras = $default_auras; return $this; }
+
+    public function getDefaultTokenData(): ?array { return $this->default_token_data; }
+    public function setDefaultTokenData(?array $data): static { $this->default_token_data = $data; return $this; }
 
     public function getPortraitImage(): ?string
     {
@@ -193,14 +386,554 @@ class CharacterSheet
         return $this;
     }
 
-    public function getBonuses(): ?array
+    public function isSavStr(): ?bool
     {
-        return $this->bonuses;
+        return $this->sav_str;
     }
 
-    public function setBonuses(?array $bonuses): static
+    public function setSavStr(?bool $sav_str): static
     {
-        $this->bonuses = $bonuses;
+        $this->sav_str = $sav_str;
+
+        return $this;
+    }
+
+    public function getSavStrMod(): ?int
+    {
+        return $this->sav_str_mod;
+    }
+
+    public function setSavStrMod(?int $sav_str_mod): static
+    {
+        $this->sav_str_mod = $sav_str_mod;
+
+        return $this;
+    }
+
+    public function isSavDex(): ?bool
+    {
+        return $this->sav_dex;
+    }
+
+    public function setSavDex(?bool $sav_dex): static
+    {
+        $this->sav_dex = $sav_dex;
+
+        return $this;
+    }
+
+    public function getSavDexMod(): ?int
+    {
+        return $this->sav_dex_mod;
+    }
+
+    public function setSavDexMod(?int $sav_dex_mod): static
+    {
+        $this->sav_dex_mod = $sav_dex_mod;
+
+        return $this;
+    }
+
+    public function isSavInt(): ?bool
+    {
+        return $this->sav_int;
+    }
+
+    public function setSavInt(?bool $sav_int): static
+    {
+        $this->sav_int = $sav_int;
+
+        return $this;
+    }
+
+    public function getSavIntMod(): ?int
+    {
+        return $this->sav_int_mod;
+    }
+
+    public function setSavIntMod(?int $sav_int_mod): static
+    {
+        $this->sav_int_mod = $sav_int_mod;
+
+        return $this;
+    }
+
+    public function isSavWis(): ?bool
+    {
+        return $this->sav_wis;
+    }
+
+    public function setSavWis(?bool $sav_wis): static
+    {
+        $this->sav_wis = $sav_wis;
+
+        return $this;
+    }
+
+    public function getSavWisMod(): ?int
+    {
+        return $this->sav_wis_mod;
+    }
+
+    public function setSavWisMod(?int $sav_wis_mod): static
+    {
+        $this->sav_wis_mod = $sav_wis_mod;
+
+        return $this;
+    }
+
+    public function isSavCha(): ?bool
+    {
+        return $this->sav_cha;
+    }
+
+    public function setSavCha(?bool $sav_cha): static
+    {
+        $this->sav_cha = $sav_cha;
+
+        return $this;
+    }
+
+    public function getSavChaMod(): ?int
+    {
+        return $this->sav_cha_mod;
+    }
+
+    public function setSavChaMod(?int $sav_cha_mod): static
+    {
+        $this->sav_cha_mod = $sav_cha_mod;
+
+        return $this;
+    }
+
+    public function getAcrobatics(): ?string
+    {
+        return $this->acrobatics;
+    }
+
+    public function setAcrobatics(?string $acrobatics): static
+    {
+        $this->acrobatics = SkillProficiency::assertNullable($acrobatics);
+
+        return $this;
+    }
+
+    public function getAcrobaticsMod(): ?int
+    {
+        return $this->acrobatics_mod;
+    }
+
+    public function setAcrobaticsMod(?int $acrobatics_mod): static
+    {
+        $this->acrobatics_mod = $acrobatics_mod;
+
+        return $this;
+    }
+
+    public function getAnimalHandling(): ?string
+    {
+        return $this->animal_handling;
+    }
+
+    public function setAnimalHandling(?string $animal_handling): static
+    {
+        $this->animal_handling = SkillProficiency::assertNullable($animal_handling);
+
+        return $this;
+    }
+
+    public function getAnimalHandlingMod(): ?int
+    {
+        return $this->animal_handling_mod;
+    }
+
+    public function setAnimalHandlingMod(?int $animal_handling_mod): static
+    {
+        $this->animal_handling_mod = $animal_handling_mod;
+
+        return $this;
+    }
+
+    public function getArcana(): ?string
+    {
+        return $this->arcana;
+    }
+
+    public function setArcana(?string $arcana): static
+    {
+        $this->arcana = SkillProficiency::assertNullable($arcana);
+
+        return $this;
+    }
+
+    public function getArcanaMod(): ?int
+    {
+        return $this->arcana_mod;
+    }
+
+    public function setArcanaMod(?int $arcana_mod): static
+    {
+        $this->arcana_mod = $arcana_mod;
+
+        return $this;
+    }
+
+    public function getAthletics(): ?string
+    {
+        return $this->athletics;
+    }
+
+    public function setAthletics(?string $athletics): static
+    {
+        $this->athletics = SkillProficiency::assertNullable($athletics);
+
+        return $this;
+    }
+
+    public function getAthleticsMod(): ?int
+    {
+        return $this->athletics_mod;
+    }
+
+    public function setAthleticsMod(?int $athletics_mod): static
+    {
+        $this->athletics_mod = $athletics_mod;
+
+        return $this;
+    }
+
+    public function getDeception(): ?string
+    {
+        return $this->deception;
+    }
+
+    public function setDeception(?string $deception): static
+    {
+        $this->deception = SkillProficiency::assertNullable($deception);
+
+        return $this;
+    }
+
+    public function getDeceptionMod(): ?int
+    {
+        return $this->deception_mod;
+    }
+
+    public function setDeceptionMod(?int $deception_mod): static
+    {
+        $this->deception_mod = $deception_mod;
+
+        return $this;
+    }
+
+    public function getHistory(): ?string
+    {
+        return $this->history;
+    }
+
+    public function setHistory(?string $history): static
+    {
+        $this->history = SkillProficiency::assertNullable($history);
+
+        return $this;
+    }
+
+    public function getHistoryMod(): ?int
+    {
+        return $this->history_mod;
+    }
+
+    public function setHistoryMod(?int $history_mod): static
+    {
+        $this->history_mod = $history_mod;
+
+        return $this;
+    }
+
+    public function getInsight(): ?string
+    {
+        return $this->insight;
+    }
+
+    public function setInsight(?string $insight): static
+    {
+        $this->insight = SkillProficiency::assertNullable($insight);
+
+        return $this;
+    }
+
+    public function getInsightMod(): ?int
+    {
+        return $this->insight_mod;
+    }
+
+    public function setInsightMod(?int $insight_mod): static
+    {
+        $this->insight_mod = $insight_mod;
+
+        return $this;
+    }
+
+    public function getIntimidation(): ?string
+    {
+        return $this->intimidation;
+    }
+
+    public function setIntimidation(?string $intimidation): static
+    {
+        $this->intimidation = SkillProficiency::assertNullable($intimidation);
+
+        return $this;
+    }
+
+    public function getIntimidationMod(): ?int
+    {
+        return $this->intimidation_mod;
+    }
+
+    public function setIntimidationMod(?int $intimidation_mod): static
+    {
+        $this->intimidation_mod = $intimidation_mod;
+
+        return $this;
+    }
+
+    public function getInvestigation(): ?string
+    {
+        return $this->investigation;
+    }
+
+    public function setInvestigation(?string $investigation): static
+    {
+        $this->investigation = SkillProficiency::assertNullable($investigation);
+
+        return $this;
+    }
+
+    public function getInvestigationMod(): ?int
+    {
+        return $this->investigation_mod;
+    }
+
+    public function setInvestigationMod(?int $investigation_mod): static
+    {
+        $this->investigation_mod = $investigation_mod;
+
+        return $this;
+    }
+
+    public function getMedicine(): ?string
+    {
+        return $this->medicine;
+    }
+
+    public function setMedicine(?string $medicine): static
+    {
+        $this->medicine = SkillProficiency::assertNullable($medicine);
+
+        return $this;
+    }
+
+    public function getMedicineMod(): ?int
+    {
+        return $this->medicine_mod;
+    }
+
+    public function setMedicineMod(?int $medicine_mod): static
+    {
+        $this->medicine_mod = $medicine_mod;
+
+        return $this;
+    }
+
+    public function getNature(): ?string
+    {
+        return $this->nature;
+    }
+
+    public function setNature(?string $nature): static
+    {
+        $this->nature = SkillProficiency::assertNullable($nature);
+
+        return $this;
+    }
+
+    public function getNatureMod(): ?int
+    {
+        return $this->nature_mod;
+    }
+
+    public function setNatureMod(?int $nature_mod): static
+    {
+        $this->nature_mod = $nature_mod;
+
+        return $this;
+    }
+
+    public function getPerception(): ?string
+    {
+        return $this->perception;
+    }
+
+    public function setPerception(?string $perception): static
+    {
+        $this->perception = SkillProficiency::assertNullable($perception);
+
+        return $this;
+    }
+
+    public function getPerceptionMod(): ?int
+    {
+        return $this->perception_mod;
+    }
+
+    public function setPerceptionMod(?int $perception_mod): static
+    {
+        $this->perception_mod = $perception_mod;
+
+        return $this;
+    }
+
+    public function getPerformance(): ?string
+    {
+        return $this->performance;
+    }
+
+    public function setPerformance(?string $performance): static
+    {
+        $this->performance = SkillProficiency::assertNullable($performance);
+
+        return $this;
+    }
+
+    public function getPerformanceMod(): ?int
+    {
+        return $this->performance_mod;
+    }
+
+    public function setPerformanceMod(?int $performance_mod): static
+    {
+        $this->performance_mod = $performance_mod;
+
+        return $this;
+    }
+
+    public function getPersuasion(): ?string
+    {
+        return $this->persuasion;
+    }
+
+    public function setPersuasion(?string $persuasion): static
+    {
+        $this->persuasion = SkillProficiency::assertNullable($persuasion);
+
+        return $this;
+    }
+
+    public function getPersuasionMod(): ?int
+    {
+        return $this->persuasion_mod;
+    }
+
+    public function setPersuasionMod(?int $persuasion_mod): static
+    {
+        $this->persuasion_mod = $persuasion_mod;
+
+        return $this;
+    }
+
+    public function getReligion(): ?string
+    {
+        return $this->religion;
+    }
+
+    public function setReligion(?string $religion): static
+    {
+        $this->religion = SkillProficiency::assertNullable($religion);
+
+        return $this;
+    }
+
+    public function getReligionMod(): ?int
+    {
+        return $this->religion_mod;
+    }
+
+    public function setReligionMod(?int $religion_mod): static
+    {
+        $this->religion_mod = $religion_mod;
+
+        return $this;
+    }
+
+    public function getSleightOfHand(): ?string
+    {
+        return $this->sleight_of_hand;
+    }
+
+    public function setSleightOfHand(?string $sleight_of_hand): static
+    {
+        $this->sleight_of_hand = SkillProficiency::assertNullable($sleight_of_hand);
+
+        return $this;
+    }
+
+    public function getSleightOfHandMod(): ?int
+    {
+        return $this->sleight_of_hand_mod;
+    }
+
+    public function setSleightOfHandMod(?int $sleight_of_hand_mod): static
+    {
+        $this->sleight_of_hand_mod = $sleight_of_hand_mod;
+
+        return $this;
+    }
+
+    public function getStealth(): ?string
+    {
+        return $this->stealth;
+    }
+
+    public function setStealth(?string $stealth): static
+    {
+        $this->stealth = SkillProficiency::assertNullable($stealth);
+
+        return $this;
+    }
+
+    public function getStealthMod(): ?int
+    {
+        return $this->stealth_mod;
+    }
+
+    public function setStealthMod(?int $stealth_mod): static
+    {
+        $this->stealth_mod = $stealth_mod;
+
+        return $this;
+    }
+
+    public function getSurvival(): ?string
+    {
+        return $this->survival;
+    }
+
+    public function setSurvival(?string $survival): static
+    {
+        $this->survival = SkillProficiency::assertNullable($survival);
+
+        return $this;
+    }
+
+    public function getSurvivalMod(): ?int
+    {
+        return $this->survival_mod;
+    }
+
+    public function setSurvivalMod(?int $survival_mod): static
+    {
+        $this->survival_mod = $survival_mod;
 
         return $this;
     }
@@ -309,6 +1042,18 @@ class CharacterSheet
     public function setCustomCounters(?array $custom_counters): static
     {
         $this->custom_counters = $custom_counters;
+
+        return $this;
+    }
+
+    public function getLevel(): ?array
+    {
+        return $this->level;
+    }
+
+    public function setLevel(?array $level): static
+    {
+        $this->level = $level;
 
         return $this;
     }
@@ -511,6 +1256,149 @@ class CharacterSheet
             }
         }
 
+        return $this;
+    }
+
+    public function getHp(): ?int
+    {
+        return $this->hp;
+    }
+
+    public function setHp(?int $hp): static
+    {
+        $this->hp = $hp;
+        return $this;
+    }
+
+    public function getMaxHp(): ?int
+    {
+        return $this->max_hp;
+    }
+
+    public function setMaxHp(?int $max_hp): static
+    {
+        $this->max_hp = $max_hp;
+        return $this;
+    }
+
+    public function getVision(): ?int
+    {
+        return $this->vision;
+    }
+
+    public function setVision(?int $vision): static
+    {
+        $this->vision = $vision;
+        return $this;
+    }
+
+    public function getRace(): ?string
+    {
+        return $this->race;
+    }
+
+    public function setRace(?string $race): static
+    {
+        $this->race = $race;
+        return $this;
+    }
+
+    public function getSubrace(): ?string
+    {
+        return $this->subrace;
+    }
+
+    public function setSubrace(?string $subrace): static
+    {
+        $this->subrace = $subrace;
+        return $this;
+    }
+
+    public function getAlignment(): ?string
+    {
+        return $this->alignment;
+    }
+
+    public function setAlignment(?string $alignment): static
+    {
+        $this->alignment = $alignment;
+        return $this;
+    }
+
+    public function isSavCon(): ?bool
+    {
+        return $this->sav_con;
+    }
+
+    public function setSavCon(?bool $sav_con): static
+    {
+        $this->sav_con = $sav_con;
+        return $this;
+    }
+
+    public function getSavConMod(): ?int
+    {
+        return $this->sav_con_mod;
+    }
+
+    public function setSavConMod(?int $sav_con_mod): static
+    {
+        $this->sav_con_mod = $sav_con_mod;
+        return $this;
+    }
+
+    public function getArmorClass(): ?int
+    {
+        return $this->armor_class;
+    }
+
+    public function setArmorClass(?int $armor_class): static
+    {
+        $this->armor_class = $armor_class;
+        return $this;
+    }
+
+    public function getAcMode(): ?string
+    {
+        return $this->ac_mode;
+    }
+
+    public function setAcMode(?string $ac_mode): static
+    {
+        $this->ac_mode = $ac_mode;
+        return $this;
+    }
+
+    public function getAcConfig(): ?array
+    {
+        return $this->ac_config;
+    }
+
+    public function setAcConfig(?array $ac_config): static
+    {
+        $this->ac_config = $ac_config;
+        return $this;
+    }
+
+    public function getHitDice(): ?array
+    {
+        return $this->hit_dice;
+    }
+
+    public function setHitDice(?array $hit_dice): static
+    {
+        $this->hit_dice = $hit_dice;
+        return $this;
+    }
+
+    public function getSpellSlots(): ?array
+    {
+        return $this->spell_slots;
+    }
+
+    public function setSpellSlots(?array $spell_slots): static
+    {
+        $this->spell_slots = $spell_slots;
         return $this;
     }
 }

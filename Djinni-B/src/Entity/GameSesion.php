@@ -24,20 +24,22 @@ class GameSesion
     #[ORM\Column]
     private ?\DateTimeImmutable $created_at = null;
 
-    #[ORM\ManyToOne(inversedBy: 'gm')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?User $gm = null;
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $invitation_token = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $img_path = null;
 
     /**
-     * @var Collection<int, User>
+     * @var Collection<int, UserGameSession>
      */
-    #[ORM\ManyToMany(targetEntity: User::class, inversedBy: 'player')]
-    private Collection $player;
+    #[ORM\OneToMany(targetEntity: UserGameSession::class, mappedBy: 'gameSession', orphanRemoval: true)]
+    private Collection $userGameSessions;
 
     /**
      * @var Collection<int, Scene>
      */
-    #[ORM\OneToMany(targetEntity: Scene::class, mappedBy: 'session_id')]
+    #[ORM\OneToMany(targetEntity: Scene::class, mappedBy: 'session_id', orphanRemoval: true)]
     private Collection $scenes;
 
     /**
@@ -54,10 +56,12 @@ class GameSesion
 
     public function __construct()
     {
-        $this->player = new ArrayCollection();
+        $this->userGameSessions = new ArrayCollection();
         $this->scenes = new ArrayCollection();
         $this->monsters = new ArrayCollection();
         $this->characterSheets = new ArrayCollection();
+        // Generar token automáticamente al crear
+        $this->invitation_token = bin2hex(random_bytes(16));
     }
 
     public function getId(): ?int
@@ -82,6 +86,8 @@ class GameSesion
         return $this->is_active;
     }
 
+
+
     public function setIsActive(bool $is_active): static
     {
         $this->is_active = $is_active;
@@ -101,38 +107,56 @@ class GameSesion
         return $this;
     }
 
-    public function getGm(): ?User
+    public function getInvitationToken(): ?string
     {
-        return $this->gm;
+        return $this->invitation_token;
     }
 
-    public function setGm(?User $gm_id): static
+    public function setInvitationToken(?string $invitation_token): static
     {
-        $this->gm = $gm_id;
+        $this->invitation_token = $invitation_token;
+
+        return $this;
+    }
+
+    public function getImgPath(): ?string
+    {
+        return $this->img_path;
+    }
+
+    public function setImgPath(?string $img_path): static
+    {
+        $this->img_path = $img_path;
 
         return $this;
     }
 
     /**
-     * @return Collection<int, User>
+     * @return Collection<int, UserGameSession>
      */
-    public function getPlayer(): Collection
+    public function getUserGameSessions(): Collection
     {
-        return $this->player;
+        return $this->userGameSessions;
     }
 
-    public function addPlayer(User $userId): static
+    public function addUserGameSession(UserGameSession $userGameSession): static
     {
-        if (!$this->player->contains($userId)) {
-            $this->player->add($userId);
+        if (!$this->userGameSessions->contains($userGameSession)) {
+            $this->userGameSessions->add($userGameSession);
+            $userGameSession->setGameSession($this);
         }
 
         return $this;
     }
 
-    public function removePlayer(User $userId): static
+    public function removeUserGameSession(UserGameSession $userGameSession): static
     {
-        $this->player->removeElement($userId);
+        if ($this->userGameSessions->removeElement($userGameSession)) {
+            // set the owning side to null (unless already changed)
+            if ($userGameSession->getGameSession() === $this) {
+                $userGameSession->setGameSession(null);
+            }
+        }
 
         return $this;
     }

@@ -1,0 +1,13 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Edit CharacterSheetUser{% endblock %}
+
+{% block body %}
+    <h1>Edit CharacterSheetUser</h1>
+
+    {{ include('character_sheet_user/_form.html.twig', {'button_label': 'Update'}) }}
+
+    <a href="{{ path('app_character_sheet_user_index') }}">back to list</a>
+
+    {{ include('character_sheet_user/_delete_form.html.twig') }}
+{% endblock %}

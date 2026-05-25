@@ -89,9 +89,6 @@ class Monster
     private ?array $traits = null;
 
     #[ORM\Column(nullable: true)]
-    private ?array $spellcasting = null;
-
-    #[ORM\Column(nullable: true)]
     private ?array $actions = null;
 
     #[ORM\Column(nullable: true)]
@@ -127,8 +124,26 @@ class Monster
     #[ORM\Column(nullable: true)]
     private ?array $tags = null;
 
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $image_url = null;
+
+    #[ORM\Column(length: 500, nullable: true)]
+    private ?string $portrait_url = null;
+
     #[ORM\Column(nullable: true)]
-    private ?array $vtt_metadata = null;
+    private ?int $hp = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $max_hp = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $vision = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $default_auras = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?array $default_token_data = null;
 
     #[ORM\ManyToOne(inversedBy: 'monsters')]
     #[ORM\JoinColumn(nullable: false)]
@@ -137,7 +152,7 @@ class Monster
     /**
      * @var Collection<int, MonsterUser>
      */
-    #[ORM\OneToMany(targetEntity: MonsterUser::class, mappedBy: 'monster')]
+    #[ORM\OneToMany(targetEntity: MonsterUser::class, mappedBy: 'monster', orphanRemoval: true)]
     private Collection $monsterUsers;
 
     #[ORM\ManyToOne(inversedBy: 'monsters')]
@@ -448,18 +463,6 @@ class Monster
         return $this;
     }
 
-    public function getSpellcasting(): ?array
-    {
-        return $this->spellcasting;
-    }
-
-    public function setSpellcasting(?array $spellcasting): static
-    {
-        $this->spellcasting = $spellcasting;
-
-        return $this;
-    }
-
     public function getActions(): ?array
     {
         return $this->actions;
@@ -604,17 +607,11 @@ class Monster
         return $this;
     }
 
-    public function getVttMetadata(): ?array
-    {
-        return $this->vtt_metadata;
-    }
+    public function getDefaultAuras(): ?array { return $this->default_auras; }
+    public function setDefaultAuras(?array $default_auras): static { $this->default_auras = $default_auras; return $this; }
 
-    public function setVttMetadata(?array $vtt_metadata): static
-    {
-        $this->vtt_metadata = $vtt_metadata;
-
-        return $this;
-    }
+    public function getDefaultTokenData(): ?array { return $this->default_token_data; }
+    public function setDefaultTokenData(?array $data): static { $this->default_token_data = $data; return $this; }
 
     public function getCreador(): ?User
     {
@@ -694,6 +691,63 @@ class Monster
             $spell->removeMonsterSpell($this);
         }
 
+        return $this;
+    }
+
+    public function getImageUrl(): ?string
+    {
+        return $this->image_url;
+    }
+
+    public function setImageUrl(?string $image_url): static
+    {
+        $this->image_url = $image_url;
+
+        return $this;
+    }
+
+    public function getPortraitUrl(): ?string
+    {
+        return $this->portrait_url;
+    }
+
+    public function setPortraitUrl(?string $portrait_url): static
+    {
+        $this->portrait_url = $portrait_url;
+
+        return $this;
+    }
+
+    public function getHp(): ?int
+    {
+        return $this->hp;
+    }
+
+    public function setHp(?int $hp): static
+    {
+        $this->hp = $hp;
+        return $this;
+    }
+
+    public function getMaxHp(): ?int
+    {
+        return $this->max_hp;
+    }
+
+    public function setMaxHp(?int $max_hp): static
+    {
+        $this->max_hp = $max_hp;
+        return $this;
+    }
+
+    public function getVision(): ?int
+    {
+        return $this->vision;
+    }
+
+    public function setVision(?int $vision): static
+    {
+        $this->vision = $vision;
         return $this;
     }
 }

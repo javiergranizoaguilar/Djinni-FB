@@ -1,0 +1,17 @@
+framework:
+    rate_limiter:
+        # Login attempts: 5 per 15 minutes per (IP + email) using the sliding window algorithm.
+        login:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+        # Register: 3 new accounts per hour per IP.
+        register:
+            policy: 'token_bucket'
+            limit: 3
+            rate: { interval: '1 hour', amount: 3 }
+        # Upload endpoints: 30 per minute per user — generous, blocks abuse only.
+        uploads:
+            policy: 'token_bucket'
+            limit: 30
+            rate: { interval: '1 minute', amount: 30 }

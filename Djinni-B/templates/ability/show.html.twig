@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ability{% endblock %}
+
+{% block body %}
+    <h1>Ability</h1>
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>Id</th>
+                <td>{{ ability.id }}</td>
+            </tr>
+            <tr>
+                <th>Name</th>
+                <td>{{ ability.name }}</td>
+            </tr>
+            <tr>
+                <th>Description</th>
+                <td>{{ ability.description }}</td>
+            </tr>
+            <tr>
+                <th>Source_tipe</th>
+                <td>{{ ability.sourceTipe }}</td>
+            </tr>
+            <tr>
+                <th>Is_active</th>
+                <td>{{ ability.isActive ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Has_limited_uses</th>
+                <td>{{ ability.hasLimitedUses ? 'Yes' : 'No' }}</td>
+            </tr>
+            <tr>
+                <th>Max_uses</th>
+                <td>{{ ability.maxUses }}</td>
+            </tr>
+            <tr>
+                <th>Current_uses</th>
+                <td>{{ ability.currentUses }}</td>
+            </tr>
+            <tr>
+                <th>Recharge_type</th>
+                <td>{{ ability.rechargeType }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_ability_index') }}">back to list</a>
+
+    <a href="{{ path('app_ability_edit', {'id': ability.id}) }}">edit</a>
+
+    {{ include('ability/_delete_form.html.twig') }}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}GameSesion index{% endblock %}
+
+{% block body %}
+    <h1>GameSesion index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Title</th>
+                <th>Is_active</th>
+                <th>Created_at</th>
+                <th>IsGm</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for game_sesion in game_sesions %}
+            <tr>
+                <td>{{ game_sesion.id }}</td>
+                <td>{{ game_sesion.title }}</td>
+                <td>{{ game_sesion.isActive ? 'Yes' : 'No' }}</td>
+                <td>{{ game_sesion.createdAt ? game_sesion.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>{{ game_sesion.isGm ? 'Yes' : 'No' }}</td>
+                <td>
+                    <a href="{{ path('app_game_sesion_show', {'id': game_sesion.id}) }}">show</a>
+                    <a href="{{ path('app_game_sesion_edit', {'id': game_sesion.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="6">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_game_sesion_new') }}">Create new</a>
+{% endblock %}

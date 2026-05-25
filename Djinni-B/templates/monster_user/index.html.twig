@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}MonsterUser index{% endblock %}
+
+{% block body %}
+    <h1>MonsterUser index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Editable</th>
+                <th>Visible</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for monster_user in monster_users %}
+            <tr>
+                <td>{{ monster_user.id }}</td>
+                <td>{{ monster_user.editable ? 'Yes' : 'No' }}</td>
+                <td>{{ monster_user.visible ? 'Yes' : 'No' }}</td>
+                <td>
+                    <a href="{{ path('app_monster_user_show', {'id': monster_user.id}) }}">show</a>
+                    <a href="{{ path('app_monster_user_edit', {'id': monster_user.id}) }}">edit</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="4">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_monster_user_new') }}">Create new</a>
+{% endblock %}
