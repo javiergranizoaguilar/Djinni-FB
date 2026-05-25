@@ -20,10 +20,23 @@ use Workerman\Worker;
 #[AsCommand(name: 'app:chat-server', description: 'Start the WebSocket chat server on port 8081')]
 class ChatServerCommand extends Command
 {
-    /** @var array<int, \SplObjectStorage<TcpConnection, array>> rooms[gameId] → connections */
+    /**
+     * In-process per-game-room registry. MUST stay single-worker (worker->count = 1).
+     *
+     * Both $rooms and $meta live in PHP memory, not Redis/shared storage. Bumping
+     * worker->count beyond 1 would split state across processes: a client connected
+     * to worker A could not be reached by a broadcast originating in worker B, and
+     * the JWT/isDm cache in $meta would be invisible cross-worker. Use a shared
+     * pub/sub layer (Redis pub/sub or similar) before scaling up workers.
+     *
+     * @var array<int, \SplObjectStorage<TcpConnection, array>> rooms[gameId] → connections
+     */
     private array $rooms = [];
 
-    /** @var \WeakMap<TcpConnection, array{userId: int, userName: string, gameId: int, isDm: bool}> */
+    /**
+     * @var \WeakMap<TcpConnection, array{userId: int, userName: string, gameId: int, isDm: bool}>
+     *      Connection metadata resolved during the auth handshake. Single-process only — see $rooms above.
+     */
     private \WeakMap $meta;
 
     public function __construct(
@@ -44,6 +57,9 @@ class ChatServerCommand extends Command
         $constraint = new SignedWith($signer, $pubKey);
 
         $worker = new Worker('websocket://0.0.0.0:8081');
+        // CRITICAL: keep count = 1. $rooms/$meta are in-process state; multi-worker
+        // would split rooms across processes and break broadcasts. Scale by adding
+        // a shared pub/sub layer (Redis) before raising this.
         $worker->count = 1;
         $worker->name  = 'djinni-chat';
 
@@ -423,10 +439,19 @@ class ChatServerCommand extends Command
                         [$m['gameId'], $m['userId'], $content, $now]
                     );
                 } catch (\Throwable $e) {
-                    $output->writeln('[chat] DB error: ' . $e->getMessage());
-                    // Reconnect attempt
-                    try { $conn->close(); $conn->connect(); } catch (\Throwable) {}
-                    return;
+                    $output->writeln('[chat] DB error: ' . $e->getMessage() . ' — attempting reconnect+retry');
+                    // Reconnect then retry insert once. Persistent failures drop the message but keep the WS alive.
+                    try {
+                        $conn->close();
+                        $conn->connect();
+                        $conn->executeStatement(
+                            'INSERT INTO game_message (game_sesion_id, sender_id, content, created_at) VALUES (?, ?, ?, ?)',
+                            [$m['gameId'], $m['userId'], $content, $now]
+                        );
+                    } catch (\Throwable $e2) {
+                        $output->writeln('[chat] retry failed: ' . $e2->getMessage());
+                        return;
+                    }
                 }
 
                 $broadcast = json_encode([

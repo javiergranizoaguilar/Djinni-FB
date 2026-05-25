@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EditMonsterModal from './EditMonsterModal.jsx';
 import { Toast, useToast } from '../components/Toast.jsx';
+import Modal from '../components/Modal.jsx';
+import { API_URL } from '../config/api';
 
 export default function MonsterList() {
     const [monsters, setMonsters] = useState([]);
@@ -18,7 +20,7 @@ export default function MonsterList() {
         const token = localStorage.getItem('vtt_token');
         if (!token) { setError('No estás autenticado.'); setLoading(false); return; }
         try {
-            const response = await axios.get('http://localhost:8000/api/monster/my-monsters', {
+            const response = await axios.get(`${API_URL}/api/monster/my-monsters`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             setMonsters(response.data);
@@ -35,7 +37,7 @@ export default function MonsterList() {
         e.preventDefault();
         const token = localStorage.getItem('vtt_token');
         try {
-            await axios.post('http://localhost:8000/api/monster/create', { name: newMonsterName }, {
+            await axios.post(`${API_URL}/api/monster/create`, { name: newMonsterName }, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             setShowCreateModal(false);
@@ -56,7 +58,7 @@ export default function MonsterList() {
         if (!window.confirm('¿Estás seguro de que quieres eliminar este monstruo? Esta acción no se puede deshacer.')) return;
         const token = localStorage.getItem('vtt_token');
         try {
-            await axios.delete(`http://localhost:8000/api/monster/delete/${monsterId}`, {
+            await axios.delete(`${API_URL}/api/monster/delete/${monsterId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             showToast('Monstruo eliminado', 'ok');
@@ -151,7 +153,7 @@ export default function MonsterList() {
                             <div className="h-48 bg-gradient-to-br from-primary/8 via-surface to-surface-base flex items-center justify-center relative overflow-hidden">
                                 {(monster.portrait_url || monster.image_url) ? (
                                     <img
-                                        src={`http://localhost:8000${monster.portrait_url || monster.image_url}`}
+                                        src={`${API_URL}${monster.portrait_url || monster.image_url}`}
                                         alt={monster.name}
                                         loading="lazy"
                                         className="w-full h-full object-cover"
@@ -205,34 +207,39 @@ export default function MonsterList() {
             )}
 
             {/* Modal de Creación */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
-                    <div className="arcane-modal p-6 w-full max-w-md max-h-[92vh] overflow-y-auto">
-                        <h2 className="font-heading text-xl text-text-hi tracking-widest mb-5">Nuevo Monstruo</h2>
-                        <form onSubmit={handleCreateMonster}>
-                            <div className="mb-5">
-                                <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre</label>
-                                <input
-                                    type="text"
-                                    value={newMonsterName}
-                                    onChange={(e) => setNewMonsterName(e.target.value)}
-                                    className="arcane-input"
-                                    required
-                                    autoFocus
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="arcane-btn-ghost">
-                                    Cancelar
-                                </button>
-                                <button type="submit" className="arcane-btn">
-                                    Crear
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+            <Modal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                ariaLabelledBy="create-monster-title"
+                containerClassName="z-[60] animate-fade-in"
+            >
+                <div className="arcane-modal p-6 w-full max-w-md max-h-[92vh] overflow-y-auto">
+                    <h2 id="create-monster-title" className="font-heading text-xl text-text-hi tracking-widest mb-5">Nuevo Monstruo</h2>
+                    <form onSubmit={handleCreateMonster}>
+                        <div className="mb-5">
+                            <label htmlFor="new-monster-name" className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre</label>
+                            <input
+                                id="new-monster-name"
+                                type="text"
+                                value={newMonsterName}
+                                onChange={(e) => setNewMonsterName(e.target.value)}
+                                className="arcane-input focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary"
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button type="button" onClick={() => setShowCreateModal(false)} className="arcane-btn-ghost">
+                                Cancelar
+                            </button>
+                            <button type="submit" className="arcane-btn">
+                                Crear
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            )}
+            </Modal>
+
 
             <EditMonsterModal
                 isOpen={showEditModal}

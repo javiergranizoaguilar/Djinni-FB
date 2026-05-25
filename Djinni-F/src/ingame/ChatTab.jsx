@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = API_URL;
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8081';
 
 function RollTooltip({ raw, mod, children, color, textShadow, fontSize, fontWeight }) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 // import { useParams } from 'react-router-dom'; // Ya no necesitamos useParams aquí
 
 export default function CreateSceneButton({ gameId, onSceneCreated }) { // Recibe gameId como prop
@@ -16,7 +17,7 @@ export default function CreateSceneButton({ gameId, onSceneCreated }) { // Recib
                 setError('Game ID is missing. Cannot create scene.');
                 return;
             }
-            const response = await axios.post(`http://127.0.0.1:8000/scene/api/game/${gameId}/scenes`, { name }, { withCredentials: true });
+            const response = await axios.post(`${API_URL}/scene/api/game/${gameId}/scenes`, { name }, { withCredentials: true });
             onSceneCreated(response.data);
             setIsOpen(false);
             setName('');
@@ -55,7 +56,7 @@ export default function CreateSceneButton({ gameId, onSceneCreated }) { // Recib
                                 <button
                                     type="button"
                                     onClick={() => setIsOpen(false)}
-                                    className="text-gray-400 hover:text-white mr-4"
+                                    className="text-gray-300 hover:text-white mr-4"
                                 >
                                     Cancel
                                 </button>

@@ -12,6 +12,7 @@ use App\Entity\Proficency;
 use App\Entity\SceneToken;
 use App\Entity\Spell;
 use App\Entity\User;
+use App\Security\UploadValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -330,7 +331,7 @@ class ApiCharacterController extends AbstractController
 
     #[Route('/edit/{id}', name: 'api_character_edit', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function edit(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    public function edit(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, UploadValidator $uploadValidator): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -373,16 +374,16 @@ class ApiCharacterController extends AbstractController
         }
 
         if ($request->request->has('hp')) {
-            $characterSheet->setHp((int)$request->request->get('hp'));
+            $characterSheet->setHp(max(0, min(999, (int)$request->request->get('hp'))));
         }
 
         if ($request->request->has('max_hp')) {
-            $characterSheet->setMaxHp((int)$request->request->get('max_hp'));
+            $characterSheet->setMaxHp(max(0, min(999, (int)$request->request->get('max_hp'))));
         }
 
         if ($request->request->has('vision')) {
             $v = $request->request->get('vision');
-            $characterSheet->setVision($v === '' ? null : (int)$v);
+            $characterSheet->setVision($v === '' ? null : max(0, min(500, (int)$v)));
         }
 
         // Procesar JSON fields
@@ -478,6 +479,7 @@ class ApiCharacterController extends AbstractController
 
         $tokenFile = $request->files->get('token_image');
         if ($tokenFile) {
+            $uploadValidator->assertImage($tokenFile);
             $originalFilename = pathinfo($tokenFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $slugger->slug($originalFilename);
             $newFilename = $safeFilename . '-token-' . uniqid() . '.' . $tokenFile->guessExtension();
@@ -492,6 +494,7 @@ class ApiCharacterController extends AbstractController
 
         $portraitFile = $request->files->get('portrait_image');
         if ($portraitFile) {
+            $uploadValidator->assertImage($portraitFile);
             $originalFilename = pathinfo($portraitFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $slugger->slug($originalFilename);
             $newFilename = $safeFilename . '-portrait-' . uniqid() . '.' . $portraitFile->guessExtension();

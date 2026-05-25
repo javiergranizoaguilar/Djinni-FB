@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Toast, useToast } from '../components/Toast.jsx';
+import { API_URL } from '../config/api';
 
-const API = 'http://localhost:8000';
+const API = API_URL;
 
 export default function AccountSettings() {
     const [username, setUsername] = useState('');

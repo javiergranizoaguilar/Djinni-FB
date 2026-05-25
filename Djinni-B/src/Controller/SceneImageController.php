@@ -6,10 +6,13 @@ use App\Entity\SceneImage;
 use App\Repository\SceneImageRepository;
 use App\Repository\SceneRepository;
 use App\Repository\UserGameSessionRepository;
+use App\Security\UploadValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -57,7 +60,7 @@ class SceneImageController extends AbstractController
 
     #[Route('/scene/{sceneId}/upload', name: 'api_scene_image_upload', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function upload(int $sceneId, Request $request, SceneRepository $sceneRepository, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em): JsonResponse
+    public function upload(int $sceneId, Request $request, SceneRepository $sceneRepository, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em, UploadValidator $uploadValidator, #[Autowire(service: 'limiter.uploads')] RateLimiterFactory $uploadsLimiter): JsonResponse
     {
         $scene = $sceneRepository->find($sceneId);
         if (!$scene) {
@@ -69,10 +72,15 @@ class SceneImageController extends AbstractController
             return $this->json(['error' => 'Only the DM can manage scene images'], 403);
         }
 
-        $file = $request->files->get('image');
-        if (!$file) {
-            return $this->json(['error' => 'No image provided'], 400);
+        // Rate-limit by user id: 30 image uploads / minute is generous for normal play.
+        $key = 'u' . ($this->getUser()?->getId() ?? 'anon');
+        $consumed = $uploadsLimiter->create($key)->consume(1);
+        if (!$consumed->isAccepted()) {
+            return $this->json(['error' => 'Demasiadas subidas, inténtalo en un momento.'], 429);
         }
+
+        $file = $request->files->get('image');
+        $uploadValidator->assertImage($file);
 
         $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/scene-images';
         if (!is_dir($uploadDir)) {
@@ -126,7 +134,7 @@ class SceneImageController extends AbstractController
 
     #[Route('/{id}', name: 'api_scene_image_delete', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function delete(int $id, SceneImageRepository $repo, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em): JsonResponse
+    public function delete(int $id, SceneImageRepository $repo, UserGameSessionRepository $ugsRepo, EntityManagerInterface $em, UploadValidator $uploadValidator): JsonResponse
     {
         $img = $repo->find($id);
         if (!$img) {
@@ -144,8 +152,11 @@ class SceneImageController extends AbstractController
         $em->flush();
 
         if ($imageUrl) {
+            $uploadsBase = $this->getParameter('kernel.project_dir') . '/public/uploads';
             $filePath = $this->getParameter('kernel.project_dir') . '/public' . $imageUrl;
-            if (file_exists($filePath)) {
+            // Defence in depth: only unlink files that resolve under public/uploads/ — prevents
+            // a forged imageUrl ('/../etc/...') from removing files outside the uploads tree.
+            if (file_exists($filePath) && $uploadValidator->pathIsWithin($filePath, $uploadsBase)) {
                 unlink($filePath);
             }
         }

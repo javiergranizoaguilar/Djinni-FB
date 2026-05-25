@@ -6,6 +6,7 @@ use App\Entity\Scene;
 use App\Repository\GameSesionRepository;
 use App\Repository\SceneRepository;
 use App\Repository\UserGameSessionRepository;
+use App\Security\SessionAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -21,18 +22,24 @@ final class SceneController extends AbstractController
      */
     #[Route('/api/game/{gameId}/scenes', name: 'api_create_scene_for_game', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function createSceneForGame(int $gameId, Request $request, EntityManagerInterface $entityManager, GameSesionRepository $gameSesionRepository): JsonResponse
+    public function createSceneForGame(int $gameId, Request $request, EntityManagerInterface $entityManager, GameSesionRepository $gameSesionRepository, SessionAccessChecker $access): JsonResponse
     {
         $game = $gameSesionRepository->find($gameId);
         if (!$game) {
             return $this->json(['error' => 'Game session not found.'], 404);
         }
+        $access->assertDm($this->getUser(), $game);
 
         $data = json_decode($request->getContent(), true);
+        $gw = (int)($data['grid_width']  ?? 20);
+        $gh = (int)($data['grid_height'] ?? 20);
+        $gw = max(1, min(200, $gw));
+        $gh = max(1, min(200, $gh));
+
         $scene = new Scene();
         $scene->setName($data['name'] ?? 'New Scene');
-        $scene->setGridWidth($data['grid_width'] ?? 20);
-        $scene->setGridHeight($data['grid_height'] ?? 20);
+        $scene->setGridWidth($gw);
+        $scene->setGridHeight($gh);
         $scene->setSessionId($game);
 
         $entityManager->persist($scene);
@@ -132,13 +139,14 @@ final class SceneController extends AbstractController
      */
     #[Route('/api/scenes/{id}', name: 'api_update_scene', methods: ['PUT'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function updateScene(int $id, Request $request, SceneRepository $sceneRepository, EntityManagerInterface $entityManager): JsonResponse
+    public function updateScene(int $id, Request $request, SceneRepository $sceneRepository, EntityManagerInterface $entityManager, SessionAccessChecker $access): JsonResponse
     {
         $scene = $sceneRepository->find($id);
 
         if (!$scene) {
             return $this->json(['error' => 'Scene not found.'], 404);
         }
+        $access->assertDm($this->getUser(), $scene->getSessionId());
 
         $data = json_decode($request->getContent(), true);
 
@@ -146,10 +154,10 @@ final class SceneController extends AbstractController
             $scene->setName($data['name']);
         }
         if (isset($data['grid_width'])) {
-            $scene->setGridWidth($data['grid_width']);
+            $scene->setGridWidth(max(1, min(200, (int)$data['grid_width'])));
         }
         if (isset($data['grid_height'])) {
-            $scene->setGridHeight($data['grid_height']);
+            $scene->setGridHeight(max(1, min(200, (int)$data['grid_height'])));
         }
 
         $entityManager->flush();
@@ -181,7 +189,11 @@ final class SceneController extends AbstractController
             return $this->json(['error' => 'Forbidden.'], 403);
         }
 
-        $data = json_decode($request->getContent(), true);
+        $raw = $request->getContent();
+        if (strlen($raw) > 262144) {
+            return $this->json(['error' => 'fog_data payload too large (max 256KB).'], 413);
+        }
+        $data = json_decode($raw, true);
         $scene->setFogData($data['fog_data'] ?? null);
         $entityManager->flush();
 
@@ -210,7 +222,11 @@ final class SceneController extends AbstractController
             return $this->json(['error' => 'Forbidden.'], 403);
         }
 
-        $data = json_decode($request->getContent(), true);
+        $raw = $request->getContent();
+        if (strlen($raw) > 262144) {
+            return $this->json(['error' => 'walls_data payload too large (max 256KB).'], 413);
+        }
+        $data = json_decode($raw, true);
         $scene->setWallsData($data['walls_data'] ?? null);
         $entityManager->flush();
 

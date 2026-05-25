@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
 export default function EditSceneComponent({ scene, onSceneUpdated }) {
     const [name, setName] = useState(scene.name);
@@ -13,7 +14,7 @@ export default function EditSceneComponent({ scene, onSceneUpdated }) {
         try {
             const token = localStorage.getItem('vtt_token');
             const response = await axios.put(
-                `http://127.0.0.1:8000/scene/api/scenes/${scene.id}`,
+                `${API_URL}/scene/api/scenes/${scene.id}`,
                 {
                     name: name,
                     grid_width: parseInt(width, 10),

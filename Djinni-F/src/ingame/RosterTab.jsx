@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import EditCharacterModal from '../pages/EditCharacterModal.jsx';
 import EditMonsterModal from '../pages/EditMonsterModal.jsx';
+import { API_URL } from '../config/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = API_URL;
 
 function authHeaders() {
     const token = localStorage.getItem('vtt_token');
@@ -24,10 +25,31 @@ function usePopoverClose(ref, onClose) {
     }, [onClose, ref]);
 }
 
+// After mount, measure the popover and flip it if it overflows the viewport.
+function useViewportFlip(ref) {
+    useEffect(() => {
+        const node = ref.current;
+        if (!node) return;
+        const r = node.getBoundingClientRect();
+        // Flip up if overflowing bottom of viewport.
+        if (r.bottom > window.innerHeight - 8) {
+            node.style.top = 'auto';
+            node.style.bottom = '100%';
+            node.style.marginBottom = '4px';
+        }
+        // Flip to left edge if overflowing right side.
+        if (r.right > window.innerWidth - 8) {
+            node.style.right = 'auto';
+            node.style.left = '0';
+        }
+    }, [ref]);
+}
+
 const popoverStyle = {
     position: 'absolute', zIndex: 9999, right: 0, top: '100%',
     background: '#1e293b', border: '1px solid #334155', borderRadius: 8,
-    padding: '10px', minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+    padding: '10px', minWidth: 180, maxHeight: '70vh', overflowY: 'auto',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
 };
 const labelStyle = { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', borderRadius: 4 };
 const saveBtn = {
@@ -40,6 +62,7 @@ function VisibilityPopover({ item, members, onSave, onClose }) {
     const [selected, setSelected] = useState(new Set(item.visible_to || []));
     const ref = useRef(null);
     usePopoverClose(ref, onClose);
+    useViewportFlip(ref);
 
     const toggle = (uid) => setSelected(prev => {
         const next = new Set(prev);
@@ -74,6 +97,7 @@ function ControlPopover({ item, members, onSave, onClose }) {
     const [selected, setSelected] = useState(item.controlled_by_id ?? null);
     const ref = useRef(null);
     usePopoverClose(ref, onClose);
+    useViewportFlip(ref);
 
     return (
         <div ref={ref} style={popoverStyle}>

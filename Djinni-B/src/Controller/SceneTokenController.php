@@ -18,7 +18,9 @@ use App\Repository\SceneRepository;
 use App\Repository\SceneTokenRepository;
 use App\Repository\TokenRepository;
 use App\Repository\UserGameSessionRepository;
+use App\Security\SessionAccessChecker;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -44,18 +46,39 @@ class SceneTokenController extends AbstractController
             if ($src) $src->setVision($newVision);
         }
 
-        $siblings = $em->getRepository(SceneToken::class)->findBy([
-            'kind' => $kind,
-            'entity_id' => $entityId,
-        ]);
+        // Select affected sibling ids first so the response carries the list, then do a single UPDATE.
+        $siblings = $em->getRepository(SceneToken::class)->createQueryBuilder('t')
+            ->select('t.id AS id, IDENTITY(t.scene) AS scene_id')
+            ->where('t.kind = :kind')
+            ->andWhere('t.entity_id = :eid')
+            ->andWhere('t.id != :self')
+            ->setParameter('kind', $kind)
+            ->setParameter('eid', $entityId)
+            ->setParameter('self', $token->getId())
+            ->getQuery()
+            ->getArrayResult();
+
+        if (!empty($siblings)) {
+            $em->createQueryBuilder()
+                ->update(SceneToken::class, 't')
+                ->set('t.vision_radius', ':v')
+                ->where('t.kind = :kind')
+                ->andWhere('t.entity_id = :eid')
+                ->andWhere('t.id != :self')
+                ->setParameter('v', $newVision)
+                ->setParameter('kind', $kind)
+                ->setParameter('eid', $entityId)
+                ->setParameter('self', $token->getId())
+                ->getQuery()
+                ->execute();
+        }
+
         $affected = [];
-        foreach ($siblings as $s) {
-            if ($s->getId() === $token->getId()) continue;
-            $s->setVisionRadius($newVision);
+        foreach ($siblings as $row) {
             $affected[] = [
-                'id' => $s->getId(),
-                'scene_id' => $s->getScene()?->getId(),
-                'vision_radius' => $s->getVisionRadius(),
+                'id'            => (int)$row['id'],
+                'scene_id'      => $row['scene_id'] !== null ? (int)$row['scene_id'] : null,
+                'vision_radius' => $newVision,
             ];
         }
         return $affected;
@@ -134,18 +157,20 @@ class SceneTokenController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
 
+        $maxCol = max(0, (int)$scene->getGridWidth()  - 1);
+        $maxRow = max(0, (int)$scene->getGridHeight() - 1);
         $sceneToken = new SceneToken();
         $sceneToken->setScene($scene);
-        $sceneToken->setCol($data['col'] ?? 0);
-        $sceneToken->setRow($data['row'] ?? 0);
+        $sceneToken->setCol(max(0, min($maxCol, (int)($data['col'] ?? 0))));
+        $sceneToken->setRow(max(0, min($maxRow, (int)($data['row'] ?? 0))));
         $sceneToken->setLayer($data['layer'] ?? 'user');
         $sceneToken->setColor($data['color'] ?? 'gray');
         $sceneToken->setName($data['name'] ?? null);
         $sceneToken->setImageUrl($data['image_url'] ?? null);
         $sceneToken->setWidth(isset($data['width']) ? (float)$data['width'] : null);
         $sceneToken->setHeight(isset($data['height']) ? (float)$data['height'] : null);
-        $sceneToken->setX(isset($data['x']) ? (float)$data['x'] : null);
-        $sceneToken->setY(isset($data['y']) ? (float)$data['y'] : null);
+        $sceneToken->setX(isset($data['x']) ? max(0.0, (float)$data['x']) : null);
+        $sceneToken->setY(isset($data['y']) ? max(0.0, (float)$data['y']) : null);
         $sceneToken->setCounters($data['counters'] ?? null);
         $sceneToken->setAuras($data['auras'] ?? null);
         $sceneToken->setKind($data['kind'] ?? null);
@@ -154,7 +179,7 @@ class SceneTokenController extends AbstractController
 
         // Vision: prefer explicit payload, otherwise inherit from source character/monster
         if (array_key_exists('vision_radius', $data) && $data['vision_radius'] !== null && $data['vision_radius'] !== '') {
-            $sceneToken->setVisionRadius((int)$data['vision_radius']);
+            $sceneToken->setVisionRadius(max(0, min(500, (int)$data['vision_radius'])));
         } elseif (in_array($sceneToken->getKind(), ['character', 'monster'], true) && $sceneToken->getEntityId()) {
             if ($sceneToken->getKind() === 'character') {
                 $src = $charRepo->find($sceneToken->getEntityId());
@@ -304,14 +329,17 @@ class SceneTokenController extends AbstractController
             return $this->json(['error' => 'Forbidden'], 403);
         }
 
+        $sceneRef = $sceneToken->getScene();
+        $maxCol = $sceneRef ? max(0, (int)$sceneRef->getGridWidth()  - 1) : 999;
+        $maxRow = $sceneRef ? max(0, (int)$sceneRef->getGridHeight() - 1) : 999;
         if (isset($data['col'])) {
-            $sceneToken->setCol($data['col']);
+            $sceneToken->setCol(max(0, min($maxCol, (int)$data['col'])));
         }
         if (isset($data['row'])) {
-            $sceneToken->setRow($data['row']);
+            $sceneToken->setRow(max(0, min($maxRow, (int)$data['row'])));
         }
-        if (array_key_exists('x', $data)) $sceneToken->setX($data['x'] !== null ? (float)$data['x'] : null);
-        if (array_key_exists('y', $data)) $sceneToken->setY($data['y'] !== null ? (float)$data['y'] : null);
+        if (array_key_exists('x', $data)) $sceneToken->setX($data['x'] !== null ? max(0.0, (float)$data['x']) : null);
+        if (array_key_exists('y', $data)) $sceneToken->setY($data['y'] !== null ? max(0.0, (float)$data['y']) : null);
         if (isset($data['layer']))    $sceneToken->setLayer($data['layer']);
         if (isset($data['width']))    $sceneToken->setWidth((float)$data['width']);
         if (isset($data['height']))   $sceneToken->setHeight((float)$data['height']);
@@ -320,7 +348,7 @@ class SceneTokenController extends AbstractController
         $visionChanged = false;
         if (array_key_exists('vision_radius', $data)) {
             $v = $data['vision_radius'];
-            $sceneToken->setVisionRadius($v === null || $v === '' ? null : (int)$v);
+            $sceneToken->setVisionRadius($v === null || $v === '' ? null : max(0, min(500, (int)$v)));
             $visionChanged = true;
         }
 
@@ -371,7 +399,7 @@ class SceneTokenController extends AbstractController
 
         $data = json_decode($request->getContent(), true);
         $v = $data['vision_radius'] ?? null;
-        $sceneToken->setVisionRadius($v === null || $v === '' ? null : (int)$v);
+        $sceneToken->setVisionRadius($v === null || $v === '' ? null : max(0, min(500, (int)$v)));
         $affectedTokens = $this->syncTokenVisionSiblings($sceneToken, $sceneToken->getVisionRadius(), $em);
         $em->flush();
 
@@ -417,13 +445,31 @@ class SceneTokenController extends AbstractController
 
     #[Route('/{id}', name: 'api_scene_token_delete', methods: ['DELETE'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function deleteSceneToken(int $id, SceneTokenRepository $sceneTokenRepository, EntityManagerInterface $em): JsonResponse
+    public function deleteSceneToken(int $id, SceneTokenRepository $sceneTokenRepository, EntityManagerInterface $em, SessionAccessChecker $access, LoggerInterface $logger): JsonResponse
     {
         $sceneToken = $sceneTokenRepository->find($id);
         if (!$sceneToken) {
             return $this->json(['error' => 'Scene token not found'], 404);
         }
 
+        $currentUser = $this->getUser();
+        $gameSession = $sceneToken->getScene()?->getSessionId();
+        $isDm        = $access->isDm($currentUser, $gameSession);
+        $isOwner     = $sceneToken->getOwner()?->getId() === $currentUser?->getId();
+        if (!$isDm && !$isOwner) {
+            $logger->warning('SceneToken delete forbidden', [
+                'user_id' => $currentUser?->getId(),
+                'token_id' => $id,
+                'session_id' => $gameSession?->getId(),
+            ]);
+            return $this->json(['error' => 'Forbidden'], 403);
+        }
+
+        $logger->info('SceneToken deleted', [
+            'user_id' => $currentUser?->getId(),
+            'token_id' => $id,
+            'session_id' => $gameSession?->getId(),
+        ]);
         $em->remove($sceneToken);
         $em->flush();
 

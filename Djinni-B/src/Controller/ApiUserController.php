@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Security\UploadValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\Exception\FileException;
@@ -43,7 +44,8 @@ class ApiUserController extends AbstractController
         EntityManagerInterface $entityManager,
         UserPasswordHasherInterface $passwordHasher,
         UserRepository $userRepository,
-        SluggerInterface $slugger
+        SluggerInterface $slugger,
+        UploadValidator $uploadValidator
     ): JsonResponse {
         /** @var User $user */
         $user = $this->getUser();
@@ -61,6 +63,13 @@ class ApiUserController extends AbstractController
             return new JsonResponse(['error' => 'Usuario y email son obligatorios'], 400);
         }
 
+        if (mb_strlen($username) > 50) {
+            return new JsonResponse(['error' => 'El nombre de usuario es demasiado largo (máx 50).'], 400);
+        }
+        if (mb_strlen($email) > 180) {
+            return new JsonResponse(['error' => 'El email es demasiado largo (máx 180).'], 400);
+        }
+
         if ($email !== $user->getEmail()) {
             $existing = $userRepository->findOneBy(['email' => $email]);
             if ($existing && $existing->getId() !== $user->getId()) {
@@ -72,13 +81,14 @@ class ApiUserController extends AbstractController
         $user->setEmail($email);
 
         if ($newPassword !== '') {
-            if (strlen($newPassword) < 6) {
-                return new JsonResponse(['error' => 'La contraseña debe tener al menos 6 caracteres'], 400);
+            if (strlen($newPassword) < 12) {
+                return new JsonResponse(['error' => 'La contraseña debe tener al menos 12 caracteres'], 400);
             }
             $user->setPassword($passwordHasher->hashPassword($user, $newPassword));
         }
 
         if ($avatarFile) {
+            $uploadValidator->assertImage($avatarFile);
             $originalFilename = pathinfo($avatarFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $slugger->slug($originalFilename);
             $newFilename = $safeFilename . '-' . uniqid() . '.' . $avatarFile->guessExtension();

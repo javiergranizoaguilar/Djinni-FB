@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { API_URL } from '../config/api';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -20,14 +21,15 @@ export default function LoginPage() {
         setError('');
         setLoading(true);
         try {
-            const response = await axios.post('http://127.0.0.1:8000/api/login_check', {
+            const response = await axios.post(`${API_URL}/api/login_check`, {
                 email: email,
                 password: password
             });
             const token = response.data.token;
-            localStorage.setItem('vtt_token', token);
+            try { localStorage.setItem('vtt_token', token); } catch (e) { console.error('localStorage set vtt_token falló:', e); }
             window.dispatchEvent(new Event('auth-change'));
-            const pendingInvitation = localStorage.getItem('pending_invitation_token');
+            let pendingInvitation = null;
+            try { pendingInvitation = localStorage.getItem('pending_invitation_token'); } catch (e) { console.error('localStorage read failed:', e); }
             if (pendingInvitation) {
                 navigate(`/join/${pendingInvitation}`);
             } else {

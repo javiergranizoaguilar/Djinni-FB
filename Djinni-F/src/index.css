@@ -156,6 +156,47 @@
         border-color: rgba(34,197,94,0.3);
     }
 
+    /* ── Destructive button — canonical palette for delete/remove actions ──
+       Use this class anywhere a "delete / borrar / eliminar" action is exposed,
+       so the red colour, hover, and disabled styling stay consistent. ── */
+    .arcane-btn-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+        color: #fff;
+        padding: 0.6rem 1.25rem;
+        border-radius: 0.5rem;
+        font-weight: 700;
+        font-size: 0.875rem;
+        line-height: 1.5;
+        box-shadow: 0 0 14px rgba(239,68,68,0.28), inset 0 1px 0 rgba(255,255,255,0.12);
+        transition: box-shadow 0.2s ease, transform 0.2s ease, filter 0.2s ease;
+        cursor: pointer;
+        border: none;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .arcane-btn-danger:hover {
+        box-shadow: 0 0 24px rgba(239,68,68,0.5), inset 0 1px 0 rgba(255,255,255,0.18);
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+    }
+    .arcane-btn-danger:active { transform: translateY(0); }
+    .arcane-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; transform: none; pointer-events: none; }
+    /* Subtle ghost variant for inline delete affordances. */
+    .arcane-btn-danger-ghost {
+        background: transparent;
+        color: #fca5a5;
+        padding: 0.4rem 0.75rem;
+        border-radius: 0.4rem;
+        font-size: 0.8rem;
+        border: 1px solid rgba(239,68,68,0.4);
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .arcane-btn-danger-ghost:hover { background: rgba(239,68,68,0.12); color: #fff; }
+    .arcane-btn-danger-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
     /* ── Page background with hex grid ── */
     .page-section {
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50Z' fill='none' stroke='%2322c55e' stroke-opacity='0.035' stroke-width='1'/%3E%3Cpath d='M28 100L0 84L0 50L28 34L56 50L56 84Z' fill='none' stroke='%2322c55e' stroke-opacity='0.035' stroke-width='1'/%3E%3C/svg%3E");

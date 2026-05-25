@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CharacterSheetRepository::class)]
 class CharacterSheet
@@ -257,12 +258,15 @@ class CharacterSheet
     private Collection $spells;
 
     #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 999)]
     private ?int $hp = null;
 
     #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 999)]
     private ?int $max_hp = null;
 
     #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 500)]
     private ?int $vision = null;
 
     #[ORM\Column(nullable: true)]

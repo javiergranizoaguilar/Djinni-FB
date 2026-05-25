@@ -3,8 +3,9 @@ import axios from 'axios';
 import EditCharacterModal from '../pages/EditCharacterModal.jsx';
 import EditMonsterModal from '../pages/EditMonsterModal.jsx';
 import RosterTab from './RosterTab.jsx';
+import { API_URL } from '../config/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = API_URL;
 
 const COLORS = [
     { id: 'red',    hex: '#ef4444' },

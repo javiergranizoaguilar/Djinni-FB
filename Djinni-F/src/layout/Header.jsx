@@ -2,6 +2,7 @@ import {Link, useLocation, useNavigate} from 'react-router-dom';
 import {useEffect, useRef, useState} from 'react';
 import axios from 'axios';
 import CreateGameModal from '../pages/CreateGameModal.jsx';
+import { API_URL } from '../config/api';
 
 export default function Header() {
     const navigate = useNavigate();
@@ -18,12 +19,12 @@ export default function Header() {
         if (token) {
             setIsLoggedIn(true);
             try {
-                const response = await axios.get('http://localhost:8000/api/user/me', {
+                const response = await axios.get(`${API_URL}/api/user/me`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.data && response.data.avatar_url) {
                     const avatarUrl = response.data.avatar_url.startsWith('/uploads')
-                        ? `http://localhost:8000${response.data.avatar_url}`
+                        ? `${API_URL}${response.data.avatar_url}`
                         : response.data.avatar_url;
                     setUserAvatar(avatarUrl);
                 } else {

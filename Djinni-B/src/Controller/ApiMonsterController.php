@@ -7,6 +7,7 @@ use App\Entity\MonsterUser;
 use App\Entity\SceneToken;
 use App\Entity\Spell;
 use App\Entity\User;
+use App\Security\UploadValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -423,19 +424,19 @@ class ApiMonsterController extends AbstractController
 
     #[Route('/{id}/upload-token', name: 'api_monster_upload_token', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function uploadToken(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    public function uploadToken(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, UploadValidator $uploadValidator): JsonResponse
     {
-        return $this->handleImageUpload($id, 'token', $request, $entityManager, $slugger);
+        return $this->handleImageUpload($id, 'token', $request, $entityManager, $slugger, $uploadValidator);
     }
 
     #[Route('/{id}/upload-portrait', name: 'api_monster_upload_portrait', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function uploadPortrait(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    public function uploadPortrait(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, UploadValidator $uploadValidator): JsonResponse
     {
-        return $this->handleImageUpload($id, 'portrait', $request, $entityManager, $slugger);
+        return $this->handleImageUpload($id, 'portrait', $request, $entityManager, $slugger, $uploadValidator);
     }
 
-    private function handleImageUpload(int $id, string $type, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    private function handleImageUpload(int $id, string $type, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, UploadValidator $uploadValidator): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -451,9 +452,7 @@ class ApiMonsterController extends AbstractController
         }
 
         $file = $request->files->get('image');
-        if (!$file) {
-            return $this->json(['error' => 'No image provided'], 400);
-        }
+        $uploadValidator->assertImage($file);
 
         $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/monster_images';
         if (!is_dir($uploadDir)) {

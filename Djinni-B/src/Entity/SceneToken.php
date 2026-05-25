@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\SceneTokenRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: SceneTokenRepository::class)]
 class SceneToken
@@ -30,9 +31,11 @@ class SceneToken
     private ?User $controlledBy = null;
 
     #[ORM\Column]
+    #[Assert\GreaterThanOrEqual(0)]
     private ?int $col = null;
 
     #[ORM\Column]
+    #[Assert\GreaterThanOrEqual(0)]
     private ?int $row = null;
 
     #[ORM\Column(length: 50)]
@@ -161,6 +164,7 @@ class SceneToken
     private ?int $entity_id = null;
 
     #[ORM\Column(nullable: true)]
+    #[Assert\Range(min: 0, max: 500)]
     private ?int $visionRadius = null;
 
     public function getCounters(): ?array { return $this->counters; }

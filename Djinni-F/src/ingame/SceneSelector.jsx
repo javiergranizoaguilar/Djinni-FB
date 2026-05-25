@@ -3,8 +3,9 @@ import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import CreateSceneButton from './CreateSceneButton.jsx';
 import EditSceneComponent from './EditSceneComponent.jsx';
+import { API_URL } from '../config/api';
 
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = API_URL;
 
 export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
     const { id } = useParams();
@@ -83,6 +84,7 @@ export default function SceneSelector({ onSceneSelect, onSceneUpdated }) {
                     top: 'calc(100% + 6px)',
                     left: 0,
                     width: 480,
+                    maxWidth: '90vw',
                     background: '#1e293b',
                     border: '1px solid #334155',
                     borderRadius: 8,

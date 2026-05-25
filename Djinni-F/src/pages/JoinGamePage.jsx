@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
 export default function JoinGamePage() {
     const { token } = useParams();
@@ -28,7 +29,7 @@ export default function JoinGamePage() {
                 setStatus('joining');
                 setMessage('Joining game...');
                 
-                const response = await axios.post(`http://localhost:8000/api/game/sesion/join/${token}`, {}, {
+                const response = await axios.post(`${API_URL}/api/game/sesion/join/${token}`, {}, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`
                     }

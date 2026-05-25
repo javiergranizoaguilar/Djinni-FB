@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import { useObjectUrl } from '../hooks/useObjectUrl';
+import { useDebouncedSave } from '../hooks/useDebouncedSave';
+import { API_URL } from '../config/api';
 
-const API = 'http://localhost:8000';
+const API = API_URL;
 
 const S = {
   overlay: {
@@ -443,8 +446,12 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const [spells, setSpells]         = useState([]);
   const [tokenImage, setTokenImage] = useState(null);
   const [portraitImage, setPortraitImage] = useState(null);
-  const [previewToken, setPreviewToken]   = useState(null);
-  const [previewPortrait, setPreviewPortrait] = useState(null);
+  const [serverTokenUrl, setServerTokenUrl] = useState(null);
+  const [serverPortraitUrl, setServerPortraitUrl] = useState(null);
+  const tokenBlobUrl = useObjectUrl(tokenImage);
+  const portraitBlobUrl = useObjectUrl(portraitImage);
+  const previewToken = tokenBlobUrl || serverTokenUrl;
+  const previewPortrait = portraitBlobUrl || serverPortraitUrl;
   const [error, setError]   = useState(null);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
@@ -482,7 +489,6 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const canSend = () => (sendMode === 'gm' ? typeof onSendMessageGm === 'function' : typeof onSendMessage === 'function');
 
   const [autosaveStatus, setAutosaveStatus] = useState('idle');
-  const autosaveTimerRef  = useRef(null);
   const autosaveClearRef  = useRef(null);
   const skipNextAutoSaveRef = useRef(true);
   const dirtyAfterAutoSaveRef = useRef(false);
@@ -566,12 +572,44 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     setInventory(character.inventory || []);
     setSpells(character.spells || []);
     const mkUrl = p => p?.startsWith('/uploads') ? `${API}${p}` : p;
-    setPreviewToken(character.token_image ? mkUrl(character.token_image) : null);
-    setPreviewPortrait(character.portrait_image ? mkUrl(character.portrait_image) : null);
+    setServerTokenUrl(character.token_image ? mkUrl(character.token_image) : null);
+    setServerPortraitUrl(character.portrait_image ? mkUrl(character.portrait_image) : null);
     setTokenImage(null); setPortraitImage(null); setError(null);
     skipNextAutoSaveRef.current = true;
     setAutosaveStatus('idle');
   }, [character, isOpen]);
+
+  const { schedule: scheduleAutoSave, flush: flushAutoSave } = useDebouncedSave(async (data, { signal }) => {
+    if (!character) return;
+    let token = null;
+    try { token = localStorage.getItem('vtt_token'); } catch (e) { console.error('localStorage read failed:', e); }
+    const fd = new FormData();
+    Object.keys(data).forEach(key => {
+      if (typeof data[key] === 'object') fd.append(key, JSON.stringify(data[key]));
+      else if (typeof data[key] === 'boolean') fd.append(key, data[key] ? '1' : '0');
+      else fd.append(key, data[key]);
+    });
+    setAutosaveStatus('saving');
+    try {
+      const response = await axios.post(`${API}/api/character/edit/${character.id}`, fd, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
+        signal,
+      });
+      if (response.status === 200) {
+        dirtyAfterAutoSaveRef.current = true;
+        latestFormDataRef.current = data;
+        setAutosaveStatus('saved');
+        if (autosaveClearRef.current) clearTimeout(autosaveClearRef.current);
+        autosaveClearRef.current = setTimeout(() => setAutosaveStatus('idle'), 2000);
+      } else {
+        setAutosaveStatus('idle');
+      }
+    } catch (err) {
+      if (axios.isCancel(err) || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+      console.error('Autosave error:', err);
+      setAutosaveStatus('idle');
+    }
+  }, 1500);
 
   useEffect(() => {
     if (skipNextAutoSaveRef.current) {
@@ -579,39 +617,11 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       return;
     }
     if (!character || saving) return;
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(async () => {
-      const token = localStorage.getItem('vtt_token');
-      const data = new FormData();
-      Object.keys(formData).forEach(key => {
-        if (typeof formData[key] === 'object') data.append(key, JSON.stringify(formData[key]));
-        else if (typeof formData[key] === 'boolean') data.append(key, formData[key] ? '1' : '0');
-        else data.append(key, formData[key]);
-      });
-      setAutosaveStatus('saving');
-      try {
-        const response = await axios.post(`${API}/api/character/edit/${character.id}`, data, {
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-        });
-        if (response.status === 200) {
-          dirtyAfterAutoSaveRef.current = true;
-          latestFormDataRef.current = formData;
-          setAutosaveStatus('saved');
-          if (autosaveClearRef.current) clearTimeout(autosaveClearRef.current);
-          autosaveClearRef.current = setTimeout(() => setAutosaveStatus('idle'), 2000);
-        } else {
-          setAutosaveStatus('idle');
-        }
-      } catch {
-        setAutosaveStatus('idle');
-      }
-    }, 1500);
-    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    scheduleAutoSave(formData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData]);
 
   useEffect(() => () => {
-    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     if (autosaveClearRef.current) clearTimeout(autosaveClearRef.current);
   }, []);
 
@@ -655,7 +665,9 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     if (!isOpen) { setRollMode('normal'); setSendMode('all'); setZoom(1.0); }
   }, [isOpen]);
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    // Flush any pending autosave debounce so unsaved typing doesn't get lost on close.
+    await flushAutoSave();
     if (dirtyAfterAutoSaveRef.current && character && latestFormDataRef.current) {
       onCharacterUpdated({ ...character, ...latestFormDataRef.current });
       dirtyAfterAutoSaveRef.current = false;
@@ -692,8 +704,8 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
   const handleImageChange = (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (type==='token') { setTokenImage(file); setPreviewToken(URL.createObjectURL(file)); }
-    else { setPortraitImage(file); setPreviewPortrait(URL.createObjectURL(file)); }
+    if (type==='token') { setTokenImage(file); }
+    else { setPortraitImage(file); }
   };
 
   const handleSubmit = async (e) => {
@@ -890,14 +902,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       const res = await axios.post(`${API}/api/character/${character.id}/attack/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
       setAttacks(p => [...p, { ...blank, id: res.data.id }]);
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleDeleteAttack = async (id) => {
     const token = localStorage.getItem('vtt_token');
     try {
       await axios.delete(`${API}/api/character/${character.id}/attack/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setAttacks(p => p.filter(a => a.id !== id));
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleSaveAttack = async (id) => {
     const token = localStorage.getItem('vtt_token');
@@ -926,7 +938,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         ? { ...a, ...payload }
         : a));
       setEditingAttackId(null);
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleAddAbility = async () => {
     const token = localStorage.getItem('vtt_token');
@@ -935,14 +947,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         { headers: { Authorization: `Bearer ${token}` } });
       setAbilities(p => [...p, res.data || { ...newAbility, id: Date.now() }]);
       setNewAbility({ name:'', description:'', source_tipe:'Raza' });
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleDeleteAbility = async (id) => {
     const token = localStorage.getItem('vtt_token');
     try {
       await axios.delete(`${API}/api/character/${character.id}/ability/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setAbilities(p => p.filter(a => a.id !== id));
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleAddItem = async () => {
     const token = localStorage.getItem('vtt_token');
@@ -951,14 +963,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         { headers: { Authorization: `Bearer ${token}` } });
       setInventory(p => [...p, res.data || { ...newItem, id: Date.now() }]);
       setNewItem({ item_name:'', quantity:1, is_equipped:false });
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleDeleteItem = async (id) => {
     const token = localStorage.getItem('vtt_token');
     try {
       await axios.delete(`${API}/api/character/${character.id}/inventory/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setInventory(p => p.filter(i => i.id !== id));
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleAddSpell = async (level = 0) => {
     const token = localStorage.getItem('vtt_token');
@@ -967,7 +979,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       const res = await axios.post(`${API}/api/character/${character.id}/spell/create`, blank,
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => [...p, { ...blank, id: res.data.id }]);
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
 
   const updateSpellSlot = (lvl, field, rawVal) => {
@@ -982,7 +994,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
     try {
       await axios.delete(`${API}/api/character/${character.id}/spell/delete/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.filter(s => s.id !== id));
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
   const handleSaveSpell = async (id) => {
     const token = localStorage.getItem('vtt_token');
@@ -992,7 +1004,7 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
         { headers: { Authorization: `Bearer ${token}` } });
       setSpells(p => p.map(s => s.id === id ? { ...s, ...editSpell } : s));
       setEditingSpellId(null);
-    } catch { /* ignore */ }
+    } catch (err) { console.error(err); }
   };
 
   const totalLevel = formData.level.reduce((s, l) => s + (parseInt(l.level)||0), 0);
@@ -1018,9 +1030,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       ny = Math.max(0, Math.min(window.innerHeight - 40, ny));
       setPos({ x: nx, y: ny });
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
   };
 
   const handleResizeStart = (e, dir) => {
@@ -1037,9 +1054,14 @@ export default function EditCharacterModal({ isOpen, onClose, character, onChara
       if (dir.includes('n')) { nh = Math.min(MAX_H, Math.max(MIN_H, sh - dy)); ny = st + sh - nh; }
       setPos({ x: nx, y: ny }); setSize({ w: nw, h: nh });
     };
-    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      window.removeEventListener('blur', onUp);
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+    window.addEventListener('blur', onUp);
   };
 
   const rh = (dir) => {

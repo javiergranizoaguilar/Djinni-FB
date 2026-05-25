@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { useObjectUrl } from '../hooks/useObjectUrl';
+import { API_URL } from '../config/api';
 
 export default function RegisterPage() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [avatar, setAvatar] = useState(null);
-    const [previewAvatar, setPreviewAvatar] = useState(null);
+    const previewAvatar = useObjectUrl(avatar);
+    const [avatarStatus, setAvatarStatus] = useState(null); // null | 'selected'
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
@@ -16,7 +19,7 @@ export default function RegisterPage() {
         const file = e.target.files[0];
         if (file) {
             setAvatar(file);
-            setPreviewAvatar(URL.createObjectURL(file));
+            setAvatarStatus('selected');
         }
     };
 
@@ -30,7 +33,7 @@ export default function RegisterPage() {
         formData.append('password', password);
         if (avatar) { formData.append('avatar', avatar); }
         try {
-            await axios.post('http://127.0.0.1:8000/api/register', formData, {
+            await axios.post(`${API_URL}/api/register`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             navigate('/login');
@@ -97,9 +100,13 @@ export default function RegisterPage() {
                                     onChange={handleAvatarChange}
                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                     title="Subir avatar"
+                                    aria-describedby="avatar-status"
                                 />
                             </div>
                         </div>
+                        <p id="avatar-status" className="text-center text-xs text-text-lo -mt-1">
+                            {avatarStatus === 'selected' ? `Avatar listo: ${avatar?.name ?? 'archivo seleccionado'}` : 'Avatar opcional (haz click en el círculo)'}
+                        </p>
 
                         <div>
                             <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre de Héroe</label>

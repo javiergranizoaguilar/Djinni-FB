@@ -311,6 +311,14 @@ class RosterController extends AbstractController
         $userId = $data['user_id'] ?? null;
         $user   = $userId ? $userRepo->find((int)$userId) : null;
 
+        // Reject assigning control to a user who isn't a member of the session.
+        if ($user) {
+            $isMember = $ugsRepo->findOneBy(['user' => $user, 'gameSession' => $session]);
+            if (!$isMember) {
+                return $this->json(['error' => 'User is not a member of this session'], 400);
+            }
+        }
+
         $item->setControlledByUser($user);
 
         // If assigning control, also grant visibility (controller must see the item)

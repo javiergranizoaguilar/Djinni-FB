@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EditCharacterModal from './EditCharacterModal.jsx';
 import { Toast, useToast } from '../components/Toast.jsx';
+import Modal from '../components/Modal.jsx';
+import { API_URL } from '../config/api';
 
 export default function CharacterList() {
     const [characters, setCharacters] = useState([]);
@@ -18,7 +20,7 @@ export default function CharacterList() {
         const token = localStorage.getItem('vtt_token');
         if (!token) { setError('No estás autenticado.'); setLoading(false); return; }
         try {
-            const response = await axios.get('http://localhost:8000/api/character/my-characters', {
+            const response = await axios.get(`${API_URL}/api/character/my-characters`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             setCharacters(response.data);
@@ -35,7 +37,7 @@ export default function CharacterList() {
         e.preventDefault();
         const token = localStorage.getItem('vtt_token');
         try {
-            await axios.post('http://localhost:8000/api/character/create', { name: newCharacterName }, {
+            await axios.post(`${API_URL}/api/character/create`, { name: newCharacterName }, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             setShowCreateModal(false);
@@ -56,7 +58,7 @@ export default function CharacterList() {
         if (!window.confirm('¿Estás seguro de que quieres eliminar este personaje? Esta acción no se puede deshacer.')) return;
         const token = localStorage.getItem('vtt_token');
         try {
-            await axios.delete(`http://localhost:8000/api/character/delete/${characterId}`, {
+            await axios.delete(`${API_URL}/api/character/delete/${characterId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             showToast('Personaje eliminado', 'ok');
@@ -151,7 +153,7 @@ export default function CharacterList() {
                             <div className="h-48 bg-gradient-to-br from-primary/8 via-surface to-surface-base flex items-center justify-center relative overflow-hidden">
                                 {char.token_image ? (
                                     <img
-                                        src={char.token_image.startsWith('/uploads') ? `http://localhost:8000${char.token_image}` : char.token_image}
+                                        src={char.token_image.startsWith('/uploads') ? `${API_URL}${char.token_image}` : char.token_image}
                                         alt={char.name}
                                         loading="lazy"
                                         className="w-full h-full object-cover"
@@ -177,7 +179,7 @@ export default function CharacterList() {
                                             </span>
                                         ))
                                     ) : (
-                                        <span className="text-gray-400 dark:text-text-lo italic">Sin Clase</span>
+                                        <span className="text-gray-300 dark:text-text-lo italic">Sin Clase</span>
                                     )}
                                 </div>
 
@@ -224,34 +226,39 @@ export default function CharacterList() {
             )}
 
             {/* Modal de Creación */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
-                    <div className="arcane-modal p-6 w-full max-w-md max-h-[92vh] overflow-y-auto">
-                        <h2 className="font-heading text-xl text-text-hi tracking-widest mb-5">Nuevo Personaje</h2>
-                        <form onSubmit={handleCreateCharacter}>
-                            <div className="mb-5">
-                                <label className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre</label>
-                                <input
-                                    type="text"
-                                    value={newCharacterName}
-                                    onChange={(e) => setNewCharacterName(e.target.value)}
-                                    className="arcane-input"
-                                    required
-                                    autoFocus
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowCreateModal(false)} className="arcane-btn-ghost">
-                                    Cancelar
-                                </button>
-                                <button type="submit" className="arcane-btn">
-                                    Crear
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+            <Modal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                ariaLabelledBy="create-char-title"
+                containerClassName="z-[60] animate-fade-in"
+            >
+                <div className="arcane-modal p-6 w-full max-w-md max-h-[92vh] overflow-y-auto">
+                    <h2 id="create-char-title" className="font-heading text-xl text-text-hi tracking-widest mb-5">Nuevo Personaje</h2>
+                    <form onSubmit={handleCreateCharacter}>
+                        <div className="mb-5">
+                            <label htmlFor="new-char-name" className="block text-[11px] font-semibold tracking-widest uppercase text-text-lo mb-2">Nombre</label>
+                            <input
+                                id="new-char-name"
+                                type="text"
+                                value={newCharacterName}
+                                onChange={(e) => setNewCharacterName(e.target.value)}
+                                className="arcane-input focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-primary"
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button type="button" onClick={() => setShowCreateModal(false)} className="arcane-btn-ghost">
+                                Cancelar
+                            </button>
+                            <button type="submit" className="arcane-btn">
+                                Crear
+                            </button>
+                        </div>
+                    </form>
                 </div>
-            )}
+            </Modal>
+
 
             <EditCharacterModal
                 isOpen={showEditModal}

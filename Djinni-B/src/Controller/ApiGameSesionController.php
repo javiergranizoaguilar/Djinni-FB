@@ -6,6 +6,7 @@ use App\Entity\GameSesion;
 use App\Entity\Scene;
 use App\Entity\User;
 use App\Entity\UserGameSession;
+use App\Security\UploadValidator;
 use App\Repository\CharacterSheetRepository;
 use App\Repository\MonsterRepository;
 use App\Repository\SceneRepository;
@@ -234,7 +235,7 @@ class ApiGameSesionController extends AbstractController
 
     #[Route('/edit/{id}', name: 'api_game_sesion_edit', methods: ['POST'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function edit(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger): JsonResponse
+    public function edit(int $id, Request $request, EntityManagerInterface $entityManager, SluggerInterface $slugger, UploadValidator $uploadValidator): JsonResponse
     {
         /** @var User $user */
         $user = $this->getUser();
@@ -272,6 +273,7 @@ class ApiGameSesionController extends AbstractController
         }
 
         if ($imageFile) {
+            $uploadValidator->assertImage($imageFile);
             $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = $slugger->slug($originalFilename);
             $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();

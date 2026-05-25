@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import { API_URL } from '../config/api';
 
-const API = 'http://localhost:8000';
+const API = API_URL;
 
 const SIZES = ['Tiny','Small','Medium','Large','Huge','Gargantuan'];
 const TYPES = ['Aberration','Beast','Celestial','Construct','Dragon','Elemental','Fey','Fiend','Giant','Humanoid','Monstrosity','Ooze','Plant','Undead'];
@@ -536,13 +537,18 @@ export default function EditMonsterModal({ isOpen, onClose, monster, onMonsterUp
       const mkUrl = p => p?.startsWith('/uploads') ? `${API}${p}` : p;
       if (res.data.image_url) setPreviewToken(mkUrl(res.data.image_url));
       if (res.data.portrait_url) setPreviewPortrait(mkUrl(res.data.portrait_url));
+      // Server URL took over; release the temporary blob to avoid memory leak.
+      URL.revokeObjectURL(previewUrl);
       onMonsterUpdated?.({
         ...monster,
         image_url: res.data.image_url ?? monster.image_url,
         portrait_url: res.data.portrait_url ?? monster.portrait_url,
       });
-    } catch {
+    } catch (err) {
+      console.error('Error subiendo imagen monster:', err);
       setError('Error al subir la imagen.');
+      // Revoke the blob URL on failure too — preview reverts via the next setPreviewToken/Portrait call or stays unused.
+      URL.revokeObjectURL(previewUrl);
     } finally {
       if (type === 'token') setUploadingToken(false); else setUploadingPortrait(false);
     }

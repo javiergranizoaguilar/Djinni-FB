@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useObjectUrl } from '../hooks/useObjectUrl';
+import { API_URL } from '../config/api';
 
 export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) {
     const [title, setTitle] = useState('');
     const [isActive, setIsActive] = useState(true);
     const [image, setImage] = useState(null);
-    const [previewImage, setPreviewImage] = useState(null);
+    const [serverImage, setServerImage] = useState(null);
+    const blobUrl = useObjectUrl(image);
+    const previewImage = blobUrl || serverImage;
     const [error, setError] = useState(null);
     const [saving, setSaving] = useState(false);
 
@@ -20,12 +24,12 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
             setIsActive(game.is_active);
             
             if (game.img_path) {
-                const imgUrl = game.img_path.startsWith('/uploads') 
-                    ? `http://localhost:8000${game.img_path}` 
+                const imgUrl = game.img_path.startsWith('/uploads')
+                    ? `${API_URL}${game.img_path}`
                     : game.img_path;
-                setPreviewImage(imgUrl);
+                setServerImage(imgUrl);
             } else {
-                setPreviewImage(null);
+                setServerImage(null);
             }
             setImage(null); // Resetear imagen seleccionada
             setError(null);
@@ -38,7 +42,6 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
         const file = e.target.files[0];
         if (file) {
             setImage(file);
-            setPreviewImage(URL.createObjectURL(file));
         }
     };
 
@@ -56,7 +59,7 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
         }
 
         try {
-            const response = await axios.post(`http://localhost:8000/api/game/sesion/edit/${game.id}`, formData, {
+            const response = await axios.post(`${API_URL}/api/game/sesion/edit/${game.id}`, formData, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data'
@@ -122,7 +125,7 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
                                 {previewImage ? (
                                     <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                    <div className="w-full h-full flex items-center justify-center text-gray-300">
                                         <span className="material-symbols-outlined">image</span>
                                     </div>
                                 )}
@@ -131,7 +134,7 @@ export default function EditGameModal({ isOpen, onClose, game, onGameUpdated }) 
                                 type="file"
                                 accept="image/*"
                                 onChange={handleImageChange}
-                                className="block w-full text-sm text-gray-500 dark:text-gray-400
+                                className="block w-full text-sm text-gray-500 dark:text-gray-300
                                     file:mr-4 file:py-2 file:px-4
                                     file:rounded-full file:border-0
                                     file:text-sm file:font-semibold

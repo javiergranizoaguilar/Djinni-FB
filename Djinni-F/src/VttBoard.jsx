@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, us
 import { computeLoS } from './los.js';
 import { Stage, Layer, Circle, Rect, Text, Group, Image as KonvaImage, Transformer, Line, Arrow } from 'react-konva';
 import Konva from 'konva';
+import { API_URL } from './config/api';
 
 // Konva 10 registers `mouseup` on window (useCapture=true) at module load to end
 // drags. It does NOT filter by mouse button, so a right-button release while
@@ -27,7 +28,7 @@ import ChatTab from './ingame/ChatTab.jsx';
 import EditCharacterModal from './pages/EditCharacterModal.jsx';
 import EditMonsterModal from './pages/EditMonsterModal.jsx';
 
-const API    = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = API_URL;
 const WS_URL = import.meta.env.VITE_WS_URL  || 'ws://localhost:8081';
 const HEADER_H  = 0;
 const TOOLBAR_H = 44;
@@ -63,7 +64,8 @@ function useMediaQuery(query) {
 }
 
 function authHeaders() {
-    const token = localStorage.getItem('vtt_token');
+    let token = null;
+    try { token = localStorage.getItem('vtt_token'); } catch (e) { console.error('localStorage read failed:', e); }
     return { Authorization: `Bearer ${token}` };
 }
 
@@ -760,7 +762,9 @@ export default function VttBoard() {
 
             ws.onopen = () => {
                 attempts = 0;
-                ws.send(JSON.stringify({ type: 'auth', token: localStorage.getItem('vtt_token'), gameId: Number(gameId) }));
+                let tok = null;
+                try { tok = localStorage.getItem('vtt_token'); } catch (e) { console.error('localStorage read failed:', e); }
+                ws.send(JSON.stringify({ type: 'auth', token: tok, gameId: Number(gameId) }));
             };
 
             ws.onmessage = (e) => {
@@ -797,6 +801,11 @@ export default function VttBoard() {
                             });
                         });
                     } else if (msg.type === 'scene_token_deleted') {
+                        // Cancel any in-flight RAF animation tied to the deleted token to avoid touching a vanished node.
+                        const pending = pendingAnimations.current[msg.tokenId];
+                        if (pending?.raf) cancelAnimationFrame(pending.raf);
+                        delete pendingAnimations.current[msg.tokenId];
+                        delete pendingPositions.current[msg.tokenId];
                         setSceneItems(prev => prev.filter(i => i.id !== msg.tokenId));
                     } else if (msg.type === 'scene_image_moved') {
                         setSceneImages(prev => prev.map(i => i.id === msg.imageId ? { ...i, x: msg.x, y: msg.y } : i));
@@ -884,7 +893,7 @@ export default function VttBoard() {
                             pendingAnimations.current[tokenId].raf = requestAnimationFrame(animate);
                         }
                     }
-                } catch { /* ignore */ }
+                } catch (err) { console.error('VTT WS onmessage parse error:', err); }
             };
 
             ws.onerror = () => {};
@@ -1498,7 +1507,10 @@ export default function VttBoard() {
             const updatedTok = { ...tok, counters: newCounters };
             axios.put(`${API}/api/scene-token/${tok.id}`, { counters: newCounters }, { headers: authHeaders() })
                 .then(() => sendTokenEvent('scene_token_updated', { token: updatedTok, sceneId: sceneIdRef.current }))
-                .catch(() => {});
+                .catch((err) => {
+                    console.error('syncLinkedCounters PUT falló:', err);
+                    try { window.dispatchEvent(new CustomEvent('vtt-toast', { detail: { kind: 'err', msg: 'No se pudo sincronizar el contador.' } })); } catch { /* noop */ }
+                });
             return { ...tok, counters: newCounters };
         }));
     };
@@ -2023,9 +2035,11 @@ const saveCounters = async (tokenId, counters) => {
                         const onUp = () => {
                             window.removeEventListener('mousemove', onMove);
                             window.removeEventListener('mouseup', onUp);
+                            window.removeEventListener('blur', onUp);
                         };
                         window.addEventListener('mousemove', onMove);
                         window.addEventListener('mouseup', onUp);
+                        window.addEventListener('blur', onUp); // safety net: tab/window loses focus mid-drag
                     }}
                     onClick={e => e.stopPropagation()}
                     style={{
@@ -2267,9 +2281,11 @@ const saveCounters = async (tokenId, counters) => {
                             const onUp = () => {
                                 window.removeEventListener('mousemove', onMove);
                                 window.removeEventListener('mouseup', onUp);
+                                window.removeEventListener('blur', onUp);
                             };
                             window.addEventListener('mousemove', onMove);
                             window.addEventListener('mouseup', onUp);
+                            window.addEventListener('blur', onUp);
                         }}
                         style={{
                             position: 'absolute', top: 0, right: 0, width: 6, bottom: 0,

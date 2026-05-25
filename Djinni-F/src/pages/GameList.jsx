@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import EditGameModal from './EditGameModal.jsx';
 import CreateGameModal from './CreateGameModal.jsx';
 import { Toast, useToast } from '../components/Toast.jsx';
+import { API_URL } from '../config/api';
 
 export default function GameList() {
     const [games, setGames] = useState([]);
@@ -26,7 +27,7 @@ export default function GameList() {
         }
 
         try {
-            const response = await axios.get('http://localhost:8000/api/game/sesion/my-games', {
+            const response = await axios.get(`${API_URL}/api/game/sesion/my-games`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             setGames(response.data);
@@ -64,7 +65,7 @@ export default function GameList() {
         if (!window.confirm('¿Estás seguro de que quieres borrar esta partida? Esta acción no se puede deshacer.')) return;
         const token = localStorage.getItem('vtt_token');
         try {
-            await axios.delete(`http://localhost:8000/api/game/sesion/delete/${gameId}`, {
+            await axios.delete(`${API_URL}/api/game/sesion/delete/${gameId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             showToast('Partida eliminada', 'ok');
@@ -159,7 +160,7 @@ export default function GameList() {
                             <div className="h-32 bg-gradient-to-br from-primary/10 via-surface to-surface-base flex items-center justify-center relative overflow-hidden">
                                 {game.img_path ? (
                                     <img
-                                        src={game.img_path.startsWith('/uploads') ? `http://localhost:8000${game.img_path}` : game.img_path}
+                                        src={game.img_path.startsWith('/uploads') ? `${API_URL}${game.img_path}` : game.img_path}
                                         alt={game.title}
                                         loading="lazy"
                                         className="w-full h-full object-cover"
