@@ -19,6 +19,7 @@ RUN apk add --no-cache \
         opcache \
         sockets \
         bcmath \
+        pcntl \
     && pecl install apcu \
     && docker-php-ext-enable apcu \
     && apk del $PHPIZE_DEPS

@@ -37,14 +37,24 @@ class LoadDemoCommand extends Command
     {
         $existing = $this->em->getRepository(User::class)->findOneBy(['email' => 'dm@djinni.local']);
         if ($existing !== null) {
-            $output->writeln('[demo] datos ya cargados, nada que hacer');
+            // Ensure demo DM always has ROLE_ADMIN (idempotent patch).
+            if (!in_array('ROLE_ADMIN', $existing->getRoles(), true)) {
+                $roles = array_values(array_filter($existing->getRoles(), fn ($r) => $r !== 'ROLE_USER'));
+                $roles[] = 'ROLE_ADMIN';
+                $existing->setRoles($roles);
+                $this->em->flush();
+                $output->writeln('[demo] ROLE_ADMIN añadido a dm_demo');
+            } else {
+                $output->writeln('[demo] datos ya cargados, nada que hacer');
+            }
             return Command::SUCCESS;
         }
 
         $dm = (new User())
             ->setUsername('dm_demo')
             ->setEmail('dm@djinni.local')
-            ->setDatetime(new \DateTimeImmutable());
+            ->setDatetime(new \DateTimeImmutable())
+            ->setRoles(['ROLE_ADMIN']);
         $dm->setPassword($this->hasher->hashPassword($dm, 'DungeonMaster1!'));
 
         $player = (new User())
