@@ -3,7 +3,7 @@
  * local Symfony dev server. Importing this constant avoids the hard-coded
  * `http://localhost:8000` literal that used to be scattered across components.
  */
-export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8080';
 
 /**
  * Central WebSocket URL for the Workerman chat server.

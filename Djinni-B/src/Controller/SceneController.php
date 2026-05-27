@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Scene;
 use App\Repository\GameSesionRepository;
+use App\Repository\SceneImageRepository;
 use App\Repository\SceneRepository;
 use App\Repository\UserGameSessionRepository;
 use App\Security\SessionAccessChecker;
@@ -112,7 +113,7 @@ final class SceneController extends AbstractController
      */
     #[Route('/api/game/{gameId}/scenes', name: 'api_get_scenes_for_game', methods: ['GET'])]
     #[IsGranted('IS_AUTHENTICATED_FULLY')]
-    public function getScenesForGame(int $gameId, SceneRepository $sceneRepository): JsonResponse
+    public function getScenesForGame(int $gameId, SceneRepository $sceneRepository, SceneImageRepository $sceneImageRepository): JsonResponse
     {
         $scenes = $sceneRepository->findBy(['session_id' => $gameId]);
 
@@ -120,7 +121,9 @@ final class SceneController extends AbstractController
             return $this->json(['error' => 'No scenes found for this game session.'], 404);
         }
 
-        $scenesData = array_map(function (Scene $scene) {
+        $scenesData = array_map(function (Scene $scene) use ($sceneImageRepository) {
+            $bgImage = $sceneImageRepository->findOneBy(['scene' => $scene, 'layer' => 'background']);
+
             return [
                 'id' => $scene->getId(),
                 'name' => $scene->getName(),
@@ -128,10 +131,30 @@ final class SceneController extends AbstractController
                 'grid_height' => $scene->getGridHeight(),
                 'fog_data' => $scene->getFogData(),
                 'walls_data' => $scene->getWallsData(),
+                'background_image_url' => $bgImage?->getImageUrl(),
             ];
         }, $scenes);
 
         return $this->json($scenesData);
+    }
+
+    /**
+     * API endpoint to delete a scene. DM only.
+     */
+    #[Route('/api/scenes/{id}', name: 'api_delete_scene', methods: ['DELETE'])]
+    #[IsGranted('IS_AUTHENTICATED_FULLY')]
+    public function deleteScene(int $id, SceneRepository $sceneRepository, EntityManagerInterface $entityManager, SessionAccessChecker $access): JsonResponse
+    {
+        $scene = $sceneRepository->find($id);
+        if (!$scene) {
+            return $this->json(['error' => 'Scene not found.'], 404);
+        }
+        $access->assertDm($this->getUser(), $scene->getSessionId());
+
+        $entityManager->remove($scene);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'Scene deleted.']);
     }
 
     /**
